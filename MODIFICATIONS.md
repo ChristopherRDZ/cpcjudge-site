@@ -18,7 +18,6 @@ GNU Affero General Public License version 3.
 - Authentication using either a username or an email address.
 - A signed-in custom code testing workflow and its judge bridge support.
 - Minor registration and presentation adjustments.
-- A permanent source-code offer in the site footer.
 
 Git history and file-level diffs are the authoritative record of the exact
 changes. The complete corresponding source is available without charge at
