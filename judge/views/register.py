@@ -22,6 +22,8 @@ class CustomRegistrationForm(RegistrationForm):
     username = forms.RegexField(regex=r'^\w+$', max_length=30, label=_('Username'),
                                 error_messages={'invalid': _('A username must contain letters, '
                                                              'numbers, or underscores.')})
+    first_name = forms.CharField(max_length=50, label=_('Nombre'))
+    last_name = forms.CharField(max_length=50, label=_('Apellidos'))
     timezone = ChoiceField(label=_('Timezone'), choices=TIMEZONE,
                            widget=Select2Widget(attrs={'style': 'width:100%'}))
     language = ModelChoiceField(queryset=Language.objects.all(), label=_('Preferred language'), empty_label=None,
@@ -68,18 +70,25 @@ class RegistrationView(OldRegistrationView):
 
     def register(self, form):
         user = super(RegistrationView, self).register(form)
+
+        # Aqui asignamos first_name y last_name del formulario al usuario
+        cleaned_data = form.cleaned_data
+        user.first_name = cleaned_data['first_name']
+        user.last_name = cleaned_data['last_name']
+        user.save()  # con esto se guardan
+
         profile, _ = Profile.objects.get_or_create(user=user, defaults={
             'language': Language.get_default_language(),
         })
 
-        cleaned_data = form.cleaned_data
         profile.timezone = cleaned_data['timezone']
         profile.language = cleaned_data['language']
         profile.organizations.add(*cleaned_data['organizations'])
         profile.save()
 
-        if newsletter_id is not None and cleaned_data['newsletter']:
+        if newsletter_id is not None and cleaned_data.get('newsletter'):
             Subscription(user=user, newsletter_id=newsletter_id, subscribed=True).save()
+
         return user
 
     def get_initial(self, *args, **kwargs):

@@ -1,0 +1,377 @@
+{% extends "base.html" %}
+
+{% block media %}
+<style>
+    #custom-test-container {
+        display: flex;
+        flex-direction: row;
+        gap: 20px;
+        margin-top: 20px;
+        height: 600px;
+        min-height: 500px;
+    }
+
+    #editor-section {
+        flex: 3;
+        display: flex;
+        flex-direction: column;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        overflow: hidden;
+        min-height: 400px;
+    }
+
+    #ace-editor-container {
+        flex: 1;
+        width: 100%;
+        min-height: 350px;
+    }
+
+    #control-section {
+        flex: 2;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .panel-box {
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        background: #fdfdfd;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .panel-box h3 {
+        margin: 0;
+        font-size: 15px;
+        color: #333;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 6px;
+    }
+
+    .custom-textarea {
+        width: 100%;
+        height: 100px;
+        font-family: monospace;
+        font-size: 13px;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        resize: vertical;
+        box-sizing: border-box;
+    }
+
+    #console-output {
+        font-family: 'Consolas', 'Courier New', monospace;
+        background-color: #1e1e1e;
+        color: #d4d4d4;
+        padding: 12px;
+        border-radius: 4px;
+        height: 200px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        font-size: 12px;
+        flex-grow: 1;
+        border: 1px solid #111;
+    }
+
+    .btn-run {
+        background-color: #007bff;
+        color: white;
+        padding: 10px 18px;
+        border: none;
+        border-radius: 4px;
+        font-size: 14px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        align-self: flex-start;
+    }
+
+    .btn-run:hover {
+        background-color: #0056b3;
+    }
+
+    .btn-run:disabled {
+        background-color: #6c757d;
+        cursor: not-allowed;
+    }
+
+    .stat-badge {
+        display: inline-block;
+        padding: 3px 6px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: bold;
+        color: white;
+    }
+
+    .stat-ac { background-color: #28a745; }
+    .stat-wa { background-color: #dc3545; }
+    .stat-tle { background-color: #ffc107; color: #212529; }
+    .stat-mle { background-color: #ffc107; color: #212529; }
+    .stat-rte { background-color: #17a2b8; }
+    .stat-ce { background-color: #6c757d; }
+    .stat-ie { background-color: #343a40; }
+
+    #language-select-box {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 10px;
+        padding: 10px;
+        background: #f5f5f5;
+        border-bottom: 1px solid #ccc;
+    }
+
+    #id_language {
+        padding: 6px;
+        font-size: 13px;
+        border-radius: 4px;
+        border: 1px solid #ccc;
+        color: #333;
+        background-color: #fff;
+    }
+
+    .custom-test-subtitle {
+        font-size: 13px;
+        margin-bottom: 20px;
+        opacity: 0.8;
+    }
+
+    @media (max-width: 768px) {
+        #custom-test-container {
+            flex-direction: column;
+            height: auto;
+        }
+        #editor-section {
+            min-height: 350px;
+        }
+        #ace-editor-container {
+            min-height: 300px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block js_media %}
+<script type="text/javascript" src="{{ ACE_URL }}/ace.js"></script>
+<script type="text/javascript">
+    $(function() {
+        var editor = ace.edit("ace-editor-container");
+        editor.setTheme("ace/theme/{{ ace_theme }}");
+        editor.getSession().setUseWrapMode(true);
+        editor.setFontSize(14);
+        editor.setPrintMarginColumn(100);
+
+        window.ace_editor = editor;
+
+        function update_editor_mode() {
+            var selected_opt = $("#id_language").find("option:selected");
+            var ace_mode = selected_opt.attr("data-ace");
+            editor.getSession().setMode("ace/mode/" + ace_mode);
+
+            var lang_id = $("#id_language").val();
+            var saved_code = localStorage.getItem('custom_test_code:' + lang_id);
+            if (saved_code) {
+                editor.setValue(saved_code, -1);
+            } else {
+                $.get('{{ url("language_template_ajax") }}', { id: lang_id })
+                 .done(function(template) {
+                     editor.setValue(template, -1);
+                 });
+            }
+        }
+
+        update_editor_mode();
+
+        $("#id_language").change(function() {
+            var old_lang_id = $(this).data("prev-val") || $("#id_language").val();
+            localStorage.setItem('custom_test_code:' + old_lang_id, editor.getValue());
+
+            $(this).data("prev-val", $(this).val());
+            update_editor_mode();
+        });
+
+        editor.on("change", function() {
+            var lang_id = $("#id_language").val();
+            localStorage.setItem('custom_test_code:' + lang_id, editor.getValue());
+        });
+
+        var poll_timeout = null;
+
+        $("#btn-run-code").click(function() {
+            var btn = $(this);
+            var source = editor.getValue();
+            var language = $("#id_language").val();
+            var input = $("#custom-input-text").val();
+
+            if (!source.trim()) {
+                alert("Por favor escribe algún código para ejecutar.");
+                return;
+            }
+
+            $("#console-output").text("Enviando código al servidor...\n");
+            $("#execution-stats").html("");
+            btn.prop("disabled", true);
+
+            fetch('{{ url("custom_test_run") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': $('input[name=csrfmiddlewaretoken]').val()
+                },
+                body: JSON.stringify({
+                    source: source,
+                    language: $("#id_language option:selected").attr("data-key"),
+                    input: input
+                })
+            })
+            .then(function(res) {
+                return res.json().then(function(data) {
+                    if (!res.ok) {
+                        throw new Error(data.error || "Error al procesar el código");
+                    }
+                    return data;
+                });
+            })
+            .then(function(data) {
+                var submission_id = data.submission_id;
+                $("#console-output").append("Código encolado con éxito. Esperando juez disponible (ID: " + submission_id + ")...\n");
+
+                poll_submission(submission_id);
+            })
+            .catch(function(err) {
+                $("#console-output").append("Error: " + err.message + "\n");
+                btn.prop("disabled", false);
+            });
+        });
+
+        function poll_submission(id) {
+            function do_poll() {
+                $.get('{{ url("custom_test_run") }}', { id: id })
+                 .done(function(data) {
+                     if (data.status === 'grading') {
+                         $("#console-output").append("Jueceando / Ejecutando programa...\n");
+                         poll_timeout = setTimeout(do_poll, 1000);
+                     } else if (data.status === 'done') {
+                         display_results(data);
+                     } else if (data.status === 'compile_error') {
+                         display_compile_error(data);
+                     } else if (data.status === 'internal_error') {
+                         $("#console-output").append("Error interno del servidor de jueceo:\n" + data.error + "\n");
+                         $("#btn-run-code").prop("disabled", false);
+                     }
+                 })
+                 .fail(function(xhr) {
+                     $("#console-output").append("Error de red al consultar el estado de ejecución.\n");
+                     $("#btn-run-code").prop("disabled", false);
+                 });
+            }
+            poll_timeout = setTimeout(do_poll, 1000);
+        }
+
+        function stripAnsi(str) {
+            if (!str) return "";
+            return str.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
+        }
+
+        function display_results(data) {
+            $("#btn-run-code").prop("disabled", false);
+
+            var result_badge = "";
+            var display_verdict = data.result;
+            var status_class = "stat-" + data.result.toLowerCase();
+
+            if (data.result === 'AC' || data.result === 'WA') {
+                display_verdict = "OK";
+                status_class = "stat-ac";
+            }
+
+            result_badge = '<span class="stat-badge ' + status_class + '">' + display_verdict + '</span>';
+
+            var time_val = parseFloat(data.time);
+            var time_str = isNaN(time_val) ? "0.000" : time_val.toFixed(3);
+            var mem_val = parseFloat(data.memory);
+            var mem_str = isNaN(mem_val) ? "0.00" : (mem_val / 1024).toFixed(2);
+
+            var stats_html = 'Estatus: ' + result_badge + ' | ' +
+                             'Tiempo: <b>' + time_str + 's</b> | ' +
+                             'Memoria: <b>' + mem_str + ' MB</b>';
+            $("#execution-stats").html(stats_html);
+
+            $("#console-output").text("");
+            if (data.result === 'AC' || data.result === 'WA') {
+                $("#console-output").text(data.output || "[Programa ejecutado con éxito sin salida de texto]");
+            } else if (data.result === 'CE') {
+                $("#console-output").text("Error de Compilación (Compile Error):\n\n" + stripAnsi(data.error));
+            } else if (data.result === 'TLE') {
+                $("#console-output").text("Time Limit Exceeded: El programa excedió el tiempo límite de ejecución ({{ time_limit }}s).\n");
+            } else if (data.result === 'MLE') {
+                $("#console-output").text("Memory Limit Exceeded: El programa excedió el límite de memoria asignado.\n");
+            } else if (data.result === 'RTE') {
+                $("#console-output").text("Runtime Error: El programa terminó de forma abrupta con un código de retorno inválido.\n");
+                if (data.error) {
+                    $("#console-output").append("Detalle del error:\n" + stripAnsi(data.error));
+                }
+            } else {
+                $("#console-output").text("Resultado: " + data.result + "\nSalida del programa:\n" + data.output);
+            }
+        }
+
+        function display_compile_error(data) {
+            $("#btn-run-code").prop("disabled", false);
+            $("#execution-stats").html('Veredicto: <span class="stat-badge stat-ce">COMPILE ERROR</span>');
+            $("#console-output").text("Error de Compilación (Compile Error):\n\n" + stripAnsi(data.error));
+        }
+    });
+</script>
+{% endblock %}
+
+{% block body %}
+<div class="row">
+    <div class="col-md-12">
+        <h2 style="margin-top: 15px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">{{ _('Prueba Personalizada') }}</h2>
+        <p class="custom-test-subtitle">
+            {{ _('Escribe, compila y ejecuta tu código directamente en el servidor para realizar pruebas con tus propias entradas.') }}
+        </p>
+
+        {% csrf_token %}
+
+        <div id="custom-test-container">
+            <div id="editor-section">
+                <div id="language-select-box">
+                    <label for="id_language"><b>{{ _('Lenguaje:') }}</b></label>
+                    <select id="id_language">
+                        {% for lang in languages %}
+                            <option value="{{ lang.id }}" data-key="{{ lang.key }}" data-ace="{{ lang.ace }}"
+                                    {% if lang.id == default_lang.id %}selected{% endif %}>{{ lang.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div id="ace-editor-container"></div>
+            </div>
+
+            <div id="control-section">
+                <div class="panel-box">
+                    <h3>{{ _('Entrada estándar (stdin)') }}</h3>
+                    <textarea id="custom-input-text" class="custom-textarea" placeholder="Escribe aquí las entradas de tu programa..."></textarea>
+                </div>
+
+                <div class="panel-box" style="flex-grow: 1; display: flex; flex-direction: column;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 6px; margin-bottom: 6px;">
+                        <h3 style="border-bottom: none; padding-bottom: 0;">{{ _('Consola de Salida') }}</h3>
+                        <div id="execution-stats" style="font-size: 12px; color: #555;"></div>
+                    </div>
+                    <div id="console-output">Consola inactiva. Escribe tu código y presiona "Ejecutar Código".</div>
+                </div>
+
+                <button type="button" id="btn-run-code" class="btn-run">{{ _('Ejecutar Código') }}</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

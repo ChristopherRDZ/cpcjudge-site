@@ -101,6 +101,8 @@ urlpatterns = [
 
     path('problems/', problem.ProblemList.as_view(), name='problem_list'),
     path('problems/random/', problem.RandomProblem.as_view(), name='problem_random'),
+    path('custom-test/', problem.CustomTestView.as_view(), name='custom_test'),
+    path('custom-test/run/', problem.custom_test_run, name='custom_test_run'),
 
     path('problem/<str:problem>', include([
         path('', problem.ProblemDetail.as_view(), name='problem_detail'),

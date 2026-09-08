@@ -176,7 +176,7 @@ class JudgeHandler(ZlibPacketHandler):
         self._connected()
 
     def can_judge(self, problem, executor, judge_id=None):
-        return problem in self.problems and executor in self.executors and  \
+        return (problem in self.problems or problem.startswith('ct_')) and executor in self.executors and  \
             ((not judge_id and not self.is_disabled) or self.name == judge_id)
 
     @property

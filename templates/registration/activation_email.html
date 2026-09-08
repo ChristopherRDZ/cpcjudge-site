@@ -1,9 +1,9 @@
-<div style="border:2px solid #fd0;margin:4px 0;"><div style="background:#000;border:6px solid #000;">
-<a href="{{ request.scheme }}://{{ site.domain }}"><img src="{{ request.scheme }}://{{ site.domain }}/static/icons/logo.svg" alt="{{ SITE_NAME }}" width="160" height="44"></a>
+<div style="border:2px solid #fd0;margin:4px 0;"><div style="background:#f3f3f3;border:6px solid #000;">
+<a href="{{ request.scheme }}://{{ site.domain }}"><img src="{{ request.scheme }}://{{ site.domain }}/static/icons/logo.png" alt="{{ SITE_NAME }}" width="100" height="40"></a>
 </div></div>
 
 <div style="border:2px solid #337ab7;margin:4px 0;"><div style="background:#fafafa;border:12px solid #fafafa;font-family:segoe ui,lucida grande,Arial,sans-serif;font-size:14px;">
-<strong>{{ _("Thanks for registering on the %(site_name)s! We're glad to have you.", site_name=SITE_NAME) }}</strong>
+<strong>{{ _("Gracias por registrarte en el Club de Programación Competitiva - UAEH. Nos alegra que estés aquí :DD", site_name=SITE_NAME) }}</strong>
 <br><br>
 {% trans trimmed count=expiration_days, site_name=SITE_NAME %}
 The last step is activating your account. Please activate your {{ site_name }} account in the next {{ count }} day.

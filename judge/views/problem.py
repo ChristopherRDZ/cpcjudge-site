@@ -808,3 +808,195 @@ class ProblemClone(ProblemMixin, PermissionRequiredMixin, TitleMixin, SingleObje
             revisions.set_comment(_('Cloned problem from %s') % old_code)
 
         return HttpResponseRedirect(reverse('admin:judge_problem_change', args=(problem.id,)))
+
+
+import shutil
+import uuid
+from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_http_methods
+from judge.models import SubmissionTestCase
+
+CUSTOM_TEST_TIME_LIMIT = 2.0
+CUSTOM_TEST_MEMORY_LIMIT = 524288
+
+class CustomTestView(LoginRequiredMixin, TitleMixin, View):
+    def get_title(self):
+        return _('Custom Test')
+
+    def get(self, request, *args, **kwargs):
+        # Only show languages supported by online judges
+        languages = Language.objects.filter(runtimeversion__judge__online=True).distinct().order_by('name', 'key')
+        if not languages.exists():
+            languages = Language.objects.all().order_by('name', 'key')
+
+        default_lang = request.profile.language or languages.first()
+        return render(request, 'problem/custom_test.html', {
+            'languages': languages,
+            'default_lang': default_lang,
+            'ACE_URL': settings.ACE_URL,
+            'ace_theme': request.profile.resolved_ace_theme,
+            'time_limit': CUSTOM_TEST_TIME_LIMIT,
+        })
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def custom_test_run(request):
+    # Fallback cleanup of old custom tests (older than 5 minutes)
+    try:
+        five_minutes_ago = timezone.now() - timezone.timedelta(minutes=5)
+        old_subs = Submission.objects.filter(problem__code__startswith='ct_', date__lt=five_minutes_ago)
+        for sub in old_subs:
+            problem = sub.problem
+            dir_path = os.path.join(settings.DMOJ_PROBLEM_DATA_ROOT, problem.code)
+            if os.path.exists(dir_path):
+                shutil.rmtree(dir_path, ignore_errors=True)
+            problem.delete()
+    except Exception:
+        pass
+
+    if request.method == "POST":
+        import json
+        try:
+            data = json.loads(request.body)
+        except ValueError:
+            return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+
+        source_code = data.get('source', '')
+        lang_key = data.get('language', '')
+        custom_input = data.get('input', '')
+
+        try:
+            language = Language.objects.get(key=lang_key)
+        except Language.DoesNotExist:
+            return JsonResponse({'error': 'Invalid language'}, status=400)
+
+        # Generate a unique code under 20 chars
+        unique_id = uuid.uuid4().hex[:12]
+        problem_code = f"ct_{unique_id}"
+
+        problem_dir = os.path.join(settings.DMOJ_PROBLEM_DATA_ROOT, problem_code)
+        try:
+            os.makedirs(problem_dir, exist_ok=True)
+
+            input_file_path = os.path.join(problem_dir, "input.txt")
+            with open(input_file_path, "w", encoding="utf-8") as f:
+                f.write(custom_input)
+
+            output_file_path = os.path.join(problem_dir, "output.txt")
+            with open(output_file_path, "w", encoding="utf-8") as f:
+                f.write("")
+
+            init_yml_path = os.path.join(problem_dir, "init.yml")
+            init_yml_content = (
+                "wall_time_factor: 1\n"
+                "test_cases:\n"
+                "- in: input.txt\n"
+                "  out: output.txt\n"
+                "  points: 0\n"
+            )
+            with open(init_yml_path, "w", encoding="utf-8") as f:
+                f.write(init_yml_content)
+
+        except Exception as e:
+            return JsonResponse({'error': f'Failed to create temp files: {str(e)}'}, status=500)
+
+        try:
+            from judge.models import ProblemGroup
+            group = ProblemGroup.objects.first()
+            if not group:
+                group = ProblemGroup.objects.create(name="default", full_name="Default")
+
+            problem = Problem.objects.create(
+                code=problem_code,
+                name="Prueba Personalizada",
+                is_public=False,
+                is_organization_private=True,
+                group=group,
+                time_limit=CUSTOM_TEST_TIME_LIMIT,
+                memory_limit=CUSTOM_TEST_MEMORY_LIMIT,
+                points=0.0,
+                summary="Temporary problem for Custom Test",
+                description="Temporary problem for Custom Test",
+            )
+            problem.allowed_languages.add(language)
+        except Exception as e:
+            shutil.rmtree(problem_dir, ignore_errors=True)
+            return JsonResponse({'error': f'Failed to create problem in database: {str(e)}'}, status=500)
+
+        try:
+            submission = Submission.objects.create(
+                user=request.profile,
+                problem=problem,
+                language=language,
+                status='QU',
+            )
+            source = SubmissionSource.objects.create(
+                submission=submission,
+                source=source_code,
+            )
+            submission.source = source
+        except Exception as e:
+            problem.delete()
+            shutil.rmtree(problem_dir, ignore_errors=True)
+            return JsonResponse({'error': f'Failed to create submission: {str(e)}'}, status=500)
+
+        try:
+            from judge.models import Judge
+            online_dedicated = Judge.objects.filter(name__startswith='cpc-custom-', online=True)
+
+            target_judge = None
+            if online_dedicated.exists():
+                target_judge = online_dedicated.first().name
+
+            submission.judge(force_judge=True, judge_id=target_judge, batch_rejudge=False)
+        except Exception as e:
+            problem.delete()
+            shutil.rmtree(problem_dir, ignore_errors=True)
+            return JsonResponse({'error': f'Failed to schedule execution: {str(e)}'}, status=500)
+
+        return JsonResponse({
+            'status': 'queued',
+            'submission_id': submission.id,
+        })
+
+    elif request.method == "GET":
+        sub_id = request.GET.get('id')
+        if not sub_id:
+            return JsonResponse({'error': 'Missing id parameter'}, status=400)
+
+        try:
+            submission = Submission.objects.select_related('problem').get(id=int(sub_id), user=request.profile)
+        except (Submission.DoesNotExist, ValueError):
+            return JsonResponse({'error': 'Submission not found'}, status=404)
+
+        if submission.status in ('QU', 'P', 'G'):
+            return JsonResponse({
+                'status': 'grading',
+                'current_testcase': submission.current_testcase,
+            })
+
+        response_data = {
+            'status': 'done',
+            'result': submission.result,
+            'time': submission.time,
+            'memory': submission.memory,
+            'error': submission.error or '',
+            'output': '',
+        }
+
+        if submission.status == 'D':
+            testcases = SubmissionTestCase.objects.filter(submission=submission).order_by('case')
+            if testcases.exists():
+                response_data['output'] = testcases.first().output
+
+        problem = submission.problem
+        problem_code = problem.code
+
+        problem.delete()
+
+        problem_dir = os.path.join(settings.DMOJ_PROBLEM_DATA_ROOT, problem_code)
+        shutil.rmtree(problem_dir, ignore_errors=True)
+
+        return JsonResponse(response_data)

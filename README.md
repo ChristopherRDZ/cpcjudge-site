@@ -7,13 +7,25 @@
   <a href="https://github.com/DMOJ/online-judge/actions?query=workflow%3Abuild">
     <img alt="Build Status" src="https://img.shields.io/github/actions/workflow/status/DMOJ/online-judge/build.yml?branch=master"/>
   </a>
-  <a href="LICENSE.md">
+  <a href="LICENSE">
     <img alt="License" src="https://img.shields.io/github/license/DMOJ/online-judge"/>
   </a>
   <a href="https://dmoj.ca/about/discord/">
     <img src="https://img.shields.io/discord/677340492651954177?color=%237289DA&label=Discord"/>
   </a>
 </p>
+
+## CPC-UAEH production fork
+
+The `cpc-production` branch contains the source code corresponding to the
+modified DMOJ version operated by CPC-UAEH. It is based on DMOJ commit
+`97f3722ef3f7ca9731727c220622bdd1eab7d4b3` and is distributed under the GNU
+Affero General Public License version 3.
+
+See [MODIFICATIONS.md](MODIFICATIONS.md) for the changes made to the upstream
+project. Production credentials, user data, problem packages, uploaded media,
+logs, and generated static files are intentionally not part of this source
+repository.
 
 A modern open-source online judge and contest platform system. It has been used to host thousands of competitions, including several national olympiads.
 

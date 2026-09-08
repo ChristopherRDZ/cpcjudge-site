@@ -7,6 +7,7 @@
 *~
 *.swp
 dmoj/local_settings.py
+dmoj/local_settings.py.*
 resources/ace-dmoj.css
 resources/dark
 resources/featherlight.css
@@ -15,3 +16,21 @@ resources/select2-dmoj.css
 resources/style.css
 resources/vars.scss
 sass_processed
+
+# Production-only configuration and generated/runtime data.
+/static/
+/media/
+/martor/*.gif
+/martor/*.jpg
+/martor/*.jpeg
+/martor/*.png
+/martor/*.webp
+/martor/martor/
+/uwsgi.ini
+/uwsgi.ini.*
+/websocket/config.js
+/*.log
+/*.log.*
+/*bridge log path*
+*.pid
+*.sock

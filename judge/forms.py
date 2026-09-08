@@ -1,6 +1,8 @@
 import json
 from operator import attrgetter, itemgetter
 
+from django.contrib.auth import authenticate
+from django.contrib.auth import get_backends
 import pyotp
 import webauthn
 from django import forms
@@ -20,6 +22,7 @@ from judge.models import Contest, Language, Organization, Problem, ProblemPoints
 from judge.utils.mail import validate_email_domain
 from judge.utils.subscription import newsletter_id
 from judge.widgets import AceWidget, MartorWidget, Select2MultipleWidget, Select2Widget
+
 
 TOTP_CODE_LENGTH = 6
 
@@ -174,7 +177,7 @@ class EditOrganizationForm(ModelForm):
 class CustomAuthenticationForm(AuthenticationForm):
     def __init__(self, *args, **kwargs):
         super(CustomAuthenticationForm, self).__init__(*args, **kwargs)
-        self.fields['username'].widget.attrs.update({'placeholder': _('Username')})
+        self.fields['username'].widget.attrs.update({'placeholder': _('Username or Email')})
         self.fields['password'].widget.attrs.update({'placeholder': _('Password')})
 
         self.has_google_auth = self._has_social_auth('GOOGLE_OAUTH2')
@@ -182,8 +185,45 @@ class CustomAuthenticationForm(AuthenticationForm):
         self.has_github_auth = self._has_social_auth('GITHUB_SECURE')
 
     def _has_social_auth(self, key):
-        return (getattr(settings, 'SOCIAL_AUTH_%s_KEY' % key, None) and
-                getattr(settings, 'SOCIAL_AUTH_%s_SECRET' % key, None))
+        return (getattr(settings, f'SOCIAL_AUTH_{key}_KEY', None) and
+                getattr(settings, f'SOCIAL_AUTH_{key}_SECRET', None))
+
+    def clean(self):
+        username = self.cleaned_data.get('username')
+        password = self.cleaned_data.get('password')
+
+        if username and password:
+            user = authenticate(self.request, username=username, password=password)
+
+            if user is None:
+                try:
+                    # Buscar por email y reintentar con el username real
+                    user_obj = User.objects.get(email=username)
+                    user = authenticate(self.request, username=user_obj.username, password=password)
+                except User.DoesNotExist:
+                    pass
+
+            if user is None:
+                raise forms.ValidationError(
+                    self.error_messages['invalid_login'],
+                    code='invalid_login',
+                    params={'username': self.username_field.verbose_name},
+                )
+
+            # Asignar backend manualmente si falta
+            if not hasattr(user, 'backend'):
+                backends = get_backends()
+                for backend in backends:
+                    if hasattr(backend, 'get_user'):
+                        user.backend = f"{backend.__module__}.{backend.__class__.__name__}"
+                        break
+
+            self.confirm_login_allowed(user)
+
+            # Almacena el usuario autenticado para usarlo en `form_valid` si lo necesitas luego
+            self.user_cache = user
+
+        return self.cleaned_data
 
 
 class NoAutoCompleteCharField(forms.CharField):
