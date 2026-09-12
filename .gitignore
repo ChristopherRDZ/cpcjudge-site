@@ -34,3 +34,25 @@ sass_processed
 /*bridge log path*
 *.pid
 *.sock
+
+# Private maintenance artifacts; publish reviewed examples instead.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.sql
+*.sql.gz
+*.dump
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+*.bak
+*.save
+/backups/
+/logs/
+/project_context/
+/security_preparation/
+/backup_automation/
+/venv/
