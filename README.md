@@ -1,3 +1,7 @@
+> **Experimental branch: cpc-django52-candidate.** This branch records isolated
+> Django 5.2 preparation. It has not been deployed; use `cpc-production` for the
+> source corresponding to the deployed runtime.
+
 <h1 align="center">
   <img src="https://github.com/DMOJ/online-judge/blob/master/logo.png?raw=true" width="120px">
   <br>
