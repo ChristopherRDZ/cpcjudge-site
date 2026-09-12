@@ -811,7 +811,9 @@ class ProblemClone(ProblemMixin, PermissionRequiredMixin, TitleMixin, SingleObje
 
 
 import shutil
+import stat
 import uuid
+from django.core import signing
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods
@@ -819,13 +821,80 @@ from judge.models import SubmissionTestCase
 
 CUSTOM_TEST_TIME_LIMIT = 2.0
 CUSTOM_TEST_MEMORY_LIMIT = 524288
+CUSTOM_TEST_MARKER = 'CPC custom test v1:'
+CUSTOM_TEST_SIGNING_SALT = 'judge.custom-test.problem.v1'
+
+
+def _is_owned_custom_test(submission, profile):
+    problem = submission.problem
+    if (submission.user_id != profile.pk or submission.contest_object_id is not None or
+            not re.fullmatch(r'ct_[0-9a-f]{12}', problem.code) or
+            problem.is_public or not problem.is_organization_private or problem.points != 0 or
+            not problem.summary.startswith(CUSTOM_TEST_MARKER)):
+        return False
+    try:
+        identity = signing.loads(problem.summary[len(CUSTOM_TEST_MARKER):], salt=CUSTOM_TEST_SIGNING_SALT)
+    except (signing.BadSignature, ValueError, TypeError):
+        return False
+    return identity == [problem.pk, problem.code, profile.pk]
+
+
+def _custom_test_directory(code):
+    # Only direct children of the configured root are eligible; never symlinks.
+    if not re.fullmatch(r'ct_[0-9a-f]{12}', code):
+        raise ValueError('Invalid custom test directory')
+    root = os.path.realpath(settings.DMOJ_PROBLEM_DATA_ROOT)
+    path = os.path.join(root, code)
+    if os.path.realpath(path) != path:
+        raise ValueError('Unsafe custom test directory')
+    try:
+        info = os.lstat(path)
+    except FileNotFoundError:
+        return path, None
+    if not stat.S_ISDIR(info.st_mode):
+        raise ValueError('Invalid custom test directory type')
+    return path, (info.st_dev, info.st_ino)
+
+
+def _remove_custom_test_directory(code, expected_identity):
+    path, identity = _custom_test_directory(code)
+    if identity is not None and identity == expected_identity and shutil.rmtree.avoids_symlink_attacks:
+        shutil.rmtree(path)
+
+
+def _cleanup_owned_custom_tests(profile):
+    # Run only from a valid POST. Preserve legacy/unverified data and active jobs.
+    cutoff = timezone.now() - timedelta(minutes=5)
+    candidates = list(Submission.objects.filter(
+        user=profile, date__lt=cutoff, problem__summary__startswith=CUSTOM_TEST_MARKER,
+    ).exclude(status__in=('QU', 'P', 'G')).order_by('id').values_list('id', flat=True)[:10])
+    for submission_id in candidates:
+        try:
+            with transaction.atomic():
+                submission = Submission.objects.select_for_update().select_related('problem').get(
+                    pk=submission_id, user=profile)
+                if (submission.status in ('QU', 'P', 'G') or submission.date >= cutoff or
+                        not _is_owned_custom_test(submission, profile)):
+                    continue
+                problem = submission.problem
+                if (problem.authors.exists() or problem.curators.exists() or problem.contests.exists() or
+                        Submission.objects.filter(problem=problem).exclude(pk=submission.pk).exists()):
+                    continue
+                _, identity = _custom_test_directory(problem.code)
+                code = problem.code
+                problem.delete()
+                # Also respect an outer transaction (e.g. ATOMIC_REQUESTS).
+                transaction.on_commit(lambda code=code, identity=identity:
+                                      _remove_custom_test_directory(code, identity))
+        except Exception:
+            logging.getLogger(__name__).warning('Custom test cleanup skipped; data may be retained.')
+
 
 class CustomTestView(LoginRequiredMixin, TitleMixin, View):
     def get_title(self):
         return _('Custom Test')
 
     def get(self, request, *args, **kwargs):
-        # Only show languages supported by online judges
         languages = Language.objects.filter(runtimeversion__judge__online=True).distinct().order_by('name', 'key')
         if not languages.exists():
             languages = Language.objects.all().order_by('name', 'key')
@@ -841,162 +910,107 @@ class CustomTestView(LoginRequiredMixin, TitleMixin, View):
 
 
 @login_required
-@require_http_methods(["GET", "POST"])
+@require_http_methods(['GET', 'POST'])
 def custom_test_run(request):
-    # Fallback cleanup of old custom tests (older than 5 minutes)
-    try:
-        five_minutes_ago = timezone.now() - timezone.timedelta(minutes=5)
-        old_subs = Submission.objects.filter(problem__code__startswith='ct_', date__lt=five_minutes_ago)
-        for sub in old_subs:
-            problem = sub.problem
-            dir_path = os.path.join(settings.DMOJ_PROBLEM_DATA_ROOT, problem.code)
-            if os.path.exists(dir_path):
-                shutil.rmtree(dir_path, ignore_errors=True)
-            problem.delete()
-    except Exception:
-        pass
-
-    if request.method == "POST":
+    if request.method == 'POST':
         import json
         try:
             data = json.loads(request.body)
         except ValueError:
             return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+        if not isinstance(data, dict) or any(
+                not isinstance(data.get(key, ''), str) for key in ('source', 'language', 'input')):
+            return JsonResponse({'error': 'Invalid test data'}, status=400)
 
         source_code = data.get('source', '')
         lang_key = data.get('language', '')
         custom_input = data.get('input', '')
-
         try:
             language = Language.objects.get(key=lang_key)
         except Language.DoesNotExist:
             return JsonResponse({'error': 'Invalid language'}, status=400)
 
-        # Generate a unique code under 20 chars
-        unique_id = uuid.uuid4().hex[:12]
-        problem_code = f"ct_{unique_id}"
-
-        problem_dir = os.path.join(settings.DMOJ_PROBLEM_DATA_ROOT, problem_code)
         try:
-            os.makedirs(problem_dir, exist_ok=True)
+            _cleanup_owned_custom_tests(request.profile)
+        except Exception:
+            logging.getLogger(__name__).warning('Custom test cleanup unavailable; data retained.')
 
-            input_file_path = os.path.join(problem_dir, "input.txt")
-            with open(input_file_path, "w", encoding="utf-8") as f:
-                f.write(custom_input)
-
-            output_file_path = os.path.join(problem_dir, "output.txt")
-            with open(output_file_path, "w", encoding="utf-8") as f:
-                f.write("")
-
-            init_yml_path = os.path.join(problem_dir, "init.yml")
-            init_yml_content = (
-                "wall_time_factor: 1\n"
-                "test_cases:\n"
-                "- in: input.txt\n"
-                "  out: output.txt\n"
-                "  points: 0\n"
-            )
-            with open(init_yml_path, "w", encoding="utf-8") as f:
-                f.write(init_yml_content)
-
-        except Exception as e:
-            return JsonResponse({'error': f'Failed to create temp files: {str(e)}'}, status=500)
-
+        problem_code = 'ct_' + uuid.uuid4().hex[:12]
+        directory_identity = None
         try:
-            from judge.models import ProblemGroup
-            group = ProblemGroup.objects.first()
-            if not group:
-                group = ProblemGroup.objects.create(name="default", full_name="Default")
+            problem_dir, _ = _custom_test_directory(problem_code)
+            # Exclusive creation prevents overwriting an existing problem directory.
+            os.mkdir(problem_dir)
+            info = os.lstat(problem_dir)
+            directory_identity = (info.st_dev, info.st_ino)
+            with open(os.path.join(problem_dir, 'input.txt'), 'x', encoding='utf-8') as stream:
+                stream.write(custom_input)
+            with open(os.path.join(problem_dir, 'output.txt'), 'x', encoding='utf-8') as stream:
+                stream.write('')
+            with open(os.path.join(problem_dir, 'init.yml'), 'x', encoding='utf-8') as stream:
+                stream.write('wall_time_factor: 1\ntest_cases:\n- in: input.txt\n  out: output.txt\n  points: 0\n')
 
-            problem = Problem.objects.create(
-                code=problem_code,
-                name="Prueba Personalizada",
-                is_public=False,
-                is_organization_private=True,
-                group=group,
-                time_limit=CUSTOM_TEST_TIME_LIMIT,
-                memory_limit=CUSTOM_TEST_MEMORY_LIMIT,
-                points=0.0,
-                summary="Temporary problem for Custom Test",
-                description="Temporary problem for Custom Test",
-            )
-            problem.allowed_languages.add(language)
-        except Exception as e:
-            shutil.rmtree(problem_dir, ignore_errors=True)
-            return JsonResponse({'error': f'Failed to create problem in database: {str(e)}'}, status=500)
+            # Roll back only rows created by this request if preparation fails.
+            with transaction.atomic():
+                group = ProblemGroup.objects.first()
+                if not group:
+                    group = ProblemGroup.objects.create(name='default', full_name='Default')
+                problem = Problem.objects.create(
+                    code=problem_code, name='Prueba Personalizada',
+                    is_public=False, is_organization_private=True, group=group,
+                    time_limit=CUSTOM_TEST_TIME_LIMIT, memory_limit=CUSTOM_TEST_MEMORY_LIMIT,
+                    points=0.0, summary='', description='Temporary problem for Custom Test',
+                )
+                problem.summary = CUSTOM_TEST_MARKER + signing.dumps(
+                    [problem.pk, problem.code, request.profile.pk], salt=CUSTOM_TEST_SIGNING_SALT)
+                problem.save(update_fields=['summary'])
+                problem.allowed_languages.add(language)
+                submission = Submission.objects.create(
+                    user=request.profile, problem=problem, language=language, status='QU')
+                source = SubmissionSource.objects.create(submission=submission, source=source_code)
+                submission.source = source
+        except Exception:
+            if directory_identity is not None:
+                try:
+                    _remove_custom_test_directory(problem_code, directory_identity)
+                except Exception:
+                    pass
+            return JsonResponse({'error': 'Unable to prepare the custom test. Please try again.'}, status=500)
 
         try:
-            submission = Submission.objects.create(
-                user=request.profile,
-                problem=problem,
-                language=language,
-                status='QU',
-            )
-            source = SubmissionSource.objects.create(
-                submission=submission,
-                source=source_code,
-            )
-            submission.source = source
-        except Exception as e:
-            problem.delete()
-            shutil.rmtree(problem_dir, ignore_errors=True)
-            return JsonResponse({'error': f'Failed to create submission: {str(e)}'}, status=500)
-
-        try:
-            from judge.models import Judge
             online_dedicated = Judge.objects.filter(name__startswith='cpc-custom-', online=True)
-
-            target_judge = None
-            if online_dedicated.exists():
-                target_judge = online_dedicated.first().name
-
+            target_judge = online_dedicated.first().name if online_dedicated.exists() else None
             submission.judge(force_judge=True, judge_id=target_judge, batch_rejudge=False)
-        except Exception as e:
-            problem.delete()
-            shutil.rmtree(problem_dir, ignore_errors=True)
-            return JsonResponse({'error': f'Failed to schedule execution: {str(e)}'}, status=500)
+        except Exception:
+            # The bridge may have accepted the job before the connection failed.
+            # Preserve its data rather than deleting a possibly active execution.
+            return JsonResponse({'error': 'Unable to confirm scheduling. Please try again later.'}, status=500)
 
-        return JsonResponse({
-            'status': 'queued',
-            'submission_id': submission.id,
-        })
+        return JsonResponse({'status': 'queued', 'submission_id': submission.id})
 
-    elif request.method == "GET":
-        sub_id = request.GET.get('id')
-        if not sub_id:
-            return JsonResponse({'error': 'Missing id parameter'}, status=400)
+    sub_id = request.GET.get('id')
+    if not sub_id:
+        return JsonResponse({'error': 'Missing id parameter'}, status=400)
+    try:
+        sub_id = int(sub_id)
+        if not 0 < sub_id <= 9223372036854775807:
+            raise ValueError
+        submission = Submission.objects.select_related('problem').get(pk=sub_id, user=request.profile)
+    except (Submission.DoesNotExist, ValueError, TypeError):
+        return JsonResponse({'error': 'Submission not found'}, status=404)
+    if not _is_owned_custom_test(submission, request.profile):
+        return JsonResponse({'error': 'Submission not found'}, status=404)
 
-        try:
-            submission = Submission.objects.select_related('problem').get(id=int(sub_id), user=request.profile)
-        except (Submission.DoesNotExist, ValueError):
-            return JsonResponse({'error': 'Submission not found'}, status=404)
+    if submission.status in ('QU', 'P', 'G'):
+        return JsonResponse({'status': 'grading', 'current_testcase': submission.current_testcase})
 
-        if submission.status in ('QU', 'P', 'G'):
-            return JsonResponse({
-                'status': 'grading',
-                'current_testcase': submission.current_testcase,
-            })
-
-        response_data = {
-            'status': 'done',
-            'result': submission.result,
-            'time': submission.time,
-            'memory': submission.memory,
-            'error': submission.error or '',
-            'output': '',
-        }
-
-        if submission.status == 'D':
-            testcases = SubmissionTestCase.objects.filter(submission=submission).order_by('case')
-            if testcases.exists():
-                response_data['output'] = testcases.first().output
-
-        problem = submission.problem
-        problem_code = problem.code
-
-        problem.delete()
-
-        problem_dir = os.path.join(settings.DMOJ_PROBLEM_DATA_ROOT, problem_code)
-        shutil.rmtree(problem_dir, ignore_errors=True)
-
-        return JsonResponse(response_data)
+    response_data = {
+        'status': 'done', 'result': submission.result, 'time': submission.time,
+        'memory': submission.memory, 'error': submission.error or '', 'output': '',
+    }
+    if submission.status == 'D':
+        testcases = SubmissionTestCase.objects.filter(submission=submission).order_by('case')
+        if testcases.exists():
+            response_data['output'] = testcases.first().output
+    # Polling is read-only, including repeated and malformed requests.
+    return JsonResponse(response_data)
