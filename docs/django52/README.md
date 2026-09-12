@@ -1,10 +1,11 @@
-# Django 5.2 laboratory candidate
+# Django 5.2 production upgrade
 
-Status: tested in isolation on 2026-09-11; **not deployed**. This branch builds on
-the production-source hotfixes. `cpc-production` continues to represent the
-deployed application and its original Django requirement.
+Status: **Django 5.2.17 deployed and subsequently checked**, recorded on
+2026-09-12 UTC. The `cpc-production` branch includes the upgrade and the existing
+application hotfixes. The earlier laboratory results remain historical evidence;
+publishing this source does not deploy it to another installation.
 
-## Preserved candidate
+## Deployed adaptations
 
 | File | Adaptation |
 | --- | --- |
@@ -14,7 +15,7 @@ deployed application and its original Django requirement.
 | `dmoj/settings.py` | Remove `USE_L10N` and add `CompressorFinder` |
 | `requirements.txt` | Pin Django 5.2.17, django-mptt 0.18.0 and django_compressor 4.6.0 |
 
-All seven application/requirements files match the laboratory candidate hashes
+All seven application/requirements files match the deployed source and laboratory hashes
 recorded in [candidate-code-sha256.json](candidate-code-sha256.json).
 The tested minifiers are rcssmin 1.2.1 and rjsmin 1.2.4. The complete recorded
 distribution versions are in [constraints-tested.txt](constraints-tested.txt).
@@ -29,8 +30,10 @@ the original requirement origins and review those identities when rebuilding.
 Private static storage overrides also require the small
 [settings fragment](settings.example.py): use `STORAGES` instead of
 `STATICFILES_STORAGE`, retaining the default filesystem storage, and remove
-private `USE_L10N` overrides. Preserve the service-specific media/problem/log
-paths and credentials. The fragment is not a complete configuration.
+private `USE_L10N` overrides. Keep `CompressorFinder` exactly once: remove an
+old private append if the base settings now provide it. Preserve the
+service-specific media/problem/log paths and credentials. The fragment is not a
+complete configuration.
 
 ## Historical verification
 
@@ -54,15 +57,29 @@ raw logs, operational inventories and private fixture infrastructure are not
 part of the public repository. These counts are recorded laboratory results;
 source publication rechecked hashes and syntax, not the complete integration.
 
-## Deployment boundary
+## Postdeployment checks and maintenance
 
-Before any future rollout, recheck source and configuration drift, obtain a
-verified backup including the virtual environment, rehearse recovery, and test
-the candidate with the then-current private Redis/HTTPS configuration. The
-laboratory preceded those later infrastructure updates. Do not copy laboratory
-settings onto production or restore an older unauthenticated Redis URL.
+Read-only checks after deployment confirmed the expected application and
+dependency versions, consistent migration history with no planned migrations,
+and successful HTTP/API/calendar/static responses. Login and registration
+forms were also observed in a browser. These checks did not repeat credentialed
+login, administrative writes, new submissions or the full laboratory suite.
+
+The static manifest format and existing compressed output were checked for this
+upgrade. No new static asset generation was needed for this specific deployment.
+That is not a general instruction to skip static builds: deployments with
+read-only static trees must provide all required generated output, or a narrowly
+scoped writable output directory. Offline compression requires coverage of
+template context variants and is not enabled by this source publication.
+
+Before another rollout, recheck source/configuration drift, verify a backup
+including the virtual environment, rehearse recovery and test with the current
+private configuration. Do not copy laboratory settings onto production or
+restore obsolete Redis settings. Keep manifests, generated resources and
+application source consistent when building or rolling back a release.
 
 The laboratory did not test full contest-scale load, every widget visually,
 external SMTP/OAuth services, physical WebAuthn devices or recovery on another
-machine. No production migration, package installation or service restart was
-performed to create these commits.
+machine. Source publication did not run production migrations, install packages
+or restart services. Operational settings, inventories, logs and recovery
+artifacts remain private.

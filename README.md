@@ -1,6 +1,6 @@
-> **Experimental branch: cpc-django52-candidate.** This branch records isolated
-> Django 5.2 preparation. It has not been deployed; use `cpc-production` for the
-> source corresponding to the deployed runtime.
+> **Django 5.2.17 production source.** The `cpc-production` branch includes the
+> deployed Django upgrade. See the [upgrade record](docs/django52/README.md) for
+> adaptations, configuration guidance and the scope of validation.
 
 <h1 align="center">
   <img src="https://github.com/DMOJ/online-judge/blob/master/logo.png?raw=true" width="120px">

@@ -1,9 +1,8 @@
 # CPC-UAEH modifications to DMOJ
 
-This checkout is the **experimental `cpc-django52-candidate` branch**, not the
-deployed runtime. Its timezone, storage/dependency and contest administration
-adaptations are documented in the [candidate record](docs/django52/README.md).
-The production modification history below remains the basis for this branch.
+As of 2026-09-12, this source includes the deployed Django 5.2.17 upgrade.
+Timezone, storage/dependency and contest administration adaptations are
+documented in the [upgrade record](docs/django52/README.md).
 
 This repository contains a modified version of
 [DMOJ](https://github.com/DMOJ/online-judge), originally distributed under the
@@ -39,8 +38,15 @@ dates, verification scope and remaining limitations. Infrastructure changes are
 represented by documentation and generic examples; their actual host settings,
 credentials, user data and recovery records remain private.
 
-The separate `cpc-django52-candidate` branch records laboratory preparation for
-Django 5.2. It is not the runtime represented by `cpc-production`.
+## Django 5.2 upgrade — 2026-09-12
+
+- Django 5.2.17, django-mptt 0.18.0 and django_compressor 4.6.0 requirements.
+- Standard-library UTC and ZoneInfo support, updated static storage guidance,
+  and one CompressorFinder in the base settings.
+- Contest participant bans applied after a valid saved form, preserving
+  participation when an administrative form is rejected.
+- Published historical synthetic compatibility tests and tested dependency
+  constraints. See the upgrade record for postdeployment checks and limits.
 
 Git history and file-level diffs are the authoritative record of the exact
 changes. The complete corresponding source is available without charge at
