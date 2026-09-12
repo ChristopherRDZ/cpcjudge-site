@@ -30,13 +30,14 @@ DATABASES = {
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': os.environ.get('DMOJ_REDIS_URL', 'redis://127.0.0.1:6379/1'),
+        # Provision an authenticated Redis ACL user; keep the URL private.
+        'LOCATION': os.environ['DMOJ_REDIS_URL'],
         'OPTIONS': {'CLIENT_CLASS': 'django_redis.client.DefaultClient'},
     },
 }
 
-CELERY_BROKER_URL = os.environ.get('DMOJ_CELERY_BROKER_URL', 'redis://127.0.0.1:6379/0')
-CELERY_RESULT_BACKEND = os.environ.get('DMOJ_CELERY_RESULT_BACKEND', 'redis://127.0.0.1:6379/0')
+CELERY_BROKER_URL = os.environ['DMOJ_CELERY_BROKER_URL']
+CELERY_RESULT_BACKEND = os.environ['DMOJ_CELERY_RESULT_BACKEND']
 
 DMOJ_PROBLEM_DATA_ROOT = '/srv/dmoj/problems'
 STATIC_ROOT = '/srv/dmoj/static'
