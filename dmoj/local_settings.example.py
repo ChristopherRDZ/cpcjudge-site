@@ -10,6 +10,13 @@ DEBUG = False
 ALLOWED_HOSTS = ['judge.example.org']
 SECRET_KEY = os.environ['DJANGO_SECRET_KEY']
 
+# For a site served over HTTPS by a trusted edge proxy/tunnel.
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+# Coordinate trusted proxy-scheme handling before enabling Django redirects.
+SECURE_SSL_REDIRECT = False
+# HSTS is configured at the HTTPS edge; see docs/security/https.md.
+
 SITE_NAME = 'Example Judge'
 SITE_LONG_NAME = 'Example Online Judge'
 SITE_DOMAIN = 'judge.example.org'

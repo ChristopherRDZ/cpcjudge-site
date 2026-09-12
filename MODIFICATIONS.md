@@ -19,6 +19,24 @@ GNU Affero General Public License version 3.
 - A signed-in custom code testing workflow and its judge bridge support.
 - Minor registration and presentation adjustments.
 
+## Security maintenance through 2026-09-11
+
+- Signed ownership checks and read-only result polling for custom tests, with
+  bounded cleanup of verified completed tests and transaction-safe file handling.
+- Personal test exclusion from shared submission histories, API lists and
+  statistics, with explicit owner/administrator access to source details.
+- Documented deployment isolation, private configuration/backup boundaries,
+  Redis authentication, Nginx request/origin restrictions and HTTPS controls.
+- Updated public configuration examples and private-artifact ignore rules.
+
+See the [security maintenance record](docs/security/README.md) for implementation
+dates, verification scope and remaining limitations. Infrastructure changes are
+represented by documentation and generic examples; their actual host settings,
+credentials, user data and recovery records remain private.
+
+The separate `cpc-django52-candidate` branch records laboratory preparation for
+Django 5.2. It is not the runtime represented by `cpc-production`.
+
 Git history and file-level diffs are the authoritative record of the exact
 changes. The complete corresponding source is available without charge at
 <https://github.com/ChristopherRDZ/online-judge/tree/cpc-production>.

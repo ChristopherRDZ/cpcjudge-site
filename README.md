@@ -27,6 +27,9 @@ project. Production credentials, user data, problem packages, uploaded media,
 logs, and generated static files are intentionally not part of this source
 repository.
 
+The [security maintenance record](docs/security/README.md) documents the deployed
+application fixes and generic deployment controls, with their validation limits.
+
 A modern open-source online judge and contest platform system. It has been used to host thousands of competitions, including several national olympiads.
 
 See it live at [dmoj.ca](https://dmoj.ca/)!
