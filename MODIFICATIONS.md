@@ -1,5 +1,10 @@
 # CPC-UAEH modifications to DMOJ
 
+This checkout is the **experimental `cpc-django52-candidate` branch**, not the
+deployed runtime. Its timezone, storage/dependency and contest administration
+adaptations are documented in the [candidate record](docs/django52/README.md).
+The production modification history below remains the basis for this branch.
+
 This repository contains a modified version of
 [DMOJ](https://github.com/DMOJ/online-judge), originally distributed under the
 GNU Affero General Public License version 3.

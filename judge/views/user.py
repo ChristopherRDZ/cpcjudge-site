@@ -3,7 +3,7 @@ import binascii
 import itertools
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone as datetime_timezone
 from operator import attrgetter, itemgetter
 
 from django.conf import settings
@@ -156,7 +156,7 @@ class CustomPasswordChangeView(PasswordChangeView):
         return super().form_valid(form)
 
 
-EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
+EPOCH = datetime(1970, 1, 1, tzinfo=datetime_timezone.utc)
 
 
 class UserAboutPage(UserPage):

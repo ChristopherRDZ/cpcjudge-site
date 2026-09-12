@@ -1,0 +1,9 @@
+{
+  "dmoj/settings.py": "0a3dd10d67d7ce425fea22d2b0556b738b1d74a92ae0e208fb0f74324fcc14e6",
+  "judge/admin/contest.py": "8e7d7156bb83eddd33dd2c4d657946fb286411361aa1f5bef9d7f9bda63ac320",
+  "judge/jinja2/datetime.py": "d84a8109aa64ee8bf1e90ac0143d2ab403420f05f3cf6e0223e3d3903b8106ea",
+  "judge/timezone.py": "0adefe1e4c499836a03647828de98d53a94fdddb22fdcc17cab36bb3695cacd9",
+  "judge/views/contests.py": "d85b5ed4aa189e6eda31796d26cd99f1409f33e1eec2cc703c136207255c1682",
+  "judge/views/user.py": "dd0b8adcf0bf85f32fe3fbde1c24be3f13b51bc8746aaa33d42033f199e94823",
+  "requirements.txt": "71eeece12e956ac564401c395a414b8e7b7f4e243905484eb4f2ac8e7924ebb3"
+}
