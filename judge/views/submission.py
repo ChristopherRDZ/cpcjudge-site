@@ -260,7 +260,8 @@ class SubmissionsListBase(DiggPaginatorMixin, TitleMixin, ListView):
         return self.request.profile.current_contest.contest
 
     def _get_queryset(self):
-        queryset = Submission.objects.all()
+        # Custom runs belong to the private test tool, not the submission history.
+        queryset = Submission.objects.exclude(problem__code__startswith='ct_')
         use_straight_join(queryset)
         queryset = submission_related(queryset.order_by('-id'))
         if self.show_problem:
@@ -529,7 +530,8 @@ def single_submission(request):
         return HttpResponseBadRequest()
 
     authenticated = request.user.is_authenticated
-    submission = get_object_or_404(submission_related(Submission.objects.all()), id=int(request.GET['id']))
+    submission = get_object_or_404(submission_related(Submission.objects.exclude(problem__code__startswith='ct_')),
+                                  id=int(request.GET['id']))
     if not submission.problem.is_accessible_by(request.user):
         raise Http404()
 
@@ -566,11 +568,12 @@ class AllSubmissions(InfinitePaginationMixin, SubmissionsListBase):
         if queryset is not None or self.in_contest or self.selected_languages or self.selected_statuses:
             return super(AllSubmissions, self)._get_result_data(queryset)
 
-        key = 'global_submission_result_data'
+        key = 'global_submission_result_data_without_custom_v1'
         result = cache.get(key)
         if result:
             return result
-        result = super(AllSubmissions, self)._get_result_data(Submission.objects.all())
+        result = super(AllSubmissions, self)._get_result_data(
+            Submission.objects.exclude(problem__code__startswith='ct_'))
         cache.set(key, result, self.stats_update_interval)
         return result
 

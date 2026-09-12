@@ -584,7 +584,7 @@ class APISubmissionList(APIListView):
         return not self.used_basic_filters
 
     def get_unfiltered_queryset(self):
-        queryset = Submission.objects.all()
+        queryset = Submission.objects.exclude(problem__code__startswith='ct_')
         use_straight_join(queryset)
         join_sql_subquery(
             queryset,

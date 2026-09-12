@@ -141,6 +141,9 @@ class Submission(models.Model):
         if not user.is_authenticated:
             return False
         profile = user.profile
+        # Public solution-sharing settings never make a personal test public.
+        if self.problem.code.startswith('ct_'):
+            return self.user_id == profile.id or user.has_perm('judge.view_all_submission')
         source_visibility = self.problem.submission_source_visibility
         if self.problem.is_editable_by(user):
             return True
