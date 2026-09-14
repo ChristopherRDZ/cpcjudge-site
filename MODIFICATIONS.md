@@ -1,6 +1,7 @@
 # CPC-UAEH modifications to DMOJ
 
-As of 2026-09-12, this source includes the deployed Django 5.2.17 upgrade.
+As of 2026-09-14, this source includes custom-test admission controls and the
+deployed Django 5.2.17 upgrade.
 Timezone, storage/dependency and contest administration adaptations are
 documented in the [upgrade record](docs/django52/README.md).
 
@@ -23,7 +24,7 @@ GNU Affero General Public License version 3.
 - A signed-in custom code testing workflow and its judge bridge support.
 - Minor registration and presentation adjustments.
 
-## Security maintenance through 2026-09-11
+## Security maintenance through 2026-09-14
 
 - Signed ownership checks and read-only result polling for custom tests, with
   bounded cleanup of verified completed tests and transaction-safe file handling.
@@ -32,6 +33,11 @@ GNU Affero General Public License version 3.
 - Documented deployment isolation, private configuration/backup boundaries,
   Redis authentication, Nginx request/origin restrictions and HTTPS controls.
 - Updated public configuration examples and private-artifact ignore rules.
+- Per-user custom-test fixed windows and an in-flight admission check, with
+  HTTP 429 feedback; documented concurrency and retention limitations.
+- A uWSGI request-timeout example, structural CSP/referrer headers, added judge
+  isolation controls, Supervisor retirement, DNS/error-reporting repairs and
+  offline-compression build requirements.
 
 See the [security maintenance record](docs/security/README.md) for implementation
 dates, verification scope and remaining limitations. Infrastructure changes are

@@ -67,10 +67,11 @@ login, administrative writes, new submissions or the full laboratory suite.
 
 The static manifest format and existing compressed output were checked for this
 upgrade. No new static asset generation was needed for this specific deployment.
-That is not a general instruction to skip static builds: deployments with
-read-only static trees must provide all required generated output, or a narrowly
-scoped writable output directory. Offline compression requires coverage of
-template context variants and is not enabled by this source publication.
+That is not a general instruction to skip static builds. On 2026-09-14 the
+deployment enabled offline compression and published generated output to repair
+missing variants on its read-only static tree. See the
+[build and verification contract](../security/offline-compression.md).
+Source publication itself does not change operational settings or build assets.
 
 Before another rollout, recheck source/configuration drift, verify a backup
 including the virtual environment, rehearse recovery and test with the current

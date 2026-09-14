@@ -16,3 +16,9 @@ The uWSGI example illustrates a restricted application socket; it does not
 provide the accounts, ACLs, boot-time runtime directory or complete systemd
 namespace setup needed for a deployment. Keep those host-specific definitions
 private and validate the effective access of every runtime role.
+
+The [runtime hardening fragment](runtime-hardening.settings.py) documents
+offline compression, custom-test ceilings and local error logging. Generate
+and verify the [offline build](../../docs/security/offline-compression.md)
+before enabling it. The uWSGI timeout must allow legitimate requests and is
+applied to an entire worker, including its other active threads.

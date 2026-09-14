@@ -1,11 +1,11 @@
 # Security maintenance record
 
 These documents describe application changes and deployment controls applied
-through 2026-09-12. Examples use generic paths and hostnames; production settings,
+through 2026-09-14. Examples use generic paths and hostnames; production settings,
 credentials, data, logs and detailed recovery inventories remain private.
 
 - [Custom test lifecycle](custom-tests.md): read-only polling, signed ownership
-  and bounded cleanup.
+  and bounded cleanup, per-user admission limits and remaining race/retention limits.
 - [Personal test privacy](custom-test-privacy.md): histories, API, statistics and
   direct source access.
 - [Service isolation](service-isolation.md): dedicated identities, systemd,
@@ -16,6 +16,8 @@ credentials, data, logs and detailed recovery inventories remain private.
 - [Nginx](nginx.md): no directory indexes or public event-publishing route,
   private origin listener and custom test request-size limit.
 - [HTTPS](https.md): secure cookies and HSTS at the edge.
+- [Offline compression](offline-compression.md): deterministic builds for a
+  read-only static tree and required template-context coverage.
 
 Documented checks are scoped observations, not a claim that the system has no
 vulnerabilities. Code publication does not install dependencies, change host

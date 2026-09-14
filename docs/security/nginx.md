@@ -5,6 +5,19 @@ applied on 2026-09-11. The following are generic fragments to merge into the
 appropriate contexts of a deployment's existing configuration. They are not a
 complete configuration or a copy of the production server's routing.
 
+On 2026-09-13 the proxy also removed obsolete `X-XSS-Protection` and added these
+headers in the applicable server context (check Nginx header inheritance):
+
+```nginx
+add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+add_header Content-Security-Policy "frame-ancestors 'self'; object-src 'none'; base-uri 'self'" always;
+```
+
+This structural CSP restricts framing, plugin objects and base URLs. It does
+not restrict JavaScript execution; a `script-src` policy requires a separate
+review of inline scripts, event handlers and third-party resources. Preserve
+existing HTTPS, content-type and frame protections when merging fragments.
+
 At main configuration scope:
 
 ```nginx
@@ -56,5 +69,5 @@ connection acceptance rather than assuming a successful reload changed them.
 Verification covered application/login/static responses, websocket and polling
 routes, 404 for the removed publishing route, 413 above the size limit, and
 connection refusal through the host's non-loopback interface. These checks do
-not establish per-user rate limits or job-concurrency limits; both remain
-separate application-level work.
+not establish per-user rate limits or job-concurrency limits; the
+[application admission controls](custom-tests.md) were added on 2026-09-14.

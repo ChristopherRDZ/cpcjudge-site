@@ -35,11 +35,10 @@ the socket's permitted group without gaining access to application secrets.
 
 ## Startup and recovery
 
-One process manager must own each service. The old Supervisor definitions are
-disabled and are not an alternate way to start the current systemd services.
-Starting an old web definition can contend for, and later remove, the active
-Unix socket. Remove obsolete active definitions through a separately reviewed
-operational change after preserving private recovery material.
+One process manager must own each service. On 2026-09-14 obsolete Supervisor
+definitions were removed after preserving private recovery material, and its
+daemon was stopped and disabled. Starting an old web definition can contend
+for, and later remove, the active Unix socket. Use the current systemd units.
 
 Before stopping the bridge or judges, pause incoming evaluation work and wait
 for submission queues, active judge workers and Celery work to finish. A bridge
@@ -51,3 +50,36 @@ event endpoints and judge connectivity. Later host-startup checks confirmed
 automatic startup; restarting the web service recovered a socket removed by an
 obsolete Supervisor launch. These observations do not certify every sandbox
 boundary or every supported language against hostile programs.
+
+## Additional judge restrictions — 2026-09-13
+
+The judge unit now also uses `PrivateDevices`, `ProtectKernelTunables`,
+`ProtectKernelModules`, `ProtectControlGroups`, `RestrictSUIDSGID` and
+`RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6`. Language self-tests,
+isolated evaluations and later user-reported submissions passed.
+
+Do not add `LockPersonality` to this judge configuration. Its executors use
+`personality(ADDR_NO_RANDOMIZE)` for consistent memory accounting; blocking the
+call silently changes that behavior even when ordinary verdict tests pass.
+`SystemCallFilter` and `MemoryDenyWriteExecute` were not added.
+
+## DNS and temporary storage — 2026-09-13/14
+
+On WSL, `/etc/resolv.conf` can point into `/mnt/wsl`. Masking that directory
+breaks DNS inside a service without preventing its startup or ordinary GETs.
+The web/Celery namespaces now expose only the resolver file within a private
+temporary mount. Other host and interoperability restrictions remain in place.
+Adapt the mapping to the actual resolver target; do not copy a host-specific
+drop-in blindly. Verify DNS and TLS connectivity as the service user inside its
+namespace after every mount change, including after WSL restarts.
+
+Keep request-error logging available locally as well as through email. If DNS
+breaks both activation email and email-only error reporting, registration may
+return 500 without an accessible diagnostic. See the
+[configuration fragment](../../deploy/examples/runtime-hardening.settings.py).
+
+Validate ownership of the proxy's writable body/response temporary paths after
+isolating its service. The deployment corrected paths owned by a different UID,
+which prevented larger POST requests from being buffered to disk. A successful
+small login-form GET does not validate POST body buffering, email delivery or
+an actual registration.
