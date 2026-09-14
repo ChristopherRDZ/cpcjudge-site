@@ -814,6 +814,7 @@ import shutil
 import stat
 import uuid
 from django.core import signing
+from django.core.cache import cache
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods
@@ -823,6 +824,67 @@ CUSTOM_TEST_TIME_LIMIT = 2.0
 CUSTOM_TEST_MEMORY_LIMIT = 524288
 CUSTOM_TEST_MARKER = 'CPC custom test v1:'
 CUSTOM_TEST_SIGNING_SALT = 'judge.custom-test.problem.v1'
+
+
+# Per-user limits for the custom test tool. The site tree is a read-only bind
+# mount for dmoj-web, so every ceiling is overridable from the private settings
+# file (CPC_CUSTOM_TEST_*) without editing this tree. Zero or less disables one.
+CUSTOM_TEST_MAX_IN_FLIGHT = 2
+CUSTOM_TEST_MAX_PER_MINUTE = 12
+CUSTOM_TEST_MAX_PER_HOUR = 200
+# A test still queued after this long stops counting against the in-flight
+# limit, so an offline judge cannot lock a user out for good.
+CUSTOM_TEST_IN_FLIGHT_MAX_AGE = timedelta(minutes=10)
+
+
+def _custom_test_limit(name, fallback):
+    value = getattr(settings, 'CPC_CUSTOM_TEST_' + name, fallback)
+    return value if isinstance(value, int) and not isinstance(value, bool) else fallback
+
+
+def _custom_test_window_refusal(profile):
+    # Fixed windows held in the shared cache, so all uWSGI workers count once.
+    # A cache outage must not take the tool down: it degrades to the in-flight
+    # check below, which reads the database.
+    now = int(timezone.now().timestamp())
+    for label, span, fallback, message in (
+            ('MINUTE', 60, CUSTOM_TEST_MAX_PER_MINUTE,
+             'Demasiadas pruebas seguidas. Espera un momento antes de volver a ejecutar.'),
+            ('HOUR', 3600, CUSTOM_TEST_MAX_PER_HOUR,
+             'Alcanzaste el máximo de pruebas personalizadas por hora. Inténtalo más tarde.')):
+        ceiling = _custom_test_limit('MAX_PER_' + label, fallback)
+        if ceiling <= 0:
+            continue
+        key = 'custom-test:%s:%d:%d' % (label.lower(), profile.pk, now // span)
+        try:
+            cache.add(key, 0, span * 2)
+            used = cache.incr(key)
+        except Exception:
+            logging.getLogger(__name__).warning('Custom test rate counter unavailable; window not enforced.')
+            return None
+        if used > ceiling:
+            return message
+    return None
+
+
+def _custom_test_in_flight_refusal(profile):
+    ceiling = _custom_test_limit('MAX_IN_FLIGHT', CUSTOM_TEST_MAX_IN_FLIGHT)
+    if ceiling <= 0:
+        return None
+    cutoff = timezone.now() - CUSTOM_TEST_IN_FLIGHT_MAX_AGE
+    running = Submission.objects.filter(
+        user=profile, status__in=('QU', 'P', 'G'), date__gte=cutoff,
+        problem__summary__startswith=CUSTOM_TEST_MARKER,
+    ).count()
+    if running >= ceiling:
+        return ('Ya tienes %d prueba(s) personalizada(s) en ejecución. '
+                'Espera a que terminen antes de enviar otra.') % running
+    return None
+
+
+def _custom_test_refusal(profile):
+    # Cheapest control first: the cache counter before the database query.
+    return _custom_test_window_refusal(profile) or _custom_test_in_flight_refusal(profile)
 
 
 def _is_owned_custom_test(submission, profile):
@@ -913,6 +975,10 @@ class CustomTestView(LoginRequiredMixin, TitleMixin, View):
 @require_http_methods(['GET', 'POST'])
 def custom_test_run(request):
     if request.method == 'POST':
+        refusal = _custom_test_refusal(request.profile)
+        if refusal is not None:
+            return JsonResponse({'error': refusal}, status=429)
+
         import json
         try:
             data = json.loads(request.body)
