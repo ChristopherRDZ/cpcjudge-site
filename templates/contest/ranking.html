@@ -41,16 +41,18 @@
     {% if can_edit %}
         <script type="text/javascript">
             $(function () {
-                $('a.disqualify-participation').click(function (e) {
+                // Bound on the document rather than on the links themselves so
+                // they keep working after the table is swapped out by a refresh.
+                $(document).on('click', 'a.disqualify-participation', function (e) {
                     e.preventDefault();
                     if (e.ctrlKey || e.metaKey || confirm({{ _('Are you sure you want to disqualify this participation?')|htmltojs }}))
                         $(this).closest('form').submit();
-                })
-                $('a.un-disqualify-participation').click(function (e) {
+                });
+                $(document).on('click', 'a.un-disqualify-participation', function (e) {
                     e.preventDefault();
                     if (e.ctrlKey || e.metaKey || confirm({{ _('Are you sure you want to un-disqualify this participation?')|htmltojs }}))
                         $(this).closest('form').submit();
-                })
+                });
             });
         </script>
     {% endif %}
@@ -114,6 +116,87 @@
             }
         });
     </script>
+    {% if tab == 'ranking' and not contest.ended and contest.can_see_full_scoreboard(request.user) %}
+        <script type="text/javascript">
+            $(function () {
+                // The scoreboard used to sit still until the page was reloaded by
+                // hand. It now refetches the table fragment and swaps it in, which
+                // keeps the page's styling, its scroll position and the header.
+                var REFRESH_BASE = 30000;
+                var REFRESH_SLOW = 120000;
+                var SLOW_RESPONSE = 3000;
+                var BACKOFF_MAX = 300000;
+                // Rebuilding the scoreboard is not free: it walks every
+                // participation and renders a cell per problem. If the server is
+                // taking its time, ask less often instead of piling on.
+                var REFRESH_INTERVAL = REFRESH_BASE;
+                // A little past the end, so the last verdicts still land.
+                var STOP_AFTER = {{ (contest.end_time.timestamp() * 1000)|int }} + 300000;
+
+                var url = '{{ url('contest_ranking_ajax', contest.key) }}';
+                var timer = null;
+                var fetching = false;
+                var failures = 0;
+                var last_update = Date.now();
+
+                function reapply() {
+                    // The swapped-in table is fresh markup, so anything the page
+                    // did to the old one has to be done again.
+                    if (typeof window.install_tooltips === 'function')
+                        window.install_tooltips();
+                    if ($('#show-organizations-checkbox').is(':checked'))
+                        $('.organization-column').show();
+                }
+
+                function schedule(delay) {
+                    if (timer !== null) {
+                        clearTimeout(timer);
+                        timer = null;
+                    }
+                    if (Date.now() > STOP_AFTER)
+                        return;
+                    timer = setTimeout(refresh, delay);
+                }
+
+                function refresh() {
+                    // Nothing to do for a tab nobody is looking at; coming back to
+                    // it triggers a refresh on its own.
+                    if (fetching || $('body').hasClass('window-hidden')) {
+                        schedule(REFRESH_INTERVAL);
+                        return;
+                    }
+                    fetching = true;
+                    var started = Date.now();
+                    $.ajax({url: url, dataType: 'html'}).done(function (data) {
+                        REFRESH_INTERVAL = (Date.now() - started > SLOW_RESPONSE) ? REFRESH_SLOW : REFRESH_BASE;
+                        var $container = $('#ranking-table').closest('.h-scrollable-table');
+                        if ($container.length) {
+                            $container.html(data);
+                            reapply();
+                        }
+                        failures = 0;
+                        last_update = Date.now();
+                        schedule(REFRESH_INTERVAL);
+                    }).fail(function (jqXHR) {
+                        // 403 and 404 mean the scoreboard stopped being visible to
+                        // this user. There is nothing to retry for.
+                        if (jqXHR.status === 403 || jqXHR.status === 404)
+                            return;
+                        failures++;
+                        schedule(Math.min(REFRESH_INTERVAL * Math.pow(2, failures), BACKOFF_MAX));
+                    }).always(function () {
+                        fetching = false;
+                    });
+                }
+
+                $(window).on('dmoj:window-visible', function () {
+                    schedule(Math.max(0, REFRESH_INTERVAL - (Date.now() - last_update)));
+                });
+
+                schedule(REFRESH_INTERVAL);
+            });
+        </script>
+    {% endif %}
     {% include "contest/media-js.html" %}
 {% endblock %}
 

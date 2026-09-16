@@ -728,6 +728,12 @@ def contest_ranking_ajax(request, contest, participation=None):
         'problems': problems,
         'contest': contest,
         'has_rating': contest.ratings.exists(),
+        # The ranking page refreshes itself by swapping in this fragment, so it
+        # has to carry everything the first render did: without `can_edit` an
+        # editor would lose the disqualify controls on the first refresh, and
+        # without the id the next refresh could not find the table again.
+        'can_edit': contest.is_editable_by(request.user),
+        'table_id': 'ranking-table',
     })
 
 
