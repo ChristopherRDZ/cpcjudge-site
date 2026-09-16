@@ -1,6 +1,9 @@
 {% extends "submission/info-base.html" %}
 {% block js_media %}
-    <script type="text/javascript" src="{{ static('event.js') }}"></script>
+    {# Compressed so that a change to event.js gets a fresh URL; /static is served with `expires max`. #}
+    {% compress js %}
+        <script type="text/javascript" src="{{ static('event.js') }}"></script>
+    {% endcompress %}
     {% if not submission.is_graded and last_msg %}
         <script type="text/javascript">
             $(function () {

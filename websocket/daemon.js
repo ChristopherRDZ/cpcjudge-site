@@ -9,6 +9,7 @@ var followers = new set();
 var pollers = new set();
 var max_queue = config.max_queue || 50;
 var long_poll_timeout = config.long_poll_timeout || 60000;
+var heartbeat_interval = config.heartbeat_interval || 25000;
 var message_id = Date.now();
 
 if (typeof String.prototype.startsWith != 'function') {
@@ -49,6 +50,11 @@ messages.last = function () {
 wss_receiver.on('connection', function (socket) {
     socket.channel = null;
     socket.last_msg = 0;
+    socket.is_alive = true;
+
+    socket.on('pong', function () {
+        socket.is_alive = true;
+    });
 
     var commands = {
         start_msg: function (request) {
@@ -108,6 +114,25 @@ wss_receiver.on('connection', function (socket) {
         followers.remove(socket);
     });
 });
+
+// Without traffic of its own a listening socket looks idle to whatever sits in
+// front of this daemon, and the edge proxy drops it after a couple of minutes.
+// Pinging keeps it open and, because a browser answers automatically, also
+// reveals clients that went away without closing.
+setInterval(function () {
+    wss_receiver.clients.forEach(function (socket) {
+        if (socket.is_alive === false) {
+            socket.terminate();
+            return;
+        }
+        socket.is_alive = false;
+        try {
+            socket.ping();
+        } catch (err) {
+            socket.terminate();
+        }
+    });
+}, heartbeat_interval);
 
 wss_sender.on('connection', function (socket) {
     var commands = {

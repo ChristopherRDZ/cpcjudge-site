@@ -7,7 +7,10 @@
         window.filter_own_id = {{filter_status.own_id}};
         window.filter_assignee_ids = {{filter_status.assignee_id}};
     </script>
-    <script type="text/javascript" src="{{ static('event.js') }}"></script>
+    {# Compressed so that a change to event.js gets a fresh URL; /static is served with `expires max`. #}
+    {% compress js %}
+        <script type="text/javascript" src="{{ static('event.js') }}"></script>
+    {% endcompress %}
     <script type="text/javascript">
         $(function () {
             $('input#open, input#own').click(function () {

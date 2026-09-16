@@ -4,7 +4,10 @@
 {% block js_media %}
     {{ form.media.js }}
     <script src="{{ static('libs/featherlight/featherlight.min.js') }}" type="text/javascript"></script>
-    <script type="text/javascript" src="{{ static('event.js') }}"></script>
+    {# Compressed so that a change to event.js gets a fresh URL; /static is served with `expires max`. #}
+    {% compress js %}
+        <script type="text/javascript" src="{{ static('event.js') }}"></script>
+    {% endcompress %}
     <script type="text/javascript">
         $(function () {
             var $h2 = $('#content').find('> h2:first-child');
