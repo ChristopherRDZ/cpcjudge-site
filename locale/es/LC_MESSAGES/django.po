@@ -6270,3 +6270,234 @@ msgstr "Perfil del Administrador"
 msgid "Check all"
 msgstr "Seleccionar todo"
 
+#: judge/admin/announcement.py:19
+msgid "show for (minutes)"
+msgstr "mostrar durante (minutos)"
+
+#: judge/admin/announcement.py:20
+msgid ""
+"Fill this in to stop showing it that many minutes from now; it overrides the "
+"field below. Leave both empty on a contest announcement and it stops when "
+"the contest does."
+msgstr ""
+"Rellena esto para que deje de mostrarse dentro de esa cantidad de minutos; "
+"tiene prioridad sobre el campo de abajo. Si dejas los dos vacíos en un "
+"anuncio de concurso, deja de mostrarse cuando termina el concurso."
+
+#: judge/admin/announcement.py:34
+msgid "An announcement written here needs some text."
+msgstr "Un anuncio escrito aquí necesita algo de texto."
+
+#: judge/admin/announcement.py:47
+msgid ""
+"A site-wide announcement needs either a duration or a time to stop showing, "
+"so it does not stay up forever."
+msgstr ""
+"Un anuncio para todo el sitio necesita una duración o una hora a la que "
+"dejar de mostrarse, para que no se quede visible para siempre."
+
+#: judge/admin/announcement.py:61
+msgid "Whole site"
+msgstr "Todo el sitio"
+
+#: judge/admin/announcement.py:62
+msgid "target"
+msgstr "destino"
+
+#: judge/admin/announcement.py:66 judge/models/announcement.py:15
+#: judge/models/announcement.py:46
+msgid "announcement"
+msgstr "anuncio"
+
+#: judge/admin/announcement.py:93
+msgid ""
+"You may only announce to a contest you run. Announcing to the whole site "
+"needs a separate permission."
+msgstr ""
+"Sólo puedes anunciar en un concurso que administres. Anunciar a todo el "
+"sitio requiere un permiso aparte."
+
+#: judge/admin/clarification.py:17 judge/models/clarification.py:27
+msgid "question"
+msgstr "pregunta"
+
+#: judge/models/announcement.py:13
+msgid ""
+"Leave empty to announce to the whole site. Otherwise the announcement only "
+"reaches that contest, and is kept on its announcements tab."
+msgstr ""
+"Déjalo vacío para anunciar a todo el sitio. Si no, el anuncio sólo llega a "
+"ese concurso y queda archivado en su pestaña de aclaraciones."
+
+#: judge/models/announcement.py:16
+msgid ""
+"Shown as plain text: HTML and Markdown are not interpreted. Leave empty only "
+"on an announcement that carries a clarification."
+msgstr ""
+"Se muestra como texto plano: el HTML y el Markdown no se interpretan. Déjalo "
+"vacío sólo en un anuncio que lleve una aclaración."
+
+#: judge/models/announcement.py:22
+msgid "clarification"
+msgstr "aclaración"
+
+#: judge/models/announcement.py:24
+msgid "author"
+msgstr "autor"
+
+#: judge/models/announcement.py:27
+msgid "stop showing at"
+msgstr "dejar de mostrar a partir de"
+
+#: judge/models/announcement.py:28
+msgid ""
+"After this moment the announcement stops popping up. It is still kept on the "
+"contest tab. Empty means it never stops."
+msgstr ""
+"A partir de ese momento el anuncio deja de aparecer. Se conserva igualmente "
+"en la pestaña del concurso. Vacío significa que nunca deja de aparecer."
+
+#: judge/models/announcement.py:30
+msgid "is visible"
+msgstr "es visible"
+
+#: judge/models/announcement.py:31
+msgid ""
+"Uncheck to withdraw an announcement without deleting it, so there is still a "
+"record that it was sent."
+msgstr ""
+"Desmárcalo para retirar un anuncio sin borrarlo, de modo que quede "
+"constancia de que se envió."
+
+#: judge/models/announcement.py:35
+msgid "Site"
+msgstr "Sitio"
+
+#: judge/models/announcement.py:44
+msgid "Announce to the whole site"
+msgstr "Anunciar a todo el sitio"
+
+#: judge/models/announcement.py:47
+msgid "announcements"
+msgstr "anuncios"
+
+#: judge/models/clarification.py:24
+msgid "Leave empty for a question about the contest as a whole."
+msgstr "Déjalo vacío para una pregunta sobre el concurso en general."
+
+#: judge/models/clarification.py:25
+msgid "asked by"
+msgstr "preguntado por"
+
+#: judge/models/clarification.py:28
+msgid "asked at"
+msgstr "preguntado el"
+
+#: judge/models/clarification.py:29
+msgid "answer"
+msgstr "respuesta"
+
+#: judge/models/clarification.py:30
+msgid "answered by"
+msgstr "respondido por"
+
+#: judge/models/clarification.py:32
+msgid "answered at"
+msgstr "respondido el"
+
+#: judge/models/clarification.py:33
+msgid "answer is public"
+msgstr "la respuesta es pública"
+
+#: judge/models/clarification.py:34
+msgid ""
+"A public answer is shown to every contestant. A private one only goes back "
+"to whoever asked."
+msgstr ""
+"Una respuesta pública se muestra a todos los concursantes. Una privada sólo "
+"le llega a quien preguntó."
+
+#: judge/models/clarification.py:54
+msgid "contest clarification"
+msgstr "aclaración de concurso"
+
+#: judge/models/clarification.py:55
+msgid "contest clarifications"
+msgstr "aclaraciones de concurso"
+
+#: judge/views/announcement.py:53 templates/contest/announcements.html:133
+msgid "Question"
+msgstr "Pregunta"
+
+#: judge/views/announcement.py:54 templates/contest/announcements.html:136
+#: templates/contest/announcements.html:172
+#: templates/contest/announcements.html:194
+msgid "Answer"
+msgstr "Respuesta"
+
+#: judge/views/announcement.py:98
+msgid "About the contest in general"
+msgstr "Sobre el concurso en general"
+
+#: judge/views/announcement.py:105
+msgid "Ask the jury a question about this contest."
+msgstr "Haz una pregunta al jurado sobre este concurso."
+
+#: judge/views/announcement.py:119
+msgid "The question is empty."
+msgstr "La pregunta está vacía."
+
+#: judge/views/announcement.py:121
+#, python-format
+msgid "Questions are limited to %(limit)d characters."
+msgstr "Las preguntas están limitadas a %(limit)d caracteres."
+
+#: judge/views/announcement.py:145
+#, python-format
+msgid "Clarifications for %s"
+msgstr "Aclaraciones de %s"
+
+#: judge/views/announcement.py:201
+msgid "Wait a few seconds before asking again."
+msgstr "Espera unos segundos antes de volver a preguntar."
+
+#: judge/views/announcement.py:203
+#, python-format
+msgid "You already have %(limit)d questions waiting for an answer."
+msgstr "Ya tienes %(limit)d preguntas esperando respuesta."
+
+#: templates/base.html:447
+msgid "OK"
+msgstr "Aceptar"
+
+#: templates/contest/announcements.html:110
+msgid "Ask the jury"
+msgstr "Preguntar al jurado"
+
+#: templates/contest/announcements.html:120
+msgid "Announcements"
+msgstr "Anuncios"
+
+#: templates/contest/announcements.html:149
+msgid "Questions"
+msgstr "Preguntas"
+
+#: templates/contest/announcements.html:158
+msgid "General"
+msgstr "General"
+
+#: templates/contest/announcements.html:163
+msgid "private answer"
+msgstr "respuesta privada"
+
+#: templates/contest/announcements.html:184
+msgid "Answer this question."
+msgstr "Responde esta pregunta."
+
+#: templates/contest/announcements.html:189
+msgid "Send this answer to every contestant"
+msgstr "Enviar esta respuesta a todos los concursantes"
+
+#: templates/contest/announcements.html:201
+msgid "No questions have been asked yet."
+msgstr "Todavía no se ha hecho ninguna pregunta."
