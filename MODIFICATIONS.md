@@ -1,7 +1,8 @@
 # CPC-UAEH modifications to DMOJ
 
-As of 2026-09-14, this source includes custom-test admission controls and the
-deployed Django 5.2.17 upgrade.
+As of 2026-09-15, this source includes contest announcements and clarifications,
+self-refreshing rankings, resilient live updates, custom-test admission controls
+and the deployed Django 5.2.17 upgrade.
 Timezone, storage/dependency and contest administration adaptations are
 documented in the [upgrade record](docs/django52/README.md).
 
@@ -23,6 +24,24 @@ GNU Affero General Public License version 3.
 - Authentication using either a username or an email address.
 - A signed-in custom code testing workflow and its judge bridge support.
 - Minor registration and presentation adjustments.
+
+## Contest features — 2026-09-15
+
+- Site-wide and per-contest announcements, shown as a plain-text overlay and
+  archived on a per-contest clarifications tab, with an administration form that
+  picks the target and when the overlay stops appearing.
+- Contest clarifications: contestants ask the jury about the contest or about a
+  single problem, and answers are either private to whoever asked or broadcast
+  to every contestant, in which case they are archived as an announcement of
+  that contest. Question bodies are plain text, length capped and rate limited
+  per user.
+- Contest rankings that refresh themselves while the tab is visible, reusing the
+  existing ranking fragment endpoint, which now also carries the editor controls
+  and the table identifier it previously omitted.
+- A heartbeat in the event daemon and reconnection with exponential backoff in
+  the browser client, with long polling as a fallback.
+- Spanish translations for the strings these features introduce.
+- Django migrations `0150`, `0151` and `0152`.
 
 ## Security maintenance through 2026-09-14
 

@@ -1,3 +1,8 @@
+> **Contest features, 2026-09-15.** Announcements and clarifications,
+> self-refreshing contest rankings and resilient live updates, with the new
+> interface translated into Spanish. See
+> [the highlights](#contest-features-added-by-cpc-uaeh--2026-09-15).
+
 > **Django 5.2.17 production source.** The `cpc-production` branch includes the
 > deployed Django upgrade. See the [upgrade record](docs/django52/README.md) for
 > adaptations, configuration guidance and the scope of validation.
@@ -33,6 +38,33 @@ repository.
 
 The [security maintenance record](docs/security/README.md) documents the deployed
 application fixes and generic deployment controls, with their validation limits.
+
+## Contest features added by CPC-UAEH — 2026-09-15
+
+Highlights of the contest tooling built on top of the upstream feature set:
+
+- **Announcements and clarifications.** Announcements reach either the whole site
+  or a single contest, are shown as a dismissable overlay and stay archived on a
+  per-contest Clarifications tab. Contestants ask the jury questions, optionally
+  about one problem; the jury answers privately to whoever asked, or broadcasts
+  the answer to every contestant, in which case it is also archived as an
+  announcement of that contest. Announcement and question bodies are plain text:
+  neither HTML nor Markdown is interpreted. Questions are rate limited per user
+  and capped in length. Adds migrations `0150`–`0152`.
+- **Self-refreshing contest rankings.** The scoreboard now refreshes on its own
+  instead of requiring a manual reload. It reuses the existing ranking fragment
+  endpoint, polls only while the tab is visible and the viewer may see the full
+  scoreboard, preserves the reader's column preferences across refreshes, backs
+  off when the server answers slowly and stops shortly after the contest ends.
+- **Resilient live updates.** The event daemon sends a periodic heartbeat and the
+  browser client reconnects with exponential backoff, falling back to long
+  polling and reconnecting when the tab or the network comes back. Long-lived
+  submission, ticket and clarification pages no longer show a disconnection
+  warning after an idle edge timeout.
+- **Spanish interface for the new screens.** Every string introduced by the
+  features above is translated in `locale/es`.
+
+The complete list of fork changes remains in [MODIFICATIONS.md](MODIFICATIONS.md).
 
 A modern open-source online judge and contest platform system. It has been used to host thousands of competitions, including several national olympiads.
 
