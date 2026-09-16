@@ -16,6 +16,9 @@
             {{ make_tab('ranking', 'fa-bar-chart', None, _('Hidden Rankings')) }}
         {% endif %}
     {% endif %}
+    {% if contest.started or can_edit %}
+        {{ make_tab('announcements', 'fa-bullhorn', url('contest_announcements', contest.key), _('Clarifications')) }}
+    {% endif %}
     {% if can_edit %}
         {% if perms.judge.moss_contest and has_moss_api_key %}
             {{ make_tab('moss', 'fa-gavel', url('contest_moss', contest.key), _('MOSS')) }}

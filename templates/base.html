@@ -213,6 +213,18 @@
                     {% endwith %}
                 </li>
             {% endfor %}
+            {# Only while actually inside a contest. `update_contest()` clears the
+               participation the moment it ends, live or virtual, so this
+               disappears on its own and there is nothing to check for here. #}
+            {% if request.in_contest %}
+                <li>
+                    <a href="{{ url('contest_announcements', request.participation.contest.key) }}"
+                       class="nav-clarifications{% if tab == 'announcements' %} active{% endif %}">
+                        {{ _('Clarifications') }}{#- the badge only fills in for the jury -#}
+                        <span id="clarification-badge"></span>
+                    </a>
+                </li>
+            {% endif %}
         </ul>
 
         <span id="user-links">
@@ -307,9 +319,9 @@
             {% if misc_config.footer %}
                 {{ misc_config.footer|safe }} |
             {% endif %}
-
+            
             <img class="site-logo" alt="{{ SITE_NAME }}">
-
+    
             <form action="{{ url('set_language') }}" method="post">
                 {% csrf_token %}
                 <input name="next" type="hidden" value="{{ request.get_full_path() }}">
@@ -325,5 +337,217 @@
     </footer>
 
 </div>
+
+{# Announcement box. Everything is inline on purpose: no file under resources/,
+   so no collectstatic, no hashed copy and no compression manifest to rebuild.
+   It also sits outside every {% compress %} block in this template. #}
+<style>
+    #announcement-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.45);
+        z-index: 1000;
+        /* A long clarification on a short screen has to scroll, and the padding
+           keeps the box off the edges of a phone. */
+        overflow-y: auto;
+        padding: 1em;
+        box-sizing: border-box;
+    }
+
+    #announcement-box {
+        position: relative;
+        margin: 6em auto 2em auto;
+        max-width: 32em;
+        box-sizing: border-box;
+        background: #fff;
+        color: #202124;
+        border-radius: 8px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+        padding: 1.2em 1.4em 1em 1.4em;
+        font-family: Arial, sans-serif;
+    }
+
+    #announcement-box-title {
+        font-size: 1.1em;
+        margin-bottom: 0.8em;
+    }
+
+    .announcement-item {
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        color: #5f6368;
+        margin-bottom: 0.9em;
+    }
+
+    .announcement-item-contest {
+        display: block;
+        font-size: 0.85em;
+        color: #9aa0a6;
+        margin-bottom: 0.2em;
+    }
+
+    #announcement-box-actions {
+        text-align: right;
+        margin-top: 1.2em;
+    }
+
+    #announcement-ok {
+        background: #4285f4;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        padding: 0.7em 2.2em;
+        font-size: 1em;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    /* Unanswered questions waiting for the jury. Hidden until there are any;
+       toggled by class, because jQuery's show() would only fall back to this
+       rule's `none` again. */
+    #clarification-badge {
+        display: none;
+        background: #d9534f;
+        color: #fff;
+        border-radius: 10px;
+        padding: 0 0.45em;
+        margin-left: 0.4em;
+        font-size: 0.85em;
+        font-weight: bold;
+        vertical-align: middle;
+    }
+
+    #clarification-badge.has-pending {
+        display: inline-block;
+    }
+
+    /* Same breakpoint the rest of the site uses. */
+    @media (max-width: 760px) {
+        #announcement-box {
+            margin-top: 2em;
+        }
+
+        /* Full width so the button is a comfortable target on a phone. */
+        #announcement-ok {
+            width: 100%;
+            padding: 0.9em 0;
+        }
+    }
+</style>
+
+<div id="announcement-overlay">
+    <div id="announcement-box" role="alertdialog" aria-labelledby="announcement-box-title">
+        <div id="announcement-box-title">{{ SITE_NAME }}</div>
+        <div id="announcement-box-items"></div>
+        <div id="announcement-box-actions">
+            <button type="button" id="announcement-ok">{{ _('OK') }}</button>
+        </div>
+    </div>
+</div>
+
+<script type="text/javascript">
+    $(function () {
+        // The text always comes from the server over HTTPS, never from the event
+        // channel, so nothing that can reach the daemon's publishing port can put
+        // words on this page.
+        var POLL_INTERVAL = 60000;
+        var STORAGE_KEY = 'announcements_seen';
+        var url = '{{ url('announcements_active') }}';
+
+        var $overlay = $('#announcement-overlay');
+        var $items = $('#announcement-box-items');
+        var showing = [];
+
+        function seen_ids() {
+            try {
+                var raw = localStorage.getItem(STORAGE_KEY);
+                var parsed = raw ? JSON.parse(raw) : [];
+                if (!Array.isArray(parsed))
+                    return [];
+                // Entries written before clarifications existed are bare numbers,
+                // and they all meant announcements. Read them as such so nothing
+                // already dismissed comes back.
+                return parsed.map(function (entry) {
+                    return typeof entry === 'number' ? 'announcement:' + entry : entry;
+                });
+            } catch (err) {
+                return [];
+            }
+        }
+
+        function remember(ids) {
+            try {
+                // Only the tail is kept: the list is a dismissal record, not history.
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(seen_ids().concat(ids).slice(-200)));
+            } catch (err) {
+                // Private browsing and full quotas both land here. The box will
+                // come back on the next load, which is the safe way to fail.
+            }
+        }
+
+        function show(announcements) {
+            var already = seen_ids();
+            var pending = [];
+            for (var i = 0; i < announcements.length; i++)
+                if (already.indexOf(announcements[i].key) === -1)
+                    pending.push(announcements[i]);
+            if (!pending.length)
+                return;
+
+            $items.empty();
+            showing = [];
+            // Oldest first, so a sequence of clarifications reads in order.
+            pending.reverse();
+            for (var j = 0; j < pending.length; j++) {
+                var item = $('<div>', {'class': 'announcement-item'});
+                if (pending[j].contest)
+                    item.append($('<span>', {'class': 'announcement-item-contest'}).text(pending[j].contest));
+                // .text(), never .html(): the body is plain text by design.
+                item.append(document.createTextNode(pending[j].body));
+                $items.append(item);
+                showing.push(pending[j].key);
+            }
+            $overlay.show();
+            $('#announcement-ok').focus();
+        }
+
+        function dismiss() {
+            remember(showing);
+            showing = [];
+            $overlay.hide();
+        }
+
+        $('#announcement-ok').click(dismiss);
+        $(document).on('keydown.announcement', function (e) {
+            if ($overlay.is(':visible') && (e.which === 27 || e.which === 13))
+                dismiss();
+        });
+
+        function poll() {
+            if ($('body').hasClass('window-hidden') || $overlay.is(':visible'))
+                return;
+            $.ajax({url: url, dataType: 'json'}).done(function (data) {
+                if (!data)
+                    return;
+                if (data.announcements)
+                    show(data.announcements);
+                // Non-zero only for someone who can edit the contest they are in.
+                var $badge = $('#clarification-badge');
+                if ($badge.length) {
+                    var pending = data.pending_questions || 0;
+                    $badge.text(pending).toggleClass('has-pending', pending > 0);
+                }
+            });
+        }
+
+        poll();
+        setInterval(poll, POLL_INTERVAL);
+        $(window).on('dmoj:window-visible', poll);
+    });
+</script>
 </body>
 </html>

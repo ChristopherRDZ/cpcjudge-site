@@ -1,0 +1,238 @@
+{% extends "common-content.html" %}
+
+{% block title_ruler %}{% endblock %}
+
+{% block title_row %}
+    {% set tab = 'announcements' %}
+    {% set title = contest.name %}
+    {% include "contest/contest-tabs.html" %}
+{% endblock %}
+
+{% block content_media %}
+    <style>
+        .clarification-section {
+            margin-top: 1.4em;
+        }
+
+        .clarification-list {
+            list-style: none;
+            padding: 0;
+            margin: 0.6em 0 0 0;
+        }
+
+        .announcement-entry, .clarification-entry {
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 0.6em 0.9em;
+            margin-bottom: 0.8em;
+            background: rgba(0, 0, 0, 0.02);
+        }
+
+        .announcement-entry {
+            border-left: 4px solid #d9534f;
+        }
+
+        .clarification-entry {
+            border-left: 4px solid #999;
+        }
+
+        .clarification-entry.answered {
+            border-left-color: #5cb85c;
+        }
+
+        .clarification-meta {
+            font-size: 0.85em;
+            color: #777;
+            margin-bottom: 0.3em;
+        }
+
+        .clarification-label {
+            font-size: 0.85em;
+            font-weight: bold;
+            color: #555;
+            margin-bottom: 0.15em;
+        }
+
+        /* Plain text, so the newlines the author typed have to survive. */
+        .announcement-body, .clarification-body {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .clarification-answer {
+            margin-top: 0.6em;
+            padding-top: 0.6em;
+            border-top: 1px dashed #ccc;
+        }
+
+        .clarification-errors {
+            border: 1px solid #d9534f;
+            border-radius: 4px;
+            padding: 0.6em 0.9em;
+            margin-bottom: 0.8em;
+            color: #a94442;
+        }
+
+        .clarification-form textarea {
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .clarification-form .row {
+            margin-bottom: 0.5em;
+        }
+
+        @media (max-width: 760px) {
+            .clarification-form input[type="submit"] {
+                width: 100%;
+                padding: 0.8em 0;
+            }
+        }
+    </style>
+{% endblock %}
+
+{% block body %}
+    {% if clarification_errors %}
+        <div class="clarification-errors">
+            {% for error in clarification_errors %}
+                <div>{{ error }}</div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% if can_ask %}
+        <form class="clarification-form" method="post"
+              action="{{ url('contest_clarification_ask', contest.key) }}">
+            {% csrf_token %}
+            <div class="row">{{ ask_form.problem }}</div>
+            <div class="row">{{ ask_form.question }}</div>
+            <div class="row">
+                <input type="submit" class="button" value="{{ _('Ask the jury') }}">
+            </div>
+        </form>
+    {% endif %}
+
+    {# Everything below refreshes itself. The ask form stays outside so a question
+       being typed is never swept away by a refresh. #}
+    <div id="clarification-sections">
+    {% if announcements %}
+        <div class="clarification-section">
+            <h3>{{ _('Announcements') }}</h3>
+            <ul class="clarification-list">
+                {% for announcement in announcements %}
+                    <li class="announcement-entry">
+                        <div class="clarification-meta">
+                            {{ relative_time(announcement.created) }}
+                            {%- if announcement.author %} &middot; {{ announcement.author.user.username }}{% endif %}
+                            {%- if announcement.clarification and announcement.clarification.problem %}
+                                &middot; {{ announcement.clarification.problem.problem.name }}
+                            {% endif %}
+                        </div>
+                        {% if announcement.clarification %}
+                            {# Came from a question, so say which half is which. #}
+                            <div class="clarification-label">{{ _('Question') }}</div>
+                            <div class="announcement-body">{{ announcement.clarification.question }}</div>
+                            <div class="clarification-answer">
+                                <div class="clarification-label">{{ _('Answer') }}</div>
+                                <div class="announcement-body">{{ announcement.clarification.answer }}</div>
+                            </div>
+                        {% else %}
+                            <div class="announcement-body">{{ announcement.body }}</div>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+
+    <div class="clarification-section">
+        <h3>{{ _('Questions') }}</h3>
+        {% if clarifications %}
+            <ul class="clarification-list">
+                {% for clarification in clarifications %}
+                    <li class="clarification-entry{% if clarification.answer %} answered{% endif %}">
+                        <div class="clarification-meta">
+                            {% if clarification.problem %}
+                                {{ clarification.problem.problem.name }}
+                            {% else %}
+                                {{ _('General') }}
+                            {% endif %}
+                            &middot; {{ clarification.user.user.username }}
+                            &middot; {{ relative_time(clarification.asked) }}
+                            {%- if clarification.answer and not clarification.is_public %}
+                                &middot; {{ _('private answer') }}
+                            {% endif %}
+                        </div>
+                        <div class="clarification-body">{{ clarification.question }}</div>
+
+                        {% if clarification.answer %}
+                            <div class="clarification-answer">
+                                <div class="clarification-meta">
+                                    {{ _('Answer') }}
+                                    {%- if clarification.answered_by %}
+                                        &middot; {{ clarification.answered_by.user.username }}
+                                    {% endif %}
+                                </div>
+                                <div class="clarification-body">{{ clarification.answer }}</div>
+                            </div>
+                        {% elif can_edit %}
+                            <form class="clarification-form clarification-answer" method="post"
+                                  action="{{ url('contest_clarification_answer', contest.key, clarification.id) }}">
+                                {% csrf_token %}
+                                <div class="row">
+                                    <textarea name="answer" rows="3" maxlength="{{ max_question }}"
+                                              placeholder="{{ _('Answer this question.') }}"></textarea>
+                                </div>
+                                <div class="row">
+                                    <label>
+                                        <input type="checkbox" name="is_public">
+                                        {{ _('Send this answer to every contestant') }}
+                                    </label>
+                                </div>
+                                <div class="row">
+                                    <input type="submit" class="button" value="{{ _('Answer') }}">
+                                </div>
+                            </form>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>{{ _('No questions have been asked yet.') }}</p>
+        {% endif %}
+    </div>
+    </div>
+
+    <script type="text/javascript">
+        $(function () {
+            var POLL_INTERVAL = 30000;
+            var $sections = $('#clarification-sections');
+
+            function being_written() {
+                // A half-typed answer must not be wiped by a refresh, so the
+                // refresh waits until the jury is done writing.
+                var busy = false;
+                $sections.find('textarea').each(function () {
+                    if ($(this).is(':focus') || $.trim($(this).val()) !== '')
+                        busy = true;
+                });
+                return busy;
+            }
+
+            function refresh() {
+                if ($('body').hasClass('window-hidden') || being_written())
+                    return;
+                // The page renders cheaply and there is no separate endpoint for
+                // it, so it refetches itself and keeps only the part that changes.
+                $.get(window.location.pathname).done(function (data) {
+                    var fresh = $(data).find('#clarification-sections');
+                    if (fresh.length)
+                        $sections.html(fresh.html());
+                });
+            }
+
+            setInterval(refresh, POLL_INTERVAL);
+            $(window).on('dmoj:window-visible', refresh);
+        });
+    </script>
+{% endblock %}

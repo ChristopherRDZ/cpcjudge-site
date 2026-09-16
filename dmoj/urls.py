@@ -11,9 +11,9 @@ from django.views.generic import RedirectView
 
 from judge.feed import AtomBlogFeed, AtomCommentFeed, AtomProblemFeed, BlogFeed, CommentFeed, ProblemFeed
 from judge.sitemap import sitemaps
-from judge.views import TitledTemplateView, api, blog, comment, contests, language, license, mailgun, organization, \
-    preview, problem, problem_manage, ranked_submission, register, stats, status, submission, tasks, ticket, \
-    two_factor, user, widgets
+from judge.views import TitledTemplateView, announcement, api, blog, comment, contests, language, license, mailgun, \
+    organization, preview, problem, problem_manage, ranked_submission, register, stats, status, submission, tasks, \
+    ticket, two_factor, user, widgets
 from judge.views.problem_data import ProblemDataView, ProblemSubmissionDiff, \
     problem_data_file, problem_init_view
 from judge.views.register import ActivationView, RegistrationView
@@ -206,6 +206,10 @@ urlpatterns = [
         path('/clone', contests.ContestClone.as_view(), name='contest_clone'),
         path('/ranking/', contests.ContestRanking.as_view(), name='contest_ranking'),
         path('/ranking/ajax', contests.contest_ranking_ajax, name='contest_ranking_ajax'),
+        path('/announcements', announcement.ContestAnnouncements.as_view(), name='contest_announcements'),
+        path('/clarifications/ask', announcement.ask_clarification, name='contest_clarification_ask'),
+        path('/clarifications/<int:pk>/answer', announcement.answer_clarification,
+             name='contest_clarification_answer'),
         path('/join', contests.ContestJoin.as_view(), name='contest_join'),
         path('/leave', contests.ContestLeave.as_view(), name='contest_leave'),
         path('/stats', contests.ContestStats.as_view(), name='contest_stats'),
@@ -259,6 +263,8 @@ urlpatterns = [
     path('runtimes/', language.LanguageList.as_view(), name='runtime_list'),
     path('runtimes/matrix/', status.version_matrix, name='version_matrix'),
     path('status/', status.status_all, name='status_all'),
+
+    path('announcements/active', announcement.active_announcements, name='announcements_active'),
 
     path('api/v2/', include([
         path('contests', api.api_v2.APIContestList.as_view()),

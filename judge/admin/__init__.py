@@ -3,6 +3,8 @@ from django.contrib.admin.models import LogEntry
 from django.contrib.auth.models import User
 from django.contrib.flatpages.models import FlatPage
 
+from judge.admin.announcement import AnnouncementAdmin
+from judge.admin.clarification import ContestClarificationAdmin
 from judge.admin.comments import CommentAdmin
 from judge.admin.contest import ContestAdmin, ContestParticipationAdmin, ContestTagAdmin
 from judge.admin.interface import BlogPostAdmin, FlatPageAdmin, LicenseAdmin, LogEntryAdmin, NavigationBarAdmin
@@ -13,11 +15,13 @@ from judge.admin.runtime import JudgeAdmin, LanguageAdmin
 from judge.admin.submission import SubmissionAdmin
 from judge.admin.taxon import ProblemGroupAdmin, ProblemTypeAdmin
 from judge.admin.ticket import TicketAdmin
-from judge.models import BlogPost, Class, Comment, CommentLock, Contest, ContestParticipation, \
-    ContestTag, Judge, Language, License, MiscConfig, NavigationBar, Organization, \
+from judge.models import Announcement, BlogPost, Class, Comment, CommentLock, Contest, ContestClarification, \
+    ContestParticipation, ContestTag, Judge, Language, License, MiscConfig, NavigationBar, Organization, \
     OrganizationRequest, Problem, ProblemGroup, ProblemPointsVote, ProblemType, Profile, Submission, Ticket
 
+admin.site.register(Announcement, AnnouncementAdmin)
 admin.site.register(BlogPost, BlogPostAdmin)
+admin.site.register(ContestClarification, ContestClarificationAdmin)
 admin.site.register(Comment, CommentAdmin)
 admin.site.register(CommentLock)
 admin.site.register(Contest, ContestAdmin)
