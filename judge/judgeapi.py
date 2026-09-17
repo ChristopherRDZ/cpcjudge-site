@@ -15,7 +15,11 @@ size_pack = struct.Struct('!I')
 
 
 def _post_update_submission(submission, done=False):
-    if submission.problem.is_public:
+    # `submissions` is one broadcast to every connected browser, so a submission the frozen scoreboard is
+    # hiding cannot go out on it: there is no way to send it only to its author. The submission's own
+    # `sub_<secret>` channel is untouched, and that is the one its status page listens to, so the author keeps
+    # watching their own verdict live.
+    if submission.problem.is_public and not submission.in_frozen_window:
         event.post('submissions', {'type': 'done-submission' if done else 'update-submission',
                                    'id': submission.id,
                                    'contest': submission.contest_key,

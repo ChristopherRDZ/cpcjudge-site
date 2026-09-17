@@ -11,9 +11,9 @@ from django.views.generic import RedirectView
 
 from judge.feed import AtomBlogFeed, AtomCommentFeed, AtomProblemFeed, BlogFeed, CommentFeed, ProblemFeed
 from judge.sitemap import sitemaps
-from judge.views import TitledTemplateView, announcement, api, blog, comment, contests, language, license, mailgun, \
-    organization, preview, problem, problem_manage, ranked_submission, register, stats, status, submission, tasks, \
-    ticket, two_factor, user, widgets
+from judge.views import TitledTemplateView, announcement, api, blog, comment, contest_reveal, contests, language, \
+    license, mailgun, organization, preview, problem, problem_manage, ranked_submission, register, stats, status, \
+    submission, tasks, ticket, two_factor, user, widgets
 from judge.views.problem_data import ProblemDataView, ProblemSubmissionDiff, \
     problem_data_file, problem_init_view
 from judge.views.register import ActivationView, RegistrationView
@@ -213,6 +213,8 @@ urlpatterns = [
         path('/join', contests.ContestJoin.as_view(), name='contest_join'),
         path('/leave', contests.ContestLeave.as_view(), name='contest_leave'),
         path('/stats', contests.ContestStats.as_view(), name='contest_stats'),
+        path('/reveal', contest_reveal.contest_reveal, name='contest_reveal'),
+        path('/reveal/publish', contest_reveal.contest_reveal_publish, name='contest_reveal_publish'),
 
         path('/rank/<str:problem>/',
              paged_list_view(ranked_submission.ContestRankedSubmission, 'contest_ranked_submissions')),

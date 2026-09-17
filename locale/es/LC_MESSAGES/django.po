@@ -6501,3 +6501,432 @@ msgstr "Enviar esta respuesta a todos los concursantes"
 #: templates/contest/announcements.html:201
 msgid "No questions have been asked yet."
 msgstr "Todavía no se ha hecho ninguna pregunta."
+#: judge/models/contest.py:182
+msgid "scoreboard freeze"
+msgstr "congelación del marcador"
+
+#: judge/models/contest.py:183
+msgid ""
+"Freeze the public scoreboard over the last this many minutes of each "
+"participation. Leave empty not to freeze it. A virtual participation is "
+"frozen over its own last minutes, not over the clock of the live contest."
+msgstr ""
+"Congela el marcador público durante estos últimos minutos de cada "
+"participación. Déjalo vacío para no congelarlo. Una participación virtual se "
+"congela en sus propios últimos minutos, no según el reloj del concurso en "
+"vivo."
+
+#: judge/models/contest.py:187
+msgid "scoreboard revealed"
+msgstr "marcador revelado"
+
+#: judge/models/contest.py:188
+msgid ""
+"A frozen scoreboard stays frozen after the contest ends, so the result can "
+"be revealed at a ceremony. Check this to lift the freeze and show everyone "
+"the real scoreboard and the submissions it was hiding."
+msgstr ""
+"Un marcador congelado sigue congelado cuando el concurso termina, para poder "
+"revelar el resultado en una ceremonia. Marca esto para levantar la "
+"congelación y mostrar a todos el marcador real y los envíos que estaba "
+"tapando."
+
+#: judge/models/contest.py:607
+msgid "score at freeze time"
+msgstr "puntaje al congelar"
+
+#: judge/models/contest.py:608
+msgid "cumulative time at freeze time"
+msgstr "tiempo acumulado al congelar"
+
+#: judge/models/contest.py:610
+msgid "tie-breaking field at freeze time"
+msgstr "campo de desempate al congelar"
+
+#: judge/models/contest.py:611
+msgid "contest format specific data at freeze time"
+msgstr "datos del formato de concurso al congelar"
+
+#: judge/models/contest.py:613
+msgid "scoreboard frozen at"
+msgstr "marcador congelado el"
+
+#: judge/models/contest.py:614
+msgid ""
+"When the frozen copy above was taken. Empty means no copy was needed, "
+"because nothing has changed since the freeze."
+msgstr ""
+"Cuándo se tomó la copia congelada de arriba. Vacío significa que no hizo "
+"falta ninguna copia, porque nada ha cambiado desde la congelación."
+
+#: judge/admin/contest.py:105
+msgid ""
+"The freeze has to be shorter than the contest, or the scoreboard would be "
+"frozen from the first minute."
+msgstr ""
+"La congelación tiene que durar menos que el concurso, o el marcador estaría "
+"congelado desde el primer minuto."
+
+#: judge/admin/contest.py:171
+msgid "Reveal frozen scoreboards"
+msgstr "Revelar los marcadores congelados"
+
+#: judge/admin/contest.py:180
+msgid "Freeze scoreboards again"
+msgstr "Volver a congelar los marcadores"
+
+#: templates/contest/ranking.html:223
+msgid ""
+"The scoreboard is frozen: it shows the standings as they were %(minutes)d "
+"minutes before the end and does not update. A mark on one of your own cells "
+"is a submission of yours whose result is not on the board yet."
+msgstr ""
+"El marcador está congelado: muestra la clasificación tal como estaba "
+"%(minutes)d minutos antes del final y no se actualiza. Una marca en una de "
+"tus celdas es un envío tuyo cuyo resultado todavía no cuenta en el marcador."
+
+#: templates/contest/ranking.html:230
+msgid ""
+"You are seeing the real scoreboard. Everyone else sees it frozen, and it "
+"stays frozen after the contest ends until you reveal it from the contest "
+"administration page."
+msgstr ""
+"Estás viendo el marcador real. Todos los demás lo ven congelado, y seguirá "
+"congelado cuando el concurso termine hasta que lo reveles desde la página de "
+"administración del concurso."
+
+#: judge/views/contests.py:748
+#, python-format
+msgid "%d submission is not shown until the scoreboard is revealed."
+msgid_plural "%d submissions are not shown until the scoreboard is revealed."
+msgstr[0] "%d envío no se muestra hasta que se revele el marcador."
+msgstr[1] "%d envíos no se muestran hasta que se revele el marcador."
+
+#: judge/admin/contest.py:177
+#, python-format
+msgid "%d scoreboard revealed."
+msgid_plural "%d scoreboards revealed."
+msgstr[0] "%d marcador revelado."
+msgstr[1] "%d marcadores revelados."
+
+#: judge/admin/contest.py:186
+#, python-format
+msgid "%d scoreboard frozen again."
+msgid_plural "%d scoreboards frozen again."
+msgstr[0] "%d marcador congelado de nuevo."
+msgstr[1] "%d marcadores congelados de nuevo."
+
+
+#: judge/views/contest_reveal.py
+msgid "This contest has no scoreboard freeze configured, so there is nothing to reveal."
+msgstr "Este concurso no tiene configurada la congelación del marcador, así que no hay nada que revelar."
+
+#: judge/views/contest_reveal.py
+msgid "The freeze has not started yet: nothing is hidden so far."
+msgstr "La congelación todavía no empieza: por ahora no hay nada oculto."
+
+#: judge/views/contest_reveal.py
+msgid "The contest has not ended. Whatever is revealed now can still change."
+msgstr "El concurso no ha terminado. Lo que se revele ahora todavía puede cambiar."
+
+#: judge/views/contest_reveal.py
+#, python-format
+msgid "%d submission is still being judged. Wait for it before revealing."
+msgid_plural "%d submissions are still being judged. Wait for them before revealing."
+msgstr[0] "%d envío se está juzgando todavía. Espera a que termine antes de revelar."
+msgstr[1] "%d envíos se están juzgando todavía. Espera a que terminen antes de revelar."
+
+#: judge/views/contest_reveal.py
+#, python-format
+msgid "The totals of %d participant do not add up the way this contest format computes them, so the totals shown between the first and the last step may be approximate. The frozen and the final scoreboard are exact."
+msgid_plural "The totals of %d participants do not add up the way this contest format computes them, so the totals shown between the first and the last step may be approximate. The frozen and the final scoreboard are exact."
+msgstr[0] "Los totales de %d participante no cuadran con la forma en que este formato de concurso los calcula, así que los totales intermedios pueden ser aproximados. El marcador congelado y el final son exactos."
+msgstr[1] "Los totales de %d participantes no cuadran con la forma en que este formato de concurso los calcula, así que los totales intermedios pueden ser aproximados. El marcador congelado y el final son exactos."
+
+#: judge/views/contest_reveal.py
+msgid "The scoreboard is already public. This is a replay."
+msgstr "El marcador ya es público. Esto es una repetición."
+
+#: judge/views/contest_reveal.py
+msgid "Nobody took part in this contest."
+msgstr "Nadie participó en este concurso."
+
+#: judge/views/contest_reveal.py
+msgid "Previous"
+msgstr "Anterior"
+
+#: judge/views/contest_reveal.py
+msgid "Auto-play"
+msgstr "Reproducción automática"
+
+#: judge/views/contest_reveal.py
+msgid "Pause"
+msgstr "Pausar"
+
+#: judge/views/contest_reveal.py
+msgid "Restart"
+msgstr "Reiniciar"
+
+#: judge/views/contest_reveal.py
+msgid "Restart the reveal from the beginning?"
+msgstr "¿Reiniciar la revelación desde el principio?"
+
+#: judge/views/contest_reveal.py
+#, python-format
+msgid "Step %(current)s of %(total)s"
+msgstr "Paso %(current)s de %(total)s"
+
+#: judge/views/contest_reveal.py
+msgid "cells left to reveal"
+msgstr "celdas por revelar"
+
+#: judge/views/contest_reveal.py
+msgid "Press Space or the right arrow to start."
+msgstr "Pulsa Espacio o la flecha derecha para empezar."
+
+#: judge/views/contest_reveal.py
+msgid "Frozen scoreboard"
+msgstr "Marcador congelado"
+
+#: judge/views/contest_reveal.py
+msgid "Final scoreboard"
+msgstr "Marcador final"
+
+#: judge/views/contest_reveal.py
+msgid "First place"
+msgstr "Primer lugar"
+
+#: judge/views/contest_reveal.py templates/contest/reveal.html
+msgid "Publish the scoreboard"
+msgstr "Publicar el marcador"
+
+#: judge/views/contest_reveal.py
+msgid "Publish the real scoreboard to everyone? This lifts the freeze on the site."
+msgstr "¿Publicar el marcador real para todos? Esto levanta la congelación en el sitio."
+
+#: judge/views/contest_reveal.py
+msgid "Scoreboard published."
+msgstr "Marcador publicado."
+
+#: judge/views/contest_reveal.py
+msgid "The scoreboard is already public."
+msgstr "El marcador ya es público."
+
+#: judge/views/contest_reveal.py
+msgid "Could not publish the scoreboard. Try again or use the administration."
+msgstr "No se pudo publicar el marcador. Inténtalo de nuevo o hazlo desde la administración."
+
+#: judge/views/contest_reveal.py
+msgid "Scoreboard reveal"
+msgstr "Revelación del marcador"
+
+#: templates/contest/reveal.html
+msgid "Back to the contest"
+msgstr "Volver al concurso"
+
+#: templates/contest/reveal.html
+msgid "Set it in the contest settings"
+msgstr "Configúrala en los ajustes del concurso"
+
+#: templates/contest/reveal.html
+msgid "Close"
+msgstr "Cerrar"
+
+#: templates/contest/reveal.html
+msgid "Participant"
+msgstr "Participante"
+
+#: templates/contest/reveal.html
+msgid "Space"
+msgstr "Espacio"
+
+#: templates/contest/reveal.html
+msgid "Speed"
+msgstr "Velocidad"
+
+#: templates/contest/reveal.html
+msgid "Slow"
+msgstr "Lenta"
+
+#: templates/contest/reveal.html
+msgid "Normal"
+msgstr "Normal"
+
+#: templates/contest/reveal.html
+msgid "Fast"
+msgstr "Rápida"
+
+#: templates/contest/reveal.html
+msgid "Move up rows automatically"
+msgstr "Subir de fila automáticamente"
+
+#: templates/contest/reveal.html
+msgid "Auto-play stops here, and fast-forward goes this far"
+msgstr "La reproducción automática se detiene aquí, y el avance rápido llega hasta aquí"
+
+#: templates/contest/reveal.html
+msgid "Top"
+msgstr "Top"
+
+#: templates/contest/reveal.html
+msgid "Fast-forward to the top"
+msgstr "Avanzar rápido hasta el top"
+
+#: templates/contest/reveal.html
+msgid "Light or dark theme"
+msgstr "Tema claro u oscuro"
+
+#: templates/contest/reveal.html
+msgid "Full screen"
+msgstr "Pantalla completa"
+
+#: templates/contest/reveal.html
+msgid "Keyboard shortcuts"
+msgstr "Atajos de teclado"
+
+#: templates/contest/reveal.html
+msgid "Page Down"
+msgstr "Av Pág"
+
+#: templates/contest/reveal.html
+msgid "Page Up"
+msgstr "Re Pág"
+
+#: templates/contest/reveal.html
+msgid "Next step. During an animation, finish it at once."
+msgstr "Siguiente paso. Durante una animación, la termina de inmediato."
+
+#: templates/contest/reveal.html
+msgid "Undo the last step"
+msgstr "Deshacer el último paso"
+
+#: templates/contest/reveal.html
+msgid "Start or pause auto-play"
+msgstr "Iniciar o pausar la reproducción automática"
+
+#: templates/contest/reveal.html
+msgid "Move up rows automatically instead of one press per row"
+msgstr "Subir de fila automáticamente en lugar de pulsar una vez por fila"
+
+#: templates/contest/reveal.html
+msgid "Slow, normal or fast animations"
+msgstr "Animaciones lentas, normales o rápidas"
+
+#: templates/contest/reveal.html
+msgid "Show or hide the controls"
+msgstr "Mostrar u ocultar los controles"
+
+#: templates/contest/reveal.html
+msgid "Show or hide this help"
+msgstr "Mostrar u ocultar esta ayuda"
+
+#: templates/contest/reveal.html
+msgid "Yellow cells hide the submissions sent during the freeze; the number is how many. The highlighted row is the next one to be revealed, starting from the bottom. If you reload the page, it comes back to the same step."
+msgstr "Las celdas amarillas ocultan los envíos hechos durante la congelación; el número indica cuántos. La fila resaltada es la siguiente en revelarse, empezando desde abajo. Si recargas la página, vuelve al mismo paso."
+
+#: judge/admin/contest.py
+msgid "Reveal"
+msgstr "Revelar"
+
+#: judge/admin/contest.py templates/admin/judge/contest/change_form.html
+msgid "Reveal scoreboard"
+msgstr "Revelar marcador"
+
+#: templates/admin/judge/contest/change_form.html
+msgid "Reveal the frozen scoreboard at the closing ceremony"
+msgstr "Revelar el marcador congelado en la ceremonia de clausura"
+
+# Revelator: animation and awards, 2026-09-16.
+
+msgid "Place %(rank)s"
+msgstr "%(rank)s.º lugar"
+
+msgid "Gold medal"
+msgstr "Medalla de oro"
+
+msgid "Silver medal"
+msgstr "Medalla de plata"
+
+msgid "Bronze medal"
+msgstr "Medalla de bronce"
+
+msgid "First to solve: %(problem)s"
+msgstr "First to solve: %(problem)s"
+
+msgid "Total time"
+msgstr "Tiempo total"
+
+msgid "No awards for these settings."
+msgstr "No hay premios con esta configuración."
+
+msgid "Award settings saved for this contest in this browser."
+msgstr "Configuración de premios guardada para este concurso en este navegador."
+
+msgid "Use whole-number places from 1 to 10000, with each start at or before its end and no overlapping ranges."
+msgstr "Usa lugares enteros del 1 al 10000, con el inicio anterior o igual al final y sin rangos que se superpongan."
+
+msgid "Next step, or continue after an award. Repeated presses do not skip animations."
+msgstr "Siguiente paso o continuar después de un premio. Pulsar varias veces no salta las animaciones."
+
+msgid "Award settings"
+msgstr "Configurar premios"
+
+msgid "View awards"
+msgstr "Ver premios"
+
+msgid "Award style"
+msgstr "Tipo de premiación"
+
+msgid "Finishing places"
+msgstr "Lugares de clasificación"
+
+msgid "Medals by rank range"
+msgstr "Medallas por rangos de lugares"
+
+msgid "Award places from first through"
+msgstr "Premiar desde el primer lugar hasta el"
+
+msgid "Medal"
+msgstr "Medalla"
+
+msgid "From place"
+msgstr "Desde el lugar"
+
+msgid "Through place"
+msgstr "Hasta el lugar"
+
+msgid "Gold: from place"
+msgstr "Oro: desde el lugar"
+
+msgid "Gold: through place"
+msgstr "Oro: hasta el lugar"
+
+msgid "Silver: from place"
+msgstr "Plata: desde el lugar"
+
+msgid "Silver: through place"
+msgstr "Plata: hasta el lugar"
+
+msgid "Bronze: from place"
+msgstr "Bronce: desde el lugar"
+
+msgid "Bronze: through place"
+msgstr "Bronce: hasta el lugar"
+
+msgid "Leave both ends empty to omit a medal. Ranges must not overlap. Tied ranks receive the same medal."
+msgstr "Deja ambos extremos vacíos para omitir una medalla. Los rangos no deben superponerse. Los lugares empatados reciben la misma medalla."
+
+msgid "Celebrate first to solve for each problem, including participants without a medal"
+msgstr "Felicitar por el first to solve de cada problema, incluso a participantes sin medalla"
+
+msgid "Reduce motion (instant row changes)"
+msgstr "Reducir movimiento (cambios de posición instantáneos)"
+
+msgid "Awards pause the ceremony until you continue. Settings are saved for this contest in this browser."
+msgstr "Los premios pausan la ceremonia hasta que continúes. La configuración se guarda para este concurso en este navegador."
+
+msgid "Save settings"
+msgstr "Guardar configuración"
+
+msgid "Continue"
+msgstr "Continuar"

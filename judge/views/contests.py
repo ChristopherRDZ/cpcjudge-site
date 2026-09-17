@@ -13,6 +13,7 @@ from django.core.exceptions import ImproperlyConfigured, ObjectDoesNotExist
 from django.db import IntegrityError
 from django.db.models import BooleanField, Case, Count, F, FloatField, IntegerField, Max, Min, Q, Sum, Value, When
 from django.db.models.expressions import CombinedExpression, Exists, OuterRef
+from django.db.models.functions import Coalesce
 from django.http import Http404, HttpResponse, HttpResponseBadRequest, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render
 from django.template.defaultfilters import date as date_filter
@@ -22,7 +23,7 @@ from django.utils.functional import cached_property
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.utils.timezone import make_aware
-from django.utils.translation import gettext as _, gettext_lazy
+from django.utils.translation import gettext as _, gettext_lazy, ngettext
 from django.views.generic import ListView, TemplateView, View
 from django.views.generic.detail import DetailView, SingleObjectMixin
 from django.views.generic.list import BaseListView
@@ -32,8 +33,8 @@ from reversion import revisions
 from judge import event_poster as event
 from judge.comments import CommentedDetailView
 from judge.forms import ContestCloneForm
-from judge.models import Contest, ContestMoss, ContestParticipation, ContestProblem, ContestTag, \
-    Problem, Profile, Submission
+from judge.models import Contest, ContestMoss, ContestParticipation, ContestProblem, ContestSubmission, \
+    ContestTag, Problem, Profile, Submission
 from judge.tasks import run_moss
 from judge.utils.celery import redirect_to_task_status
 from judge.utils.opengraph import generate_opengraph
@@ -595,6 +596,11 @@ class ContestStats(TitleMixin, ContestMixin, DetailView):
         if not (self.object.ended or self.can_edit):
             raise Http404()
 
+        # A contest can end with its scoreboard still frozen, and then these per-problem counts would give away
+        # exactly what the freeze is holding back.
+        if self.object.is_frozen_for(self.request.user):
+            raise Http404()
+
         queryset = Submission.objects.filter(contest_object=self.object)
 
         ac_count = Count(Case(When(result='AC', then=Value(1)), output_field=IntegerField()))
@@ -650,6 +656,105 @@ class ContestStats(TitleMixin, ContestMixin, DetailView):
         return context
 
 
+class FrozenParticipation:
+    """Read-only view of a participation showing the scoreboard as it stood at freeze time.
+
+    Wrapping instead of mutating keeps the contest formats untouched: they read `score`, `cumtime` and
+    `format_data` off whatever they are handed, so all six of them render a frozen row without knowing that
+    freezing exists. Everything else is delegated, and saving is refused outright so that a display object can
+    never write the frozen numbers back over the real ones.
+    """
+
+    __slots__ = ('_participation',)
+
+    def __init__(self, participation):
+        object.__setattr__(self, '_participation', participation)
+
+    def __getattr__(self, name):
+        return getattr(self._participation, name)
+
+    def __setattr__(self, name, value):
+        raise AttributeError('a frozen participation is read-only')
+
+    @property
+    def _has_copy(self):
+        # No copy is taken while nothing changes after the freeze, and then the live fields still hold the
+        # frozen state.
+        return self._participation.frozen_at is not None
+
+    @property
+    def score(self):
+        return self._participation.frozen_score if self._has_copy else self._participation.score
+
+    @property
+    def cumtime(self):
+        return self._participation.frozen_cumtime if self._has_copy else self._participation.cumtime
+
+    @property
+    def tiebreaker(self):
+        return self._participation.frozen_tiebreaker if self._has_copy else self._participation.tiebreaker
+
+    @property
+    def format_data(self):
+        return self._participation.frozen_format_data if self._has_copy else self._participation.format_data
+
+    def save(self, *args, **kwargs):
+        raise TypeError('a frozen participation cannot be saved')
+
+    def recompute_results(self, *args, **kwargs):
+        raise TypeError('a frozen participation cannot be recomputed')
+
+
+def frozen_pending_map(contest, participations):
+    """How many submissions each participation has that the frozen scoreboard may not account for.
+
+    One query for the whole board. A submission counts as pending if it arrived inside that participation's own
+    freeze window, or if it is still being judged: the second case catches one sent just before the freeze whose
+    verdict lands after it, which is exactly the case a contestant watches for.
+    """
+    starts = {}
+    for participation in participations:
+        # Reusing the contest already in hand; `participation.contest` would be one query per row.
+        participation.contest = contest
+        start = participation.freeze_starts_at
+        if start is not None:
+            starts[participation.id] = start
+    if not starts:
+        return {}
+
+    earliest = min(starts.values())
+    pending = defaultdict(int)
+    rows = ContestSubmission.objects.filter(participation_id__in=starts).filter(
+        Q(submission__date__gte=earliest) |
+        Q(submission__status__in=Submission.IN_PROGRESS_GRADING_STATUS),
+    ).values_list('participation_id', 'problem_id', 'submission__date', 'submission__status')
+    for participation_id, problem_id, date, status in rows:
+        if date >= starts[participation_id] or status in Submission.IN_PROGRESS_GRADING_STATUS:
+            pending[participation_id, problem_id] += 1
+    return pending
+
+
+def with_pending_marker(cell, count):
+    """Mark a frozen cell with the submissions it is not showing.
+
+    The cell arrives as finished HTML from the contest format, so the marker is appended inside it instead of
+    teaching all six formats about freezing. Anything that does not end in the `</td>` every format returns is
+    handed back untouched.
+    """
+    if not count:
+        return cell
+    marker = format_html(
+        '<span class="frozen-pending" title="{title}">{text}</span>',
+        title=ngettext('%d submission is not shown until the scoreboard is revealed.',
+                       '%d submissions are not shown until the scoreboard is revealed.', count) % count,
+        text='?' if count == 1 else '?%d' % count,
+    )
+    html = str(cell)
+    if not html.endswith('</td>'):
+        return cell
+    return mark_safe(html[:-len('</td>')] + str(marker) + '</td>')
+
+
 ContestRankingProfile = namedtuple(
     'ContestRankingProfile',
     'id user css_class username points cumtime tiebreaker organization participation '
@@ -659,14 +764,20 @@ ContestRankingProfile = namedtuple(
 BestSolutionData = namedtuple('BestSolutionData', 'code points time state is_pretested')
 
 
-def make_contest_ranking_profile(contest, participation, contest_problems):
+def make_contest_ranking_profile(contest, participation, contest_problems, frozen=False, pending=None):
+    if frozen:
+        participation = FrozenParticipation(participation)
+
     def display_user_problem(contest_problem):
         # When the contest format is changed, `format_data` might be invalid.
         # This will cause `display_user_problem` to error, so we display '???' instead.
         try:
-            return contest.format.display_user_problem(participation, contest_problem)
+            cell = contest.format.display_user_problem(participation, contest_problem)
         except (KeyError, TypeError, ValueError):
             return mark_safe('<td>???</td>')
+        if frozen and pending:
+            cell = with_pending_marker(cell, pending.get((participation.id, contest_problem.id), 0))
+        return cell
 
     user = participation.user
     return ContestRankingProfile(
@@ -686,23 +797,49 @@ def make_contest_ranking_profile(contest, participation, contest_problems):
     )
 
 
-def base_contest_ranking_list(contest, problems, queryset):
-    return [make_contest_ranking_profile(contest, participation, problems) for participation in
-            queryset.select_related('user__user', 'rating').defer('user__about', 'user__organizations__about')]
+def base_contest_ranking_list(contest, problems, queryset, frozen=False, own_profile_id=None):
+    participations = list(queryset.select_related('user__user', 'rating')
+                                  .defer('user__about', 'user__organizations__about'))
+    pending = None
+    if frozen and own_profile_id is not None:
+        # Only the reader's own rows get marked. A `?` on somebody else's row announces that that somebody
+        # submitted, which is the one thing a frozen scoreboard must not say. Marking only your own rows also
+        # shrinks the query to the one or two participations that are yours.
+        mine = [p for p in participations if p.user_id == own_profile_id]
+        if mine:
+            pending = frozen_pending_map(contest, mine)
+    return [make_contest_ranking_profile(contest, participation, problems, frozen=frozen, pending=pending)
+            for participation in participations]
 
 
-def contest_ranking_list(contest, problems):
-    return base_contest_ranking_list(contest, problems, contest.users.filter(virtual=0)
-                                     .prefetch_related('user__organizations')
-                                     .annotate(submission_cnt=Count('submission'))
-                                     .order_by('is_disqualified', '-score', 'cumtime', 'tiebreaker', '-submission_cnt'))
+def contest_ranking_list(contest, problems, frozen=False, own_profile_id=None):
+    queryset = contest.users.filter(virtual=0).prefetch_related('user__organizations')
+    if frozen:
+        # Rank by what the reader is allowed to see. A participation with no frozen copy has not moved since
+        # the freeze, so its live fields are also its frozen ones.
+        queryset = queryset.annotate(
+            shown_score=Coalesce('frozen_score', 'score'),
+            shown_cumtime=Coalesce('frozen_cumtime', 'cumtime'),
+            shown_tiebreaker=Coalesce('frozen_tiebreaker', 'tiebreaker'),
+        ).order_by('is_disqualified', '-shown_score', 'shown_cumtime', 'shown_tiebreaker', 'id')
+        # The live board breaks the last tie by submission count. Here that would order two identical rows by
+        # how much each one submitted after the freeze, which is the very thing being hidden.
+    else:
+        queryset = queryset.annotate(submission_cnt=Count('submission')) \
+                           .order_by('is_disqualified', '-score', 'cumtime', 'tiebreaker', '-submission_cnt')
+    return base_contest_ranking_list(contest, problems, queryset, frozen=frozen,
+                                     own_profile_id=own_profile_id)
 
 
 def get_contest_ranking_list(request, contest, participation=None, ranking_list=contest_ranking_list,
                              show_current_virtual=True, ranker=ranker):
     problems = list(contest.contest_problems.select_related('problem').defer('problem__description').order_by('order'))
 
-    users = ranker(ranking_list(contest, problems), key=attrgetter('points', 'cumtime', 'tiebreaker'))
+    frozen = contest.is_frozen_for(request.user)
+    own_profile_id = request.profile.id if request.user.is_authenticated else None
+
+    users = ranker(ranking_list(contest, problems, frozen=frozen, own_profile_id=own_profile_id),
+                   key=attrgetter('points', 'cumtime', 'tiebreaker'))
 
     if show_current_virtual:
         if participation is None and request.user.is_authenticated:
@@ -710,7 +847,9 @@ def get_contest_ranking_list(request, contest, participation=None, ranking_list=
             if participation is None or participation.contest_id != contest.id:
                 participation = None
         if participation is not None and participation.virtual:
-            users = chain([('-', make_contest_ranking_profile(contest, participation, problems))], users)
+            pending = frozen_pending_map(contest, [participation]) if frozen else None
+            users = chain([('-', make_contest_ranking_profile(contest, participation, problems,
+                                                              frozen=frozen, pending=pending))], users)
     return users, problems
 
 
@@ -784,6 +923,11 @@ class ContestRanking(ContestRankingBase):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['has_rating'] = self.object.ratings.exists()
+        context['scoreboard_frozen'] = self.object.is_frozen_for(self.request.user)
+        # The jury sees the real board; this is what tells them the public does not, and that nothing lifts the
+        # freeze on its own.
+        context['scoreboard_awaiting_reveal'] = (self.object.freeze_active and self.object.freeze_started and
+                                                 not context['scoreboard_frozen'])
         return context
 
 

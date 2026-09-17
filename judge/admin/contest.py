@@ -1,5 +1,8 @@
+from datetime import timedelta
+
 from adminsortable2.admin import SortableAdminBase, SortableInlineAdminMixin
 from django.contrib import admin
+from django.core.cache import cache
 from django.core.exceptions import PermissionDenied
 from django.db import connection, transaction
 from django.db.models import Q, TextField
@@ -90,6 +93,19 @@ class ContestForm(ModelForm):
         self.fields['banned_users'].widget.can_add_related = False
         self.fields['view_contest_scoreboard'].widget.can_add_related = False
 
+    def clean(self):
+        cleaned_data = super().clean()
+        freeze = cleaned_data.get('freeze_minutes')
+        if freeze:
+            time_limit = cleaned_data.get('time_limit')
+            start_time, end_time = cleaned_data.get('start_time'), cleaned_data.get('end_time')
+            window = time_limit or (end_time - start_time if start_time and end_time else None)
+            if window is not None and timedelta(minutes=freeze) >= window:
+                self.add_error('freeze_minutes',
+                               _('The freeze has to be shorter than the contest, or the scoreboard would be '
+                                 'frozen from the first minute.'))
+        return cleaned_data
+
     class Meta:
         widgets = {
             'authors': AdminHeavySelect2MultipleWidget(data_view='profile_select2'),
@@ -114,7 +130,7 @@ class ContestAdmin(NoBatchDeleteMixin, SortableAdminBase, VersionAdmin):
                            'tester_see_scoreboard', 'spectators')}),
         (_('Settings'), {'fields': ('is_visible', 'use_clarifications', 'hide_problem_tags', 'hide_problem_authors',
                                     'show_short_display', 'run_pretests_only', 'locked_after', 'scoreboard_visibility',
-                                    'points_precision')}),
+                                    'freeze_minutes', 'scoreboard_revealed', 'points_precision')}),
         (_('Scheduling'), {'fields': ('start_time', 'end_time', 'time_limit')}),
         (_('Details'), {'fields': ('description', 'og_image', 'logo_override_image', 'tags', 'summary')}),
         (_('Format'), {'fields': ('format_name', 'format_config', 'problem_label_script')}),
@@ -124,7 +140,7 @@ class ContestAdmin(NoBatchDeleteMixin, SortableAdminBase, VersionAdmin):
         (_('Justice'), {'fields': ('banned_users',)}),
     )
     list_display = ('key', 'name', 'is_visible', 'is_rated', 'locked_after', 'start_time', 'end_time', 'time_limit',
-                    'user_count')
+                    'user_count', 'reveal_link')
     search_fields = ('key', 'name')
     inlines = [ContestProblemInline]
     actions_on_top = True
@@ -146,7 +162,38 @@ class ContestAdmin(NoBatchDeleteMixin, SortableAdminBase, VersionAdmin):
             for action in ('set_locked', 'set_unlocked'):
                 actions[action] = self.get_action(action)
 
+        # Revealing is not a separate power: the changelist already only lists the contests this user may edit.
+        for action in ('reveal_scoreboard', 'hide_scoreboard'):
+            actions[action] = self.get_action(action)
+
         return actions
+
+    @admin.display(description=_('Reveal frozen scoreboards'))
+    def reveal_scoreboard(self, request, queryset):
+        count = queryset.filter(
+            freeze_minutes__isnull=False, scoreboard_revealed=False,
+        ).update(scoreboard_revealed=True)
+        cache.delete(Contest.FROZEN_WINDOWS_CACHE_KEY)
+        self.message_user(request, ngettext('%d scoreboard revealed.',
+                                            '%d scoreboards revealed.', count) % count)
+
+    @admin.display(description=_('Freeze scoreboards again'))
+    def hide_scoreboard(self, request, queryset):
+        count = queryset.filter(
+            freeze_minutes__isnull=False, scoreboard_revealed=True,
+        ).update(scoreboard_revealed=False)
+        cache.delete(Contest.FROZEN_WINDOWS_CACHE_KEY)
+        self.message_user(request, ngettext('%d scoreboard frozen again.',
+                                            '%d scoreboards frozen again.', count) % count)
+
+    @admin.display(description=_('Reveal'))
+    def reveal_link(self, obj):
+        # Only where there is something to reveal. The change form links every contest, and the page itself
+        # explains what is missing.
+        if obj.freeze_minutes is None:
+            return ''
+        return format_html('<a href="{0}" target="_blank" rel="noopener"><i class="fa fa-trophy"></i> {1}</a>',
+                           reverse('contest_reveal', args=[obj.key]), _('Reveal scoreboard'))
 
     def get_queryset(self, request):
         queryset = Contest.objects.all()
@@ -197,6 +244,12 @@ class ContestAdmin(NoBatchDeleteMixin, SortableAdminBase, VersionAdmin):
 
         if form.changed_data and 'locked_after' in form.changed_data:
             self.set_locked_after(obj, form.cleaned_data['locked_after'])
+
+        # The list of frozen contests is cached for half a minute; dropping it here makes a reveal immediate.
+        if form.changed_data and any(f in form.changed_data
+                                     for f in ('freeze_minutes', 'scoreboard_revealed', 'start_time', 'end_time',
+                                               'time_limit')):
+            cache.delete(Contest.FROZEN_WINDOWS_CACHE_KEY)
 
     def save_related(self, request, form, formsets, change):
         super().save_related(request, form, formsets, change)

@@ -137,10 +137,38 @@ class Submission(models.Model):
 
     abort.alters_data = True
 
+    @property
+    def in_frozen_window(self):
+        """Whether this submission landed inside the freeze window of its contest.
+
+        Says nothing about who is looking: it is the question the public event channel has to ask, because that
+        channel is a single broadcast to every connected browser and cannot be addressed to one reader.
+        """
+        contest = self.contest_object
+        if contest is None or not contest.freeze_active:
+            return False
+        cutoff = contest.submission_freeze_cutoff
+        return cutoff is not None and self.date >= cutoff
+
+    def is_hidden_by_freeze(self, user):
+        """Whether a frozen scoreboard has to hide this submission from this user too.
+
+        A scoreboard that hides the last hour while the submission list shows it is not frozen at all. Your own
+        submissions are never hidden: the freeze is about the public board, not about knowing whether your own
+        code compiled.
+        """
+        if not self.in_frozen_window:
+            return False
+        if user.is_authenticated and self.user_id == user.profile.id:
+            return False
+        return not self.contest_object.is_editable_by(user)
+
     def can_see_detail(self, user):
         if not user.is_authenticated:
             return False
         profile = user.profile
+        if self.is_hidden_by_freeze(user):
+            return False
         # Public solution-sharing settings never make a personal test public.
         if self.problem.code.startswith('ct_'):
             return self.user_id == profile.id or user.has_perm('judge.view_all_submission')

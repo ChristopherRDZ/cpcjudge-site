@@ -295,6 +295,14 @@ class SubmissionsListBase(DiggPaginatorMixin, TitleMixin, ListView):
                     Q(contest_object__isnull=True),
                 )
 
+        # A frozen scoreboard has to hide the submissions behind it, or the board is the only thing frozen.
+        frozen = Contest.frozen_submission_filter(self.request.user)
+        if frozen is not None:
+            if self.request.user.is_authenticated:
+                queryset = queryset.exclude(frozen & ~Q(user_id=self.request.profile.id))
+            else:
+                queryset = queryset.exclude(frozen)
+
         if self.selected_languages:
             # MariaDB can't optimize this subquery for some insane, unknown reason,
             # so we are forcing an eager evaluation to get the IDs right here.
@@ -533,6 +541,9 @@ def single_submission(request):
     submission = get_object_or_404(submission_related(Submission.objects.exclude(problem__code__startswith='ct_')),
                                   id=int(request.GET['id']))
     if not submission.problem.is_accessible_by(request.user):
+        raise Http404()
+    # The live update in the submission list asks for rows one by one, so the freeze has to hold here as well.
+    if submission.is_hidden_by_freeze(request.user):
         raise Http404()
 
     return render(request, 'submission/row.html', {

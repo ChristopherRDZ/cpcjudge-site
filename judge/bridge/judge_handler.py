@@ -13,7 +13,8 @@ from django.utils import timezone
 from judge import event_poster as event
 from judge.bridge.base_handler import ZlibPacketHandler, proxy_list
 from judge.caching import finished_submission
-from judge.models import Judge, Language, LanguageLimit, Problem, RuntimeVersion, Submission, SubmissionTestCase
+from judge.models import Contest, Judge, Language, LanguageLimit, Problem, RuntimeVersion, Submission, \
+    SubmissionTestCase
 
 logger = logging.getLogger('judge.bridge')
 json_log = logging.getLogger('judge.json.bridge')
@@ -426,7 +427,10 @@ class JudgeHandler(ZlibPacketHandler):
         })
         if hasattr(submission, 'contest'):
             participation = submission.contest.participation
-            event.post('contest_%d' % participation.contest_id, {'type': 'update'})
+            # Even a payload this bare says «somebody was just judged in this contest», and that is something
+            # the freeze is supposed to keep to itself.
+            if not submission.in_frozen_window:
+                event.post('contest_%d' % participation.contest_id, {'type': 'update'})
         self._post_update_submission(submission.id, 'grading-end', done=True)
 
     def on_compile_error(self, packet):
@@ -622,12 +626,15 @@ class JudgeHandler(ZlibPacketHandler):
             data = self._submission_cache
         else:
             self._submission_cache = data = Submission.objects.filter(id=id).values(
-                'problem__is_public', 'contest_object_id',
+                'problem__is_public', 'contest_object_id', 'date',
                 'user_id', 'problem_id', 'status', 'language__key',
             ).get()
             self._submission_cache_id = id
 
-        if data['problem__is_public']:
+        # `submissions` is one broadcast to every connected browser, so a submission the frozen scoreboard is
+        # hiding cannot go out on it. Its own `sub_<secret>` channel is untouched, and that is the one the
+        # submission status page listens to, so the author keeps watching their own verdict live.
+        if data['problem__is_public'] and not self._in_frozen_window(data):
             event.post('submissions', {
                 'type': 'done-submission' if done else 'update-submission',
                 'state': state, 'id': id,
@@ -635,6 +642,23 @@ class JudgeHandler(ZlibPacketHandler):
                 'user': data['user_id'], 'problem': data['problem_id'],
                 'status': data['status'], 'language': data['language__key'],
             })
+
+    def _in_frozen_window(self, data):
+        """Whether this submission landed inside the freeze window of its contest.
+
+        Asked once per event rather than cached with the submission, because a window can open in the middle of
+        judging one, and a stale «not frozen» would broadcast it.
+        """
+        contest_id = data['contest_object_id']
+        if contest_id is None:
+            return False
+        contest = Contest.objects.filter(id=contest_id).only(
+            'start_time', 'end_time', 'time_limit', 'freeze_minutes', 'scoreboard_revealed',
+        ).first()
+        if contest is None or not contest.freeze_active:
+            return False
+        cutoff = contest.submission_freeze_cutoff
+        return cutoff is not None and data['date'] >= cutoff
 
     def on_cleanup(self):
         db.connection.close()

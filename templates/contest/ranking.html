@@ -34,6 +34,23 @@
             width: 200px;
             height: 2.3em;
         }
+
+        .scoreboard-freeze-note {
+            border: 1px solid #ccc;
+            border-left: 4px solid #f0ad4e;
+            border-radius: 4px;
+            padding: 0.6em 0.9em;
+            margin-bottom: 0.8em;
+            background: rgba(0, 0, 0, 0.02);
+        }
+
+        /* The marker sits inside the score cell the contest format built, so it has to stay out of the way of
+           the number that cell already shows. */
+        .frozen-pending {
+            font-weight: bold;
+            color: #f0ad4e;
+            margin-left: 0.25em;
+        }
     </style>
 {% endblock %}
 
@@ -201,6 +218,19 @@
 {% endblock %}
 
 {% block before_users_table %}
+    {% if scoreboard_frozen %}
+        <div class="scoreboard-freeze-note">
+            {{ _('The scoreboard is frozen: it shows the standings as they were %(minutes)d minutes before the '
+                 'end and does not update. A mark on one of your own cells is a submission of yours whose '
+                 'result is not on the board yet.',
+                 minutes=contest.freeze_minutes) }}
+        </div>
+    {% elif scoreboard_awaiting_reveal %}
+        <div class="scoreboard-freeze-note">
+            {{ _('You are seeing the real scoreboard. Everyone else sees it frozen, and it stays frozen after the '
+                 'contest ends until you reveal it from the contest administration page.') }}
+        </div>
+    {% endif %}
     <div style="margin-bottom: 0.5em">
         {% if tab == 'participation' %}
             {% if contest.can_see_full_scoreboard(request.user) %}

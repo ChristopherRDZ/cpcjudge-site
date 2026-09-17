@@ -1,0 +1,1980 @@
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <title>{{ title }} · {{ contest.name }} - {{ SITE_LONG_NAME }}</title>
+    <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32">
+    {# A page of its own, made to be projected. Everything is inline on purpose: nothing under resources/, so no
+       collectstatic, no hashed copy, and not a single compression block, so no compression manifest to
+       rebuild. It does not extend base.html either, so none of the site's compressed blocks are involved. #}
+    <style>
+        /* Same building blocks as the rest of the site: the #3b3b3b navigation bar, the table header of
+           resources/table.scss, #ccc borders on a #f8f8f8 page and the site's font. Flat colours, small radii. */
+        :root {
+            --row-h: 3.6em;
+            --move-ms: 700ms;
+            --nav: #3b3b3b;
+            --blue: #2980b9;
+            --amber: #faa700;
+            --full: #1d9a44;
+            --partial: #c8e6c9;
+            --failed: #d0312d;
+            --pending: #f0a800;
+        }
+
+        body {
+            --page: #f8f8f8;
+            --row: #ffffff;
+            --row-alt: #f7f7f7;
+            --text: #000000;
+            --muted: #555555;
+            --border: #cccccc;
+            --empty: #eeeeee;
+            --cursor-bg: #ddeeff;
+            --moving-bg: #ffeebb;
+        }
+
+        body.rv-dark {
+            --page: #1b1b1b;
+            --row: #262626;
+            --row-alt: #2b2b2b;
+            --text: #eeeeee;
+            --muted: #aaaaaa;
+            --border: #444444;
+            --empty: #333333;
+            --cursor-bg: #1d3a52;
+            --moving-bg: #4a3d12;
+        }
+
+        html {
+            font-size: clamp(13px, 0.9vw, 21px);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        [hidden] { display: none !important; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: var(--page);
+            color: var(--text);
+            font-family: "Segoe UI", "Lucida Grande", Arial, sans-serif;
+            line-height: 1.231;
+            padding-bottom: 5em;
+        }
+
+        body.rv-idle {
+            cursor: none;
+        }
+
+        /* ---------- navigation-style header ---------- */
+        .rv-header {
+            display: flex;
+            align-items: center;
+            gap: 1em;
+            height: 4em;
+            padding: 0 1.2em;
+            background: var(--nav);
+            color: #fff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.35);
+        }
+
+        .rv-brand img {
+            height: 2.9em;
+            width: auto;
+            display: block;
+        }
+
+        .rv-divider {
+            width: 1px;
+            height: 2.2em;
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .rv-title {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .rv-title h1 {
+            margin: 0;
+            font-size: 1.55em;
+            font-weight: 600;
+            letter-spacing: 0;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .rv-subtitle {
+            color: #ccc;
+            font-size: 0.9em;
+        }
+
+        .rv-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4em;
+            padding: 0.35em 0.8em;
+            border-radius: 3px;
+            font-weight: 600;
+            white-space: nowrap;
+            background: var(--blue);
+            color: #fff;
+        }
+
+        .rv-chip.rv-chip-final {
+            background: var(--amber);
+            color: #000;
+        }
+
+        .rv-chip svg {
+            width: 1em;
+            height: 1em;
+        }
+
+        /* ---------- notices, like the site's alert boxes ---------- */
+        .rv-notices {
+            padding: 0.8em 1.2em 0;
+        }
+
+        .rv-notice {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.8em;
+            margin-bottom: 0.4em;
+            padding: 0.55em 0.8em;
+            border: 1px solid #bbddff;
+            border-radius: 3px;
+            background: #ddeeff;
+            color: #336688;
+        }
+
+        .rv-notice-warning {
+            border-color: #ffeebb;
+            background: #ffffdd;
+            color: #886633;
+        }
+
+        .rv-notice-error {
+            border-color: #ddbbbb;
+            background: #eedddd;
+            color: #994444;
+        }
+
+        .rv-notice span {
+            flex: 1;
+        }
+
+        .rv-notice a {
+            color: #1958c1;
+            font-weight: 600;
+        }
+
+        .rv-notice button {
+            background: none;
+            border: none;
+            color: inherit;
+            font-size: 1.2em;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        /* ---------- board ---------- */
+        .rv-board {
+            margin: 1em 1.2em 0;
+            min-width: calc(36em + var(--problems) * 3.9em);
+        }
+
+        .rv-grid {
+            display: grid;
+            grid-template-columns: 3.6em minmax(13em, 1fr) 5.4em var(--time-col) repeat(var(--problems), minmax(3.6em, 5.6em));
+            align-items: stretch;
+        }
+
+        .rv-head {
+            position: sticky;
+            top: 0;
+            z-index: 30;
+            background: var(--nav);
+            color: #fff;
+            font-weight: 600;
+            border: 1px solid #808080;
+            border-radius: 6px 6px 0 0;
+        }
+
+        .rv-head > div {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.45em 0.3em;
+            border-right: 1px solid #808080;
+            white-space: nowrap;
+        }
+
+        .rv-head > div:last-child, .rv-head #rv-head-problems > div:last-child {
+            border-right: none;
+        }
+
+        .rv-head .rv-h-problem {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.45em 0.3em;
+            border-right: 1px solid #808080;
+        }
+
+        /* Columns are measured in em, so the header keeps the rows' font size or it would not line up. */
+        .rv-no-time .rv-time, .rv-no-time .rv-h-time {
+            padding: 0 !important;
+            border: none !important;
+            overflow: hidden;
+        }
+
+        .rv-head .rv-h-name {
+            justify-content: flex-start;
+            padding-left: 0.7em;
+        }
+
+        /* One pixel on each side, like the header, so both grids get the same width. */
+        .rv-rows {
+            position: relative;
+            border-left: 1px solid var(--border);
+            border-right: 1px solid var(--border);
+        }
+
+        .rv-rows .rv-row > div:last-child {
+            border-right: none;
+        }
+
+        .rv-row {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: var(--row-h);
+            background: var(--row);
+            border-bottom: 1px solid var(--border);
+            transition: transform var(--move-ms) cubic-bezier(0.3, 0.8, 0.3, 1), background-color 0.3s;
+            will-change: transform;
+        }
+
+        .rv-row > div {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-right: 1px solid var(--border);
+            min-width: 0;
+        }
+
+        .rv-instant .rv-row {
+            transition: none !important;
+        }
+
+        .rv-row.rv-cursor {
+            z-index: 5;
+            background: var(--cursor-bg);
+            box-shadow: inset 4px 0 0 var(--blue), 0 0 0 2px var(--blue);
+        }
+
+        .rv-row.rv-moving {
+            z-index: 20;
+            background: var(--moving-bg);
+            box-shadow: 0 0 0 2px var(--amber), 0 6px 16px rgba(0, 0, 0, 0.35);
+        }
+
+        .rv-row.rv-landed {
+            animation: rv-land 1s ease-out;
+        }
+
+        @keyframes rv-land {
+            0% { background-color: var(--moving-bg); }
+            100% { background-color: var(--row); }
+        }
+
+        .rv-rank {
+            font-weight: 700;
+            font-size: 1.2em;
+        }
+
+        .rv-rank span {
+            display: inline-block;
+            min-width: 1.9em;
+            padding: 0.15em 0.3em;
+            border-radius: 2px;
+            text-align: center;
+        }
+
+        .rv-medal-1 .rv-rank span {
+            background: #e0a800;
+            color: #000;
+        }
+
+        .rv-medal-2 .rv-rank span {
+            background: #a7adb8;
+            color: #000;
+        }
+
+        .rv-medal-3 .rv-rank span {
+            background: #b8733a;
+            color: #fff;
+        }
+
+        .rv-medal-in .rv-rank span {
+            animation: rv-medal 0.8s ease-out;
+        }
+
+        @keyframes rv-medal {
+            0% { transform: scale(1); }
+            40% { transform: scale(1.3); }
+            100% { transform: scale(1); }
+        }
+
+        .rv-row > .rv-name {
+            justify-content: flex-start;
+            gap: 0.6em;
+            padding: 0 0.6em;
+        }
+
+        .rv-avatar {
+            flex: none;
+            width: 2.3em;
+            height: 2.3em;
+            border-radius: 2px;
+            background: var(--empty);
+            object-fit: cover;
+        }
+
+        .rv-name-text {
+            min-width: 0;
+            line-height: 1.2;
+        }
+
+        .rv-name strong {
+            display: block;
+            font-size: 1.1em;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .rv-name small {
+            display: block;
+            color: var(--muted);
+            font-size: 0.8em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .rv-score, .rv-time {
+            font-variant-numeric: tabular-nums;
+        }
+
+        .rv-score {
+            font-weight: 700;
+            font-size: 1.3em;
+        }
+
+        .rv-time {
+            color: var(--muted);
+        }
+
+        .rv-pop {
+            animation: rv-pop 0.6s ease-out;
+        }
+
+        @keyframes rv-pop {
+            0% { transform: scale(1); }
+            35% { transform: scale(1.35); }
+            100% { transform: scale(1); }
+        }
+
+        .rv-row > .rv-cell {
+            padding: 0.25em;
+            background-clip: content-box;
+        }
+
+        .rv-cell {
+            position: relative;
+            flex-direction: column;
+            line-height: 1.05;
+            color: var(--text);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .rv-cell::before {
+            content: "";
+            position: absolute;
+            inset: 0.25em;
+            border-radius: 2px;
+            background: var(--cell-bg, transparent);
+            z-index: 0;
+        }
+
+        .rv-cell > * {
+            position: relative;
+            z-index: 1;
+        }
+
+        .rv-cell b {
+            font-size: 1.05em;
+            font-weight: 700;
+        }
+
+        .rv-cell i {
+            font-style: normal;
+            font-size: 0.72em;
+            margin-top: 0.1em;
+        }
+
+        .rv-cell i:empty {
+            display: none;
+        }
+
+        .rv-cell.rv-empty {
+            --cell-bg: transparent;
+        }
+
+        .rv-cell.rv-full {
+            --cell-bg: var(--full);
+            color: #fff;
+        }
+
+        .rv-cell.rv-partial {
+            --cell-bg: var(--partial);
+            color: #173d20;
+        }
+
+        .rv-cell.rv-failed {
+            --cell-bg: var(--failed);
+            color: #fff;
+        }
+
+        .rv-cell.rv-pending {
+            --cell-bg: var(--pending);
+            color: #000;
+        }
+
+        .rv-cell.rv-pending b {
+            font-size: 1.25em;
+            font-weight: 800;
+        }
+
+        .rv-badge {
+            position: absolute;
+            top: 0.35em;
+            right: 0.4em;
+            font-size: 0.66em;
+            font-weight: 700;
+        }
+
+        .rv-badge:empty {
+            display: none;
+        }
+
+        .rv-armed {
+            animation: rv-armed 0.7s ease-in-out infinite;
+            z-index: 2;
+        }
+
+        @keyframes rv-armed {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.12); }
+        }
+
+        .rv-flip-out {
+            transition: transform 0.18s ease-in;
+            transform: scaleY(0);
+        }
+
+        .rv-flip-in {
+            animation: rv-flip-in 0.3s ease-out;
+        }
+
+        @keyframes rv-flip-in {
+            0% { transform: scaleY(0); }
+            100% { transform: scaleY(1); }
+        }
+
+        .rv-flip-in.rv-failed {
+            animation: rv-flip-in 0.3s ease-out, rv-shake 0.45s 0.3s ease-in-out;
+        }
+
+        @keyframes rv-shake {
+            0%, 100% { transform: translateX(0); }
+            25%, 75% { transform: translateX(-0.2em); }
+            50% { transform: translateX(0.2em); }
+        }
+
+        /* ---------- toolbar, styled like the navigation bar ---------- */
+        .rv-toolbar {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 50;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 0.3em;
+            min-height: 3.2em;
+            padding: 0.4em 1em;
+            background: var(--nav);
+            color: #fff;
+            box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s;
+            white-space: nowrap;
+        }
+
+        .rv-toolbar.rv-hidden {
+            transform: translateY(100%);
+            pointer-events: none;
+        }
+
+        .rv-toolbar button, .rv-toolbar select, .rv-toolbar input, .rv-toolbar label {
+            font: inherit;
+            color: inherit;
+        }
+
+        .rv-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4em;
+            height: 2.3em;
+            min-width: 2.3em;
+            padding: 0 0.55em;
+            border: none;
+            border-radius: 3px;
+            background: transparent;
+            cursor: pointer;
+        }
+
+        .rv-btn:hover, .rv-btn:focus-visible {
+            background: rgba(255, 255, 255, 0.25);
+            outline: none;
+        }
+
+        .rv-btn:disabled {
+            opacity: 0.4;
+            cursor: default;
+            background: transparent;
+        }
+
+        .rv-btn svg {
+            width: 1.15em;
+            height: 1.15em;
+            fill: currentColor;
+        }
+
+        .rv-btn.rv-primary {
+            padding: 0 1em;
+            background: var(--blue);
+            font-weight: 600;
+        }
+
+        .rv-btn.rv-primary:hover {
+            background: #3591cf;
+        }
+
+        .rv-btn.rv-on {
+            background: var(--amber);
+            color: #000;
+        }
+
+        .rv-sep {
+            width: 1px;
+            height: 1.6em;
+            background: rgba(255, 255, 255, 0.25);
+            margin: 0 0.3em;
+        }
+
+        .rv-progress {
+            margin-right: auto;
+            color: #ddd;
+            font-variant-numeric: tabular-nums;
+        }
+
+        @media (max-width: 1200px) {
+            .rv-progress { flex-basis: 100%; text-align: center; margin: 0 0 0.2em; }
+            .rv-board { margin-bottom: 10em; }
+        }
+
+        .rv-toolbar-end {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 0.3em;
+        }
+
+        .rv-toolbar select, .rv-toolbar input {
+            height: 2em;
+            border-radius: 2px;
+            border: 1px solid #808080;
+            background: #2b2b2b;
+            padding: 0 0.3em;
+        }
+
+        .rv-toolbar input {
+            width: 3.4em;
+            text-align: center;
+        }
+
+        .rv-speed-control { display: inline-flex; align-items: center; gap: 0.4em; }
+        .rv-toolbar #rv-speed { width: 7em; padding: 0; border: 0; accent-color: #faa700; }
+        #rv-speed-value { min-width: 3.5em; font-variant-numeric: tabular-nums; }
+
+        /* ---------- overlays ---------- */
+        .rv-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 80;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5em;
+            background: rgba(0, 0, 0, 0.55);
+        }
+
+        .rv-overlay[hidden] {
+            display: none;
+        }
+
+        .rv-card {
+            max-width: 44em;
+            width: 100%;
+            max-height: 90vh;
+            overflow: auto;
+            padding: 1.2em 1.5em;
+            border-radius: 4px;
+            background: #fff;
+            color: #000;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+        }
+
+        .rv-card h2 {
+            margin: 0 0 0.7em;
+            font-weight: 600;
+        }
+
+        .rv-keys {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .rv-keys td {
+            padding: 0.4em 0.3em;
+            border-bottom: 1px solid #ccc;
+        }
+
+        .rv-keys td:first-child {
+            white-space: nowrap;
+            width: 1%;
+            padding-right: 1.2em;
+        }
+
+        kbd {
+            display: inline-block;
+            min-width: 1.6em;
+            padding: 0.1em 0.4em;
+            margin: 0 0.1em;
+            border-radius: 2px;
+            border: 1px solid #aaa;
+            background: #eee;
+            font-family: inherit;
+            font-size: 0.9em;
+            text-align: center;
+        }
+
+        .rv-card-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.6em;
+            margin-top: 1.2em;
+        }
+
+        .rv-card-actions button {
+            font: inherit;
+            padding: 0.5em 1.3em;
+            border-radius: 3px;
+            border: 1px solid #aaa;
+            cursor: pointer;
+            background: #eee;
+            color: #000;
+        }
+
+        .rv-card-actions button.rv-cta {
+            border-color: var(--blue);
+            background: var(--blue);
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .rv-champion {
+            text-align: center;
+            padding-top: 1.5em;
+            max-width: 42em;
+        }
+
+        .rv-winner {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1em;
+            margin: 0.6em 0;
+            text-align: center;
+        }
+
+        .rv-winner img {
+            width: min(11em, 24vh);
+            height: min(11em, 24vh);
+            object-fit: cover;
+            background: #eee;
+            border-radius: 2px;
+        }
+
+        .rv-winner h2 {
+            font-size: clamp(1.6em, 3vw, 2.6em);
+            font-weight: 600;
+            line-height: 1.15;
+            word-break: break-word;
+            margin: 0;
+        }
+
+        .rv-achievements {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5em;
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            font-size: 1.15em;
+        }
+
+        .rv-achievements li {
+            padding: 0.4em 0.9em;
+            background: #f3f3f3;
+            border-left: 4px solid var(--blue);
+        }
+
+        .rv-achievements .rv-award-gold { border-color: #bd8b00; }
+        .rv-achievements .rv-award-silver { border-color: #929ba8; }
+        .rv-achievements .rv-award-bronze { border-color: #b8733a; }
+
+        .rv-winner-score {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 1em 3em;
+            padding-top: 1em;
+            border-top: 1px solid #ddd;
+            width: 100%;
+        }
+
+        .rv-winner-score span { display: block; color: #555; font-size: 0.9em; }
+        .rv-winner-score strong { display: block; font-size: 1.5em; margin-top: 0.2em; }
+
+        .rv-first-solve {
+            outline: 2px solid #147a9c;
+            outline-offset: -3px;
+        }
+
+        .rv-cell .rv-fts {
+            position: absolute;
+            left: 0.25em;
+            top: 0.15em;
+            font-size: 0.55em;
+            font-weight: 700;
+            color: #fff;
+            background: #17556a;
+            padding: 0.12em 0.25em;
+            border-radius: 2px;
+        }
+
+        .rv-settings-grid { width: 100%; border-collapse: collapse; margin: 1em 0; }
+        .rv-settings-grid td, .rv-settings-grid th { text-align: left; padding: 0.5em; }
+        .rv-settings-grid input { width: 6em; max-width: 100%; }
+        .rv-settings-field { display: block; margin: 1em 0; }
+        #rv-award-settings input, #rv-award-settings select { font: inherit; padding: 0.35em; }
+        #rv-award-settings input[type="checkbox"] { width: auto; }
+        #rv-award-settings [hidden] { display: none; }
+        .rv-settings-note { color: #555; line-height: 1.5; }
+        #rv-settings-error { color: #a21c1c; }
+
+        @media (max-width: 500px) {
+            .rv-overlay { padding: 0.5em; }
+            .rv-card { padding: 1em; }
+            .rv-settings-grid input { width: 4.5em; }
+        }
+
+        .rv-toast {
+            position: fixed;
+            left: 50%;
+            bottom: 4em;
+            z-index: 95;
+            transform: translateX(-50%);
+            padding: 0.6em 1.2em;
+            border-radius: 3px;
+            background: var(--full);
+            color: #fff;
+            font-weight: 600;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .rv-toast.rv-toast-error {
+            background: var(--failed);
+        }
+
+        .rv-toast[hidden] {
+            display: none;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .rv-row, .rv-armed, .rv-flip-in, .rv-landed, .rv-pop, .rv-medal-in .rv-rank span {
+                animation: none !important;
+                transition: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+<header class="rv-header">
+    <a class="rv-brand" href="{{ url('contest_view', contest.key) }}" title="{{ _('Back to the contest') }}">
+        <img src="{{ static('icons/logo.png') }}" alt="{{ SITE_NAME }}">
+    </a>
+    <span class="rv-divider"></span>
+    <div class="rv-title">
+        <h1>{{ contest.name }}</h1>
+        <div class="rv-subtitle">{{ title }}</div>
+    </div>
+    <span class="rv-chip" id="rv-chip">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M11 2h2v4.6l2.8-2.8 1.4 1.4L13 9.4V11h1.6l4.2-4.2 1.4 1.4L17.4 11H22v2h-4.6l2.8 2.8-1.4 1.4-4.2-4.2H13v1.6l4.2 4.2-1.4 1.4-2.8-2.8V22h-2v-4.6l-2.8 2.8-1.4-1.4 4.2-4.2V13H9.4l-4.2 4.2-1.4-1.4L6.6 13H2v-2h4.6L3.8 8.2l1.4-1.4L9.4 11H11V9.4L6.8 5.2l1.4-1.4L11 6.6z"/></svg>
+        <span id="rv-chip-text"></span>
+    </span>
+</header>
+
+{% if notices %}
+    <div class="rv-notices">
+        {% for level, text in notices %}
+            <div class="rv-notice rv-notice-{{ level }}">
+                <span>
+                    {{ text }}
+                    {% if level == 'error' %}
+                        <a href="{{ url('admin:judge_contest_change', contest.id) }}">{{ _('Set it in the contest settings') }}</a>
+                    {% endif %}
+                </span>
+                <button type="button" class="rv-notice-close" aria-label="{{ _('Close') }}">&times;</button>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+
+<div class="rv-board{{ '' if show_time else ' rv-no-time' }}" style="--problems: {{ problem_count }}; --time-col: {{ '7.2em' if show_time else '0' }};">
+    <div class="rv-head rv-grid">
+        <div>#</div>
+        <div class="rv-h-name">{{ _('Participant') }}</div>
+        <div>{{ _('Points') }}</div>
+        <div class="rv-h-time">{% if show_time %}{{ _('Time') }}{% endif %}</div>
+        <div id="rv-head-problems" style="display: contents"></div>
+    </div>
+    <div class="rv-rows" id="rv-rows"></div>
+</div>
+
+<div class="rv-toolbar" id="rv-toolbar">
+    <span class="rv-progress" id="rv-progress"></span>
+    <span class="rv-sep"></span>
+    <button type="button" class="rv-btn" id="rv-prev" title="{{ _('Previous') }} (&larr;)">
+        <svg viewBox="0 0 24 24"><path d="M15.4 5.4 14 4l-8 8 8 8 1.4-1.4L8.8 12z"/></svg>
+    </button>
+    <button type="button" class="rv-btn rv-primary" id="rv-next" title="{{ _('Next') }} ({{ _('Space') }} / &rarr;)">
+        {{ _('Next') }}
+        <svg viewBox="0 0 24 24"><path d="M8.6 18.6 10 20l8-8-8-8-1.4 1.4 6.6 6.6z"/></svg>
+    </button>
+    <button type="button" class="rv-btn" id="rv-play" title="{{ _('Auto-play') }} (A)">
+        <svg viewBox="0 0 24 24" id="rv-play-icon"><path d="M8 5v14l11-7z"/></svg>
+    </button>
+    <label class="rv-speed-control" title="{{ _('Speed') }} (1, 2, 3)">
+        {{ _('Speed') }}
+        <input type="range" id="rv-speed" min="0.25" max="4" step="0.25" value="1.5"
+               aria-label="{{ _('Speed') }}">
+        <output id="rv-speed-value" for="rv-speed">1.5×</output>
+    </label>
+    <button type="button" class="rv-btn" id="rv-skip" title="{{ _('Move up rows automatically') }} (M)">
+        <svg viewBox="0 0 24 24"><path d="M7.4 18.4 12 13.8l4.6 4.6L18 17l-6-6-6 6zm0-7L12 6.8l4.6 4.6L18 10l-6-6-6 6z"/></svg>
+    </button>
+    <span class="rv-sep"></span>
+    <label title="{{ _('Auto-play stops here, and fast-forward goes this far') }}">
+        {{ _('Top') }} <input type="number" id="rv-top" min="1" value="10">
+    </label>
+    <button type="button" class="rv-btn" id="rv-forward" title="{{ _('Fast-forward to the top') }}">
+        <svg viewBox="0 0 24 24"><path d="M4 18l8.5-6L4 6zm9-12v12l8.5-6z"/></svg>
+    </button>
+    <span class="rv-sep"></span>
+    <button type="button" class="rv-btn" id="rv-restart" title="{{ _('Restart') }}">
+        <svg viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z"/></svg>
+    </button>
+    <button type="button" class="rv-btn" id="rv-settings-button">{{ _('Award settings') }}</button>
+    <button type="button" class="rv-btn" id="rv-show-awards">{{ _('View awards') }}</button>
+    <button type="button" class="rv-btn" id="rv-theme" title="{{ _('Light or dark theme') }} (T)">
+        <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9c0-.5 0-.9-.1-1.4A5.5 5.5 0 0 1 13.4 3.1C12.9 3 12.5 3 12 3z"/></svg>
+    </button>
+    <button type="button" class="rv-btn" id="rv-fullscreen" title="{{ _('Full screen') }} (F)">
+        <svg viewBox="0 0 24 24"><path d="M5 5h5V3H3v7h2zm9-2v2h5v5h2V3zm5 16h-5v2h7v-7h-2zM5 14H3v7h7v-2H5z"/></svg>
+    </button>
+    <button type="button" class="rv-btn" id="rv-help-button" title="{{ _('Keyboard shortcuts') }} (H)">
+        <svg viewBox="0 0 24 24"><path d="M11 18h2v-2h-2zm1-16a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm0-14a4 4 0 0 0-4 4h2a2 2 0 1 1 4 0c0 2-3 1.8-3 5h2c0-2.3 3-2.5 3-5a4 4 0 0 0-4-4z"/></svg>
+    </button>
+    <button type="button" class="rv-btn" id="rv-publish" title="{{ _('Publish the scoreboard') }}">
+        <svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.7 7.6 1 12c1.7 4.4 6 7.5 11 7.5s9.3-3.1 11-7.5c-1.7-4.4-6-7.5-11-7.5zm0 12.5a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg>
+    </button>
+</div>
+
+<div class="rv-overlay" id="rv-help" hidden>
+    <div class="rv-card" role="dialog" aria-labelledby="rv-help-title">
+        <h2 id="rv-help-title">{{ _('Keyboard shortcuts') }}</h2>
+        <table class="rv-keys">
+            <tr><td><kbd>{{ _('Space') }}</kbd><kbd>&rarr;</kbd><kbd>{{ _('Page Down') }}</kbd></td><td>{{ _('Next step, or continue after an award. Repeated presses do not skip animations.') }}</td></tr>
+            <tr><td><kbd>&larr;</kbd><kbd>{{ _('Page Up') }}</kbd></td><td>{{ _('Undo the last step') }}</td></tr>
+            <tr><td><kbd>A</kbd></td><td>{{ _('Start or pause auto-play') }}</td></tr>
+            <tr><td><kbd>M</kbd></td><td>{{ _('Move up rows automatically instead of one press per row') }}</td></tr>
+            <tr><td><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd></td><td>{{ _('Slow, normal or fast animations') }}</td></tr>
+            <tr><td><kbd>F</kbd></td><td>{{ _('Full screen') }}</td></tr>
+            <tr><td><kbd>T</kbd></td><td>{{ _('Light or dark theme') }}</td></tr>
+            <tr><td><kbd>C</kbd></td><td>{{ _('Show or hide the controls') }}</td></tr>
+            <tr><td><kbd>H</kbd></td><td>{{ _('Show or hide this help') }}</td></tr>
+        </table>
+        <p style="color: var(--muted)">{{ _('Yellow cells hide the submissions sent during the freeze; the number is how many. The highlighted row is the next one to be revealed, starting from the bottom. If you reload the page, it comes back to the same step.') }}</p>
+        <div class="rv-card-actions">
+            <button type="button" class="rv-cta" data-close>{{ _('Close') }}</button>
+        </div>
+    </div>
+</div>
+
+<div class="rv-overlay" id="rv-champion" hidden>
+    <div class="rv-card rv-champion" role="dialog" aria-modal="true" aria-labelledby="rv-champion-title">
+        <div id="rv-winners"></div>
+        <div class="rv-card-actions" style="justify-content: center">
+            <button type="button" class="rv-cta" id="rv-award-continue">{{ _('Continue') }}</button>
+        </div>
+    </div>
+</div>
+
+<div class="rv-overlay" id="rv-award-settings" hidden>
+    <form class="rv-card" id="rv-award-form" role="dialog" aria-modal="true" aria-labelledby="rv-settings-title">
+        <h2 id="rv-settings-title">{{ _('Award settings') }}</h2>
+        <label class="rv-settings-field">{{ _('Award style') }}
+            <select id="rv-award-mode">
+                <option value="places">{{ _('Finishing places') }}</option>
+                <option value="medals">{{ _('Medals by rank range') }}</option>
+            </select>
+        </label>
+        <label class="rv-settings-field" id="rv-places-field">{{ _('Award places from first through') }}
+            <input type="number" id="rv-award-places" min="0" max="10000" step="1" value="3">
+        </label>
+        <table class="rv-settings-grid" id="rv-medal-fields" hidden>
+            <thead><tr><th>{{ _('Medal') }}</th><th>{{ _('From place') }}</th><th>{{ _('Through place') }}</th></tr></thead>
+            <tbody>
+                <tr><td>{{ _('Gold medal') }}</td><td><input aria-label="{{ _('Gold: from place') }}" id="rv-gold-from" type="number" min="1" max="10000" step="1" value="1"></td><td><input aria-label="{{ _('Gold: through place') }}" id="rv-gold-to" type="number" min="1" max="10000" step="1" value="4"></td></tr>
+                <tr><td>{{ _('Silver medal') }}</td><td><input aria-label="{{ _('Silver: from place') }}" id="rv-silver-from" type="number" min="1" max="10000" step="1" value="5"></td><td><input aria-label="{{ _('Silver: through place') }}" id="rv-silver-to" type="number" min="1" max="10000" step="1" value="8"></td></tr>
+                <tr><td>{{ _('Bronze medal') }}</td><td><input aria-label="{{ _('Bronze: from place') }}" id="rv-bronze-from" type="number" min="1" max="10000" step="1" value="9"></td><td><input aria-label="{{ _('Bronze: through place') }}" id="rv-bronze-to" type="number" min="1" max="10000" step="1" value="12"></td></tr>
+            </tbody>
+        </table>
+        <p class="rv-settings-note" id="rv-medal-note" hidden>{{ _('Leave both ends empty to omit a medal. Ranges must not overlap. Tied ranks receive the same medal.') }}</p>
+        <label class="rv-settings-field"><input type="checkbox" id="rv-award-fts" checked> {{ _('Celebrate first to solve for each problem, including participants without a medal') }}</label>
+        <label class="rv-settings-field"><input type="checkbox" id="rv-reduced-motion"> {{ _('Reduce motion (instant row changes)') }}</label>
+        <p class="rv-settings-note">{{ _('Awards pause the ceremony until you continue. Settings are saved for this contest in this browser.') }}</p>
+        <p id="rv-settings-error" role="alert" hidden></p>
+        <div class="rv-card-actions">
+            <button type="button" data-close>{{ _('Cancel') }}</button>
+            <button type="submit" class="rv-cta">{{ _('Save settings') }}</button>
+        </div>
+    </form>
+</div>
+
+<div class="rv-toast" id="rv-toast" role="status" hidden></div>
+<form id="rv-csrf" hidden>{% csrf_token %}</form>
+
+{{ reveal_data }}
+<script>
+(function () {
+    'use strict';
+
+    var data = JSON.parse(document.getElementById('reveal-data').textContent);
+    var L = data.labels;
+    var rows = data.rows;
+    var steps = data.steps;
+    var problems = data.problems;
+    var P = problems.length;
+    var reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    var SPEEDS = {slow: 0.5, normal: 1, fast: 2};
+    // Playback rate is shown to the operator; durations use its inverse.
+    var speed = 1 / 1.5;
+    var speedStorageKey = 'reveal:speed:v1:' + data.contest;
+    var storageKey = 'reveal:' + data.contest + ':' + data.signature;
+    var awardStorageKey = 'reveal:award-settings:v1:' + data.contest;
+    var awardSettings = {mode: 'places', places: 3, firstSolve: true,
+                         ranges: {gold: [1, 4], silver: [5, 8], bronze: [9, 12]}};
+    var awardSeen = {};
+    var awardQueue = [];
+
+    function validSettings(value) {
+        if (!value || ['places', 'medals'].indexOf(value.mode) < 0 ||
+            !Number.isInteger(value.places) || value.places < 0 || value.places > 10000 ||
+            typeof value.firstSolve !== 'boolean' || !value.ranges) return false;
+        var ranges = [];
+        for (var i = 0; i < 3; i++) {
+            var range = value.ranges[['gold', 'silver', 'bronze'][i]];
+            if (range === null) continue;
+            if (!Array.isArray(range) || range.length !== 2 ||
+                !range.every(function (n) { return Number.isInteger(n) && n >= 1 && n <= 10000; }) ||
+                range[0] > range[1]) return false;
+            if (ranges.some(function (other) { return range[0] <= other[1] && other[0] <= range[1]; })) return false;
+            ranges.push(range);
+        }
+        return true;
+    }
+
+    try {
+        var savedSettings = JSON.parse(localStorage.getItem(awardStorageKey));
+        if (validSettings(savedSettings)) {
+            awardSettings = savedSettings;
+            if (typeof savedSettings.reduceMotion === 'boolean') reduceMotion = savedSettings.reduceMotion;
+        }
+    } catch (e) { /* Storage unavailable or obsolete: use the defaults. */ }
+
+    function medalFor(row) {
+        var rank = rows[row].finalRank;
+        if (awardSettings.mode === 'places') {
+            return rank <= awardSettings.places ? ['gold', 'silver', 'bronze'][rank - 1] || 'place' : null;
+        }
+        return ['gold', 'silver', 'bronze'].find(function (medal) {
+            var range = awardSettings.ranges[medal];
+            return range && rank >= range[0] && rank <= range[1];
+        }) || null;
+    }
+
+    function awardsFor(row) {
+        var awards = [], medal = medalFor(row);
+        var place = L.place.replace('%(rank)s', rows[row].finalRank);
+        if (medal) awards.push({kind: medal, text: awardSettings.mode === 'places' ? place : L[medal] + ' · ' + place});
+        if (awardSettings.firstSolve) {
+            (rows[row].firstSolves || []).forEach(function (column) {
+                awards.push({kind: 'first-solve', text: L.firstSolve.replace('%(problem)s',
+                    problems[column].label + ' · ' + problems[column].name)});
+            });
+        }
+        return awards;
+    }
+
+    function readyAwardRows(s) {
+        return rows.map(function (_, row) { return row; }).filter(function (row) {
+            return s.finalized[row] && s.k >= rows[row].awardStep && awardsFor(row).length;
+        }).sort(function (a, b) { return rows[b].finalPosition - rows[a].finalPosition; });
+    }
+
+    var rowsEl = document.getElementById('rv-rows');
+    var toolbar = document.getElementById('rv-toolbar');
+    var totalPending = 0;
+    rows.forEach(function (row) {
+        row.pending.forEach(function (count) { if (count >= 0) totalPending++; });
+    });
+
+    /* ---------------- state: pure, replayable ---------------- */
+
+    function initialState() {
+        return {
+            k: 0,
+            revealedCount: 0,
+            order: data.order.slice(),
+            ranks: data.ranks.slice(),
+            revealed: rows.map(function () { return []; }),
+            score: rows.map(function (row) { return row.score; }),
+            time: rows.map(function (row) { return row.time; }),
+            finalized: rows.map(function () { return false; })
+        };
+    }
+
+    function apply(s, step) {
+        if (step.kind === 'reveal') {
+            s.revealed[step.row][step.column] = true;
+            s.score[step.row] = step.score;
+            s.time[step.row] = step.time;
+            if (step.order) s.order = step.order.slice();
+            if (step.ranks) s.ranks = step.ranks.slice();
+            s.revealedCount++;
+        } else {
+            s.finalized[step.row] = true;
+        }
+        s.k++;
+    }
+
+    function cursorPosition(s) {
+        for (var i = s.order.length - 1; i >= 0; i--) {
+            if (!s.finalized[s.order[i]]) return i;
+        }
+        return -1;
+    }
+
+    var state = initialState();
+
+    /* ---------------- DOM ---------------- */
+
+    function el(tag, className, text) {
+        var node = document.createElement(tag);
+        if (className) node.className = className;
+        if (text !== undefined) node.textContent = text;
+        return node;
+    }
+
+    // The profile picture the site shows everywhere else (Gravatar). A missing or blocked picture leaves a grey
+    // square instead of a broken image, which matters on a projector without internet.
+    function avatar(url, className) {
+        var img = el('img', className);
+        img.alt = '';
+        img.loading = 'lazy';
+        img.referrerPolicy = 'no-referrer';
+        img.onerror = function () { img.style.visibility = 'hidden'; };
+        if (url && url.indexOf('https://') === 0) img.src = url;
+        else img.style.visibility = 'hidden';
+        return img;
+    }
+
+    var headProblems = document.getElementById('rv-head-problems');
+    problems.forEach(function (problem) {
+        var head = el('div', 'rv-h-problem', problem.label);
+        head.title = problem.name;
+        headProblems.appendChild(head);
+    });
+
+    var rowEls = rows.map(function (row, index) {
+        var node = el('div', 'rv-row rv-grid');
+        node.rank = node.appendChild(el('div', 'rv-rank')).appendChild(el('span'));
+        var name = node.appendChild(el('div', 'rv-name'));
+        name.appendChild(avatar(row.avatar, 'rv-avatar'));
+        var nameText = name.appendChild(el('div', 'rv-name-text'));
+        nameText.appendChild(el('strong', '', row.name));
+        name.title = row.username;
+        if (row.organization) nameText.appendChild(el('small', '', row.organization));
+        node.score = node.appendChild(el('div', 'rv-score'));
+        node.time = node.appendChild(el('div', 'rv-time'));
+        node.cells = problems.map(function (problem) {
+            var cell = node.appendChild(el('div', 'rv-cell'));
+            cell.main = cell.appendChild(el('b'));
+            cell.sub = cell.appendChild(el('i'));
+            cell.badge = cell.appendChild(el('span', 'rv-badge'));
+            cell.firstSolve = cell.appendChild(el('span', 'rv-fts', 'FTS'));
+            cell.firstSolve.hidden = true;
+            cell.firstSolve.title = L.firstSolve.replace('%(problem)s', problem.label + ' · ' + problem.name);
+            cell.title = problem.label + ' · ' + problem.name;
+            return cell;
+        });
+        node.index = index;
+        rowsEl.appendChild(node);
+        return node;
+    });
+
+    var pitch = 0;
+
+    function measure() {
+        var probe = el('div');
+        probe.style.cssText = 'position:absolute;visibility:hidden;height:var(--row-h)';
+        rowsEl.appendChild(probe);
+        pitch = probe.getBoundingClientRect().height;
+        rowsEl.removeChild(probe);
+        rowsEl.style.height = (rows.length * pitch) + 'px';
+    }
+
+    function renderCell(r, c) {
+        var cell = rowEls[r].cells[c];
+        var pending = rows[r].pending[c];
+        var main, sub, badge = '', stateName;
+        if (pending >= 0 && !state.revealed[r][c]) {
+            stateName = 'pending';
+            main = '?';
+            sub = '';
+            badge = pending > 0 ? String(pending) : '';
+        } else {
+            var view = state.revealed[r][c] ? rows[r].final[c] : rows[r].frozen[c];
+            stateName = view.state;
+            main = view.main;
+            sub = view.sub;
+            // Some score formats omit a zero-score result (e.g. IOI with no testcase results).
+            // A revealed cell with actual hidden submissions is an unsuccessful attempt, not an untouched cell.
+            if (state.revealed[r][c] && stateName === 'empty' && pending > 0) {
+                stateName = 'failed';
+                main = '0';
+            }
+        }
+        cell.className = 'rv-cell rv-' + stateName;
+        cell.main.textContent = main;
+        cell.sub.textContent = sub;
+        cell.badge.textContent = badge;
+        var firstSolve = (rows[r].firstSolves || []).indexOf(c) >= 0 && stateName !== 'pending';
+        cell.firstSolve.hidden = !firstSolve;
+        cell.classList.toggle('rv-first-solve', firstSolve);
+    }
+
+    function renderTotals(r) {
+        rowEls[r].score.textContent = state.score[r];
+        rowEls[r].time.textContent = state.time[r];
+    }
+
+    function renderPositions() {
+        var cursor = cursorPosition(state);
+        state.order.forEach(function (r, i) {
+            var node = rowEls[r];
+            var rank = state.ranks[i];
+            node.style.transform = 'translateY(' + (i * pitch) + 'px)';
+            node.rank.textContent = rank;
+            node.classList.toggle('rv-cursor', i === cursor);
+            node.classList.toggle('rv-done', state.finalized[r]);
+            var medal = state.finalized[r] && state.k >= rows[r].awardStep ? medalFor(r) : null;
+            for (var m = 1; m <= 3; m++) {
+                node.classList.toggle('rv-medal-' + m, medal === ['gold', 'silver', 'bronze'][m - 1]);
+            }
+        });
+    }
+
+    function renderProgress() {
+        var finished = state.k >= steps.length;
+        document.getElementById('rv-progress').textContent = state.k === 0 && steps.length ? L.start :
+            L.stepOf.replace('%(current)s', state.k).replace('%(total)s', steps.length) + ' · ' +
+            (totalPending - state.revealedCount) + ' ' + L.cellsLeft;
+        var chip = document.getElementById('rv-chip');
+        chip.classList.toggle('rv-chip-final', finished);
+        document.getElementById('rv-chip-text').textContent = finished ? L.final : L.frozen;
+        document.getElementById('rv-prev').disabled = state.k === 0;
+        document.getElementById('rv-next').disabled = finished || busy;
+        document.getElementById('rv-forward').disabled = finished || busy;
+    }
+
+    function renderAll() {
+        rowsEl.classList.add('rv-instant');
+        rows.forEach(function (row, r) {
+            for (var c = 0; c < P; c++) renderCell(r, c);
+            renderTotals(r);
+        });
+        renderPositions();
+        renderProgress();
+        void rowsEl.offsetHeight;
+        rowsEl.classList.remove('rv-instant');
+    }
+
+    /* ---------------- timing ---------------- */
+
+    var timers = [];
+    var hurry = false;
+    var activeMotion = null;
+
+    function wait(ms) {
+        return new Promise(function (resolve) {
+            if (hurry || reduceMotion || ms <= 0) return resolve();
+            var entry = {resolve: resolve};
+            entry.id = setTimeout(function () {
+                timers.splice(timers.indexOf(entry), 1);
+                resolve();
+            }, ms * speed);
+            timers.push(entry);
+        });
+    }
+
+    function hurryUp() {
+        hurry = true;
+        if (activeMotion) activeMotion();
+        timers.splice(0).forEach(function (entry) {
+            clearTimeout(entry.id);
+            entry.resolve();
+        });
+    }
+
+    var scrollFrame = null;
+
+    function smoothProgress(t) {
+        return t * t * (3 - 2 * t);
+    }
+
+    function animateScroll(target, ms) {
+        if (scrollFrame) cancelAnimationFrame(scrollFrame);
+        var max = document.documentElement.scrollHeight - window.innerHeight;
+        target = Math.max(0, Math.min(max, target));
+        var start = window.scrollY;
+        var duration = ms * speed;
+        if (hurry || reduceMotion || duration <= 0 || Math.abs(target - start) < 2) {
+            window.scrollTo(0, target);
+            return;
+        }
+        var began = null;
+        function frame(now) {
+            if (began === null) began = now;
+            var t = Math.min(1, (now - began) / duration);
+            var eased = smoothProgress(t);
+            window.scrollTo(0, start + (target - start) * eased);
+            scrollFrame = t < 1 && !hurry ? requestAnimationFrame(frame) : null;
+            if (hurry) window.scrollTo(0, target);
+        }
+        scrollFrame = requestAnimationFrame(frame);
+    }
+
+    function targetFor(position) {
+        var top = rowsEl.getBoundingClientRect().top + window.scrollY + position * pitch;
+        return top - window.innerHeight * 0.55;
+    }
+
+    function followCursor(ms, force) {
+        var cursor = cursorPosition(state);
+        if (cursor < 0) return;
+        var y = rowsEl.getBoundingClientRect().top + cursor * pitch;
+        if (force || y < window.innerHeight * 0.2 || y > window.innerHeight * 0.75) {
+            animateScroll(targetFor(cursor), ms);
+        }
+    }
+
+    /* ---------------- playback ---------------- */
+
+    var busy = false;
+    var skipRows = false;
+    var playing = false;
+    var autoStopArmed = false;
+    var playGeneration = 0;
+    var pendingMeasure = false;
+
+    // Drive rows and camera from the same clock. A long climb takes longer, and the displayed rank follows
+    // the row through the places it passes instead of jumping to the destination before the row moves.
+    function moveRows(step, oldOrder) {
+        if (scrollFrame) cancelAnimationFrame(scrollFrame);
+        scrollFrame = null;
+        var distance = Math.abs(step.from - step.to);
+        var duration = Math.min(20000, 1800 + distance * 550) * speed;
+        var oldPositions = [], newPositions = [];
+        oldOrder.forEach(function (r, i) { oldPositions[r] = i; });
+        state.order.forEach(function (r, i) { newPositions[r] = i; });
+        var moving = rowEls[step.row];
+        var startScroll = window.scrollY;
+        var endScroll = Math.max(0, Math.min(document.documentElement.scrollHeight - window.innerHeight,
+                                             targetFor(step.to)));
+        moving.classList.add('rv-moving');
+        rowsEl.classList.add('rv-instant');
+        return new Promise(function (resolve) {
+            var frameId = null, began = null, finished = false;
+            function finish() {
+                if (finished) return;
+                finished = true;
+                if (frameId) cancelAnimationFrame(frameId);
+                activeMotion = null;
+                renderPositions();
+                window.scrollTo(0, endScroll);
+                void rowsEl.offsetHeight;
+                rowsEl.classList.remove('rv-instant');
+                moving.classList.remove('rv-moving');
+                resolve();
+            }
+            activeMotion = finish;
+            if (hurry || reduceMotion || !distance) return finish();
+            function frame(now) {
+                if (began === null) began = now;
+                var t = Math.min(1, (now - began) / duration);
+                var eased = smoothProgress(t);
+                rowEls.forEach(function (node, r) {
+                    if (oldPositions[r] === newPositions[r]) return;
+                    var position = oldPositions[r] + (newPositions[r] - oldPositions[r]) * eased;
+                    node.style.transform = 'translateY(' + (position * pitch) + 'px)';
+                });
+                moving.rank.textContent = Math.round(step.from + (step.to - step.from) * eased) + 1;
+                window.scrollTo(0, startScroll + (endScroll - startScroll) * eased);
+                if (t >= 1 || hurry) finish();
+                else frameId = requestAnimationFrame(frame);
+            }
+            frameId = requestAnimationFrame(frame);
+        });
+    }
+
+    function save() {
+        try {
+            sessionStorage.setItem(storageKey, JSON.stringify({step: state.k, awardSeen: Object.keys(awardSeen)}));
+        } catch (e) { /* storage blocked: no resume */ }
+    }
+
+    function playReveal(step) {
+        var r = step.row;
+        var oldOrder = state.order.slice();
+        var node = rowEls[r];
+        var cell = node.cells[step.column];
+        followCursor(450);
+        return wait(250).then(function () {
+            cell.classList.add('rv-armed');
+            return wait(1000);
+        }).then(function () {
+            cell.classList.remove('rv-armed');
+            cell.classList.add('rv-flip-out');
+            return wait(200);
+        }).then(function () {
+            apply(state, step);
+            renderCell(r, step.column);
+            cell.classList.add('rv-flip-in');
+            renderTotals(r);
+            node.score.classList.remove('rv-pop');
+            void node.score.offsetWidth;
+            node.score.classList.add('rv-pop');
+            renderProgress();
+            return wait(900);
+        }).then(function () {
+            cell.classList.remove('rv-flip-in');
+            if (step.to === step.from) {
+                renderPositions();
+                return;
+            }
+            return moveRows(step, oldOrder).then(function () {
+                node.classList.add('rv-landed');
+                return wait(900);
+            }).then(function () {
+                node.classList.remove('rv-landed');
+            });
+        }).then(function () {
+            followCursor(700);
+        });
+    }
+
+    function playFinalize(step, quick) {
+        apply(state, step);
+        renderPositions();
+        renderProgress();
+        var node = rowEls[step.row];
+        if (medalFor(step.row)) {
+            node.classList.remove('rv-medal-in');
+            void node.offsetWidth;
+            node.classList.add('rv-medal-in');
+        }
+        if (state.k >= steps.length) {
+            followCursorTop();
+            return wait(700);
+        }
+        followCursor(quick ? 300 : 450);
+        return wait(quick ? 0 : 350);
+    }
+
+    function followCursorTop() {
+        animateScroll(0, 900);
+    }
+
+    function next() {
+        if (!document.getElementById('rv-champion').hidden) {
+            continueAward();
+            return Promise.resolve();
+        }
+        if (busy) {
+            return Promise.resolve();
+        }
+        if (state.k >= steps.length) return Promise.resolve();
+        busy = true;
+        hurry = false;
+        renderProgress();
+        var chain = Promise.resolve();
+        if (skipRows) {
+            var skipped = false;
+            while (state.k < steps.length && steps[state.k].kind === 'finalize' &&
+                   state.k < steps.length - 1 && !awardsFor(steps[state.k].row).length) {
+                apply(state, steps[state.k]);
+                skipped = true;
+            }
+            if (skipped) {
+                renderPositions();
+                renderProgress();
+                followCursor(600, true);
+                chain = wait(650);
+            }
+        }
+        return chain.then(function () {
+            var step = steps[state.k];
+            return step.kind === 'reveal' ? playReveal(step) : playFinalize(step);
+        }).then(function () {
+            busy = false;
+            hurry = false;
+            if (pendingMeasure) {
+                pendingMeasure = false;
+                measure();
+                renderAll();
+            }
+            save();
+            renderProgress();
+            queueReadyAwards();
+        }, function (error) {
+            busy = false;
+            hurry = false;
+            rebuild(state.k);
+            if (window.console) console.error(error);
+        });
+    }
+
+    function rebuild(k) {
+        stopPlaying();
+        var s = initialState();
+        k = Math.max(0, Math.min(steps.length, k));
+        for (var i = 0; i < k; i++) apply(s, steps[i]);
+        state = s;
+        awardQueue = [];
+        Object.keys(awardSeen).forEach(function (row) {
+            if (!state.finalized[row] || state.k < rows[row].awardStep) delete awardSeen[row];
+        });
+        closeOverlay(document.getElementById('rv-champion'));
+        renderAll();
+        followCursor(0, true);
+        save();
+        queueReadyAwards();
+    }
+
+    function previous() {
+        if (busy) {
+            return;
+        }
+        if (state.k === 0) return;
+        var k = state.k - 1;
+        if (skipRows) {
+            while (k > 0 && steps[k - 1].kind === 'finalize') k--;
+        }
+        rebuild(k);
+    }
+
+    function topTarget() {
+        var value = parseInt(document.getElementById('rv-top').value, 10);
+        return isNaN(value) || value < 1 ? 1 : value;
+    }
+
+    function fastForward() {
+        if (busy) return;
+        var top = topTarget();
+        var s = initialState();
+        for (var i = 0; i < state.k; i++) apply(s, steps[i]);
+        while (s.k < steps.length && cursorPosition(s) >= top) {
+            apply(s, steps[s.k]);
+            if (readyAwardRows(s).some(function (row) { return !awardSeen[row]; })) break;
+        }
+        rebuild(s.k);
+    }
+
+    function stopPlaying() {
+        playing = false;
+        playGeneration++;
+        updatePlayButton();
+    }
+
+    function updatePlayButton() {
+        var button = document.getElementById('rv-play');
+        button.classList.toggle('rv-on', playing);
+        button.title = (playing ? L.pause : L.autoplay) + ' (A)';
+        document.getElementById('rv-play-icon').innerHTML = playing ?
+            '<path d="M6 5h4v14H6zm8 0h4v14h-4z"/>' : '<path d="M8 5v14l11-7z"/>';
+    }
+
+    function togglePlay() {
+        if (!document.getElementById('rv-champion').hidden) return;
+        if (playing) {
+            stopPlaying();
+            return;
+        }
+        if (state.k >= steps.length) return;
+        playing = true;
+        autoStopArmed = cursorPosition(state) >= topTarget();
+        updatePlayButton();
+        loop(++playGeneration);
+    }
+
+    function loop(generation) {
+        if (!playing || generation !== playGeneration) return;
+        if (busy) {
+            setTimeout(function () { loop(generation); }, 200);
+            return;
+        }
+        if (state.k >= steps.length) {
+            stopPlaying();
+            return;
+        }
+        if (autoStopArmed && cursorPosition(state) < topTarget()) {
+            stopPlaying();
+            return;
+        }
+        var kind = steps[state.k].kind;
+        next().then(function () {
+            if (!playing || generation !== playGeneration) return;
+            setTimeout(function () { loop(generation); },
+                       (reduceMotion ? 300 : (kind === 'reveal' ? 900 : 450)) * speed);
+        });
+    }
+
+    /* ---------------- overlays, publishing ---------------- */
+
+    function openOverlay(node) {
+        node.hidden = false;
+    }
+
+    function closeOverlay(node) {
+        node.hidden = true;
+    }
+
+    function showAward(row) {
+        stopPlaying();
+        closeOverlay(document.getElementById('rv-help'));
+        var winners = document.getElementById('rv-winners');
+        winners.textContent = '';
+        var block = winners.appendChild(el('div', 'rv-winner'));
+        var picture = avatar(rows[row].avatar, '');
+        picture.loading = 'eager';
+        block.appendChild(picture);
+        var name = block.appendChild(el('h2', '', rows[row].name));
+        name.id = 'rv-champion-title';
+        var achievements = block.appendChild(el('ul', 'rv-achievements'));
+        awardsFor(row).forEach(function (award) {
+            achievements.appendChild(el('li', 'rv-award-' + award.kind, award.text));
+        });
+        var totals = block.appendChild(el('div', 'rv-winner-score'));
+        [[L.points, rows[row].finalScore], [L.totalTime, rows[row].finalTime]].forEach(function (pair) {
+            var value = totals.appendChild(el('div'));
+            value.appendChild(el('span', '', pair[0]));
+            value.appendChild(el('strong', '', pair[1]));
+        });
+        var overlay = document.getElementById('rv-champion');
+        overlay.dataset.row = String(row);
+        openOverlay(overlay);
+        document.getElementById('rv-award-continue').focus({preventScroll: true});
+    }
+
+    function queueReadyAwards() {
+        readyAwardRows(state).forEach(function (row) {
+            if (!awardSeen[row] && awardQueue.indexOf(row) < 0) awardQueue.push(row);
+        });
+        if (awardQueue.length && document.getElementById('rv-champion').hidden) showAward(awardQueue[0]);
+    }
+
+    function continueAward() {
+        if (!awardQueue.length) return;
+        awardSeen[awardQueue.shift()] = true;
+        closeOverlay(document.getElementById('rv-champion'));
+        save();
+        if (awardQueue.length) showAward(awardQueue[0]);
+        else document.getElementById(state.k < steps.length ? 'rv-next' : 'rv-show-awards').focus({preventScroll: true});
+    }
+
+    function reviewAwards() {
+        if (busy) return;
+        stopPlaying();
+        awardQueue = readyAwardRows(state);
+        if (awardQueue.length) showAward(awardQueue[0]);
+        else toast(L.noAwards);
+    }
+
+    function updateSettingsFields() {
+        var medals = document.getElementById('rv-award-mode').value === 'medals';
+        document.getElementById('rv-places-field').hidden = medals;
+        document.getElementById('rv-medal-fields').hidden = !medals;
+        document.getElementById('rv-medal-note').hidden = !medals;
+    }
+
+    function showSettings() {
+        if (busy) return;
+        stopPlaying();
+        document.getElementById('rv-award-mode').value = awardSettings.mode;
+        document.getElementById('rv-award-places').value = awardSettings.places;
+        document.getElementById('rv-award-fts').checked = awardSettings.firstSolve;
+        document.getElementById('rv-reduced-motion').checked = reduceMotion;
+        ['gold', 'silver', 'bronze'].forEach(function (medal) {
+            var range = awardSettings.ranges[medal];
+            document.getElementById('rv-' + medal + '-from').value = range ? range[0] : '';
+            document.getElementById('rv-' + medal + '-to').value = range ? range[1] : '';
+        });
+        document.getElementById('rv-settings-error').hidden = true;
+        updateSettingsFields();
+        openOverlay(document.getElementById('rv-award-settings'));
+        document.getElementById('rv-award-mode').focus({preventScroll: true});
+    }
+
+    function saveSettings(event) {
+        event.preventDefault();
+        var updated = {
+            mode: document.getElementById('rv-award-mode').value,
+            places: Number(document.getElementById('rv-award-places').value),
+            firstSolve: document.getElementById('rv-award-fts').checked,
+            reduceMotion: document.getElementById('rv-reduced-motion').checked,
+            ranges: {}
+        };
+        ['gold', 'silver', 'bronze'].forEach(function (medal) {
+            var from = document.getElementById('rv-' + medal + '-from').value;
+            var to = document.getElementById('rv-' + medal + '-to').value;
+            updated.ranges[medal] = !from && !to ? null : [Number(from), Number(to)];
+        });
+        if (!validSettings(updated)) {
+            var error = document.getElementById('rv-settings-error');
+            error.textContent = L.invalidAwards;
+            error.hidden = false;
+            return;
+        }
+        var changed = JSON.stringify([awardSettings.mode, awardSettings.places, awardSettings.firstSolve, awardSettings.ranges]) !==
+            JSON.stringify([updated.mode, updated.places, updated.firstSolve, updated.ranges]);
+        awardSettings = updated;
+        reduceMotion = updated.reduceMotion;
+        try { localStorage.setItem(awardStorageKey, JSON.stringify(updated)); } catch (e) { /* no persistence */ }
+        closeOverlay(document.getElementById('rv-award-settings'));
+        if (changed) { awardSeen = {}; awardQueue = []; }
+        renderPositions();
+        save();
+        toast(L.awardsSaved);
+        queueReadyAwards();
+    }
+
+    var toastTimer = null;
+
+    function toast(text, error) {
+        var node = document.getElementById('rv-toast');
+        node.textContent = text;
+        node.classList.toggle('rv-toast-error', !!error);
+        node.hidden = false;
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () { node.hidden = true; }, 4000);
+    }
+
+    var published = data.published;
+
+    function updatePublish() {
+        document.getElementById('rv-publish').hidden = !data.canPublish;
+        document.getElementById('rv-publish').classList.toggle('rv-on', published);
+    }
+
+    function publish() {
+        if (!data.canPublish) return;
+        if (published) {
+            toast(L.alreadyPublished);
+            return;
+        }
+        if (!window.confirm(L.publishConfirm)) return;
+        var token = document.querySelector('#rv-csrf input[name="csrfmiddlewaretoken"]');
+        fetch(data.publishUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {'X-CSRFToken': token ? token.value : '', 'X-Requested-With': 'XMLHttpRequest'}
+        }).then(function (response) {
+            if (!response.ok) throw new Error('HTTP ' + response.status);
+            return response.json();
+        }).then(function (body) {
+            if (!body.public) throw new Error('not public');
+            published = true;
+            updatePublish();
+            toast(body.published ? L.published : L.alreadyPublished);
+        }).catch(function () {
+            toast(L.publishFailed, true);
+        });
+    }
+
+    /* ---------------- controls ---------------- */
+
+    function setSpeed(value) {
+        var rate = Object.prototype.hasOwnProperty.call(SPEEDS, value) ? SPEEDS[value] : Number(value);
+        if (!Number.isFinite(rate) || rate < 0.25 || rate > 4) return;
+        rate = Math.round(rate * 4) / 4;
+        speed = 1 / rate;
+        var input = document.getElementById('rv-speed');
+        input.value = String(rate);
+        input.setAttribute('aria-valuetext', rate + '×');
+        document.getElementById('rv-speed-value').value = rate + '×';
+        try { localStorage.setItem(speedStorageKey, String(rate)); } catch (e) { /* no storage */ }
+    }
+
+    function toggleSkip() {
+        skipRows = !skipRows;
+        document.getElementById('rv-skip').classList.toggle('rv-on', skipRows);
+    }
+
+    function toggleTheme() {
+        var dark = document.body.classList.toggle('rv-dark');
+        try { localStorage.setItem('reveal:theme', dark ? 'dark' : 'light'); } catch (e) { /* no storage */ }
+    }
+
+    function toggleFullscreen() {
+        if (document.fullscreenElement) {
+            if (document.exitFullscreen) document.exitFullscreen();
+        } else if (document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen().catch(function () { /* refused by the browser */ });
+        }
+    }
+
+    var controlsPinnedHidden = false;
+    var idleTimer = null;
+
+    function wakeControls() {
+        document.body.classList.remove('rv-idle');
+        if (!controlsPinnedHidden) toolbar.classList.remove('rv-hidden');
+        clearTimeout(idleTimer);
+        idleTimer = setTimeout(function () {
+            if (toolbar.matches(':hover') || toolbar.contains(document.activeElement)) return wakeControls();
+            toolbar.classList.add('rv-hidden');
+            document.body.classList.add('rv-idle');
+        }, 3500);
+    }
+
+    document.getElementById('rv-next').addEventListener('click', function () { stopPlaying(); next(); });
+    document.getElementById('rv-prev').addEventListener('click', previous);
+    document.getElementById('rv-play').addEventListener('click', togglePlay);
+    document.getElementById('rv-skip').addEventListener('click', toggleSkip);
+    document.getElementById('rv-forward').addEventListener('click', fastForward);
+    document.getElementById('rv-restart').addEventListener('click', function () {
+        if (window.confirm(L.restartConfirm)) rebuild(0);
+    });
+    document.getElementById('rv-theme').addEventListener('click', toggleTheme);
+    document.getElementById('rv-fullscreen').addEventListener('click', toggleFullscreen);
+    document.getElementById('rv-help-button').addEventListener('click', function () {
+        stopPlaying();
+        openOverlay(document.getElementById('rv-help'));
+    });
+    document.getElementById('rv-publish').addEventListener('click', publish);
+    document.getElementById('rv-award-continue').addEventListener('click', continueAward);
+    document.getElementById('rv-show-awards').addEventListener('click', reviewAwards);
+    document.getElementById('rv-settings-button').addEventListener('click', showSettings);
+    document.getElementById('rv-award-mode').addEventListener('change', updateSettingsFields);
+    document.getElementById('rv-award-form').addEventListener('submit', saveSettings);
+    document.getElementById('rv-speed').addEventListener('input', function (event) { setSpeed(event.target.value); });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-close]'), function (button) {
+        button.addEventListener('click', function () { closeOverlay(button.closest('.rv-overlay')); });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.rv-notice-close'), function (button) {
+        button.addEventListener('click', function () { button.closest('.rv-notice').remove(); });
+    });
+    ['mousemove', 'mousedown', 'touchstart'].forEach(function (name) {
+        document.addEventListener(name, wakeControls, {passive: true});
+    });
+
+    document.addEventListener('keydown', function (event) {
+        if (event.ctrlKey || event.metaKey || event.altKey) return;
+        if (event.repeat) return;
+        var target = event.target;
+        var typing = target && (target.tagName === 'INPUT' || target.tagName === 'SELECT');
+        var help = document.getElementById('rv-help');
+        var champion = document.getElementById('rv-champion');
+        var settingsOverlay = document.getElementById('rv-award-settings');
+        var key = event.key;
+        var modal = !champion.hidden ? champion : !settingsOverlay.hidden ? settingsOverlay : !help.hidden ? help : null;
+        if (modal && key === 'Tab') {
+            var focusable = Array.prototype.filter.call(modal.querySelectorAll('button,input,select'), function (node) {
+                return !node.disabled && node.getClientRects().length;
+            });
+            var first = focusable[0], last = focusable[focusable.length - 1];
+            if (event.shiftKey && (target === first || !modal.contains(target))) {
+                last.focus(); event.preventDefault();
+            } else if (!event.shiftKey && (target === last || !modal.contains(target))) {
+                first.focus(); event.preventDefault();
+            }
+            return;
+        }
+        if (!settingsOverlay.hidden) {
+            if (key === 'Escape') { closeOverlay(settingsOverlay); event.preventDefault(); }
+            return;
+        }
+        if (!champion.hidden) {
+            if ([' ', 'Enter', 'ArrowRight', 'PageDown', 'Escape'].indexOf(key) >= 0) {
+                continueAward(); event.preventDefault();
+            } else if (key === 'ArrowLeft' || key === 'PageUp') {
+                previous(); event.preventDefault();
+            }
+            return;
+        }
+        if (key === 'Escape') {
+            closeOverlay(help);
+            closeOverlay(champion);
+            return;
+        }
+        if (typing && key !== 'Enter') return;
+        if (typing) target.blur();
+        var handled = true;
+        switch (key) {
+            case ' ':
+            case 'Enter':
+            case 'ArrowRight':
+            case 'PageDown':
+                if (!help.hidden) closeOverlay(help);
+                stopPlaying();
+                next();
+                break;
+            case 'ArrowLeft':
+            case 'PageUp':
+            case 'Backspace':
+                previous();
+                break;
+            case 'a': case 'A': togglePlay(); break;
+            case 'm': case 'M': toggleSkip(); break;
+            case 'f': case 'F': toggleFullscreen(); break;
+            case 't': case 'T': toggleTheme(); break;
+            case 'c': case 'C':
+                controlsPinnedHidden = !controlsPinnedHidden;
+                toolbar.classList.toggle('rv-hidden', controlsPinnedHidden);
+                break;
+            case 'h': case 'H': case '?':
+                help.hidden ? openOverlay(help) : closeOverlay(help);
+                break;
+            case '1': setSpeed('slow'); break;
+            case '2': setSpeed('normal'); break;
+            case '3': setSpeed('fast'); break;
+            default: handled = false;
+        }
+        if (handled) event.preventDefault();
+    });
+
+    var resizeTimer = null;
+    window.addEventListener('resize', function () {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function () {
+            if (busy) {
+                pendingMeasure = true;
+                return;
+            }
+            measure();
+            rowsEl.classList.add('rv-instant');
+            renderPositions();
+            void rowsEl.offsetHeight;
+            rowsEl.classList.remove('rv-instant');
+        }, 120);
+    });
+
+    /* ---------------- start ---------------- */
+
+    var savedSpeed = null;
+    try { savedSpeed = Number(localStorage.getItem(speedStorageKey)); } catch (e) { /* no storage */ }
+    setSpeed(Number.isFinite(savedSpeed) && savedSpeed >= 0.25 && savedSpeed <= 4 ? savedSpeed : 1.5);
+
+    try {
+        if (localStorage.getItem('reveal:theme') === 'dark') document.body.classList.add('rv-dark');
+    } catch (e) { /* no storage */ }
+
+    measure();
+    updatePublish();
+    updatePlayButton();
+    var resume = 0;
+    try {
+        var savedProgress = JSON.parse(sessionStorage.getItem(storageKey));
+        resume = typeof savedProgress === 'number' ? savedProgress : savedProgress && savedProgress.step || 0;
+        if (savedProgress && Array.isArray(savedProgress.awardSeen)) {
+            savedProgress.awardSeen.forEach(function (row) {
+                if (/^\d+$/.test(String(row)) && rows[Number(row)]) awardSeen[Number(row)] = true;
+            });
+        }
+    } catch (e) { /* no storage */ }
+    if (resume > 0 && resume <= steps.length) {
+        rebuild(resume);
+    } else {
+        renderAll();
+    }
+    wakeControls();
+
+    // Test hook for the laboratory: lets a headless browser jump to any step without clicking.
+    window.revealDebug = {state: function () { return state; }, rebuild: rebuild, next: next, steps: steps,
+                          finish: hurryUp, awards: awardsFor, readyAwards: readyAwardRows,
+                          settings: function () { return awardSettings; }, busy: function () { return busy; }};
+})();
+</script>
+</body>
+</html>

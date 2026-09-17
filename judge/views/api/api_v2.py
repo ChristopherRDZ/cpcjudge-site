@@ -3,6 +3,7 @@ from operator import attrgetter
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
 from django.db.models import Count, F, OuterRef, Prefetch, Q, Subquery
+from django.db.models.functions import Coalesce
 from django.http import Http404, JsonResponse
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -15,6 +16,7 @@ from judge.models import (
 )
 from judge.utils.infinite_paginator import InfinitePaginationMixin
 from judge.utils.raw_sql import join_sql_subquery, use_straight_join
+from judge.views.contests import FrozenParticipation
 from judge.views.submission import group_test_cases
 
 
@@ -272,12 +274,25 @@ class APIContestDetail(APIDetailView):
                 old_rating=Subquery(old_ratings_subquery.values('rating')[:1]),
                 new_rating=Subquery(new_ratings_subquery.values('rating')[:1]),
             )
-            .order_by('-score', 'cumtime', 'tiebreaker')
         )
 
+        frozen = contest.is_frozen_for(self.request.user)
+        if frozen:
+            participations = participations.annotate(
+                shown_score=Coalesce('frozen_score', 'score'),
+                shown_cumtime=Coalesce('frozen_cumtime', 'cumtime'),
+                shown_tiebreaker=Coalesce('frozen_tiebreaker', 'tiebreaker'),
+            ).order_by('-shown_score', 'shown_cumtime', 'shown_tiebreaker')
+        else:
+            participations = participations.order_by('-score', 'cumtime', 'tiebreaker')
+
+        participations = list(participations)
         # Setting contest attribute to reduce db queries in .start and .end_time
         for participation in participations:
             participation.contest = contest
+        if frozen:
+            # An API answer that reports the real scores undoes the freeze just as thoroughly as a web page.
+            participations = [FrozenParticipation(participation) for participation in participations]
 
         return {
             'key': contest.key,
@@ -370,16 +385,24 @@ class APIContestParticipationList(APIListView):
                 'contest__start_time',
                 'contest__end_time',
                 'contest__time_limit',
+                'contest__freeze_minutes',
+                'contest__scoreboard_revealed',
                 'real_start',
                 'score',
                 'cumtime',
                 'tiebreaker',
                 'is_disqualified',
                 'virtual',
+                'frozen_score',
+                'frozen_cumtime',
+                'frozen_tiebreaker',
+                'frozen_at',
             )
         )
 
     def get_object_data(self, participation):
+        if participation.contest.is_frozen_for(self.request.user):
+            participation = FrozenParticipation(participation)
         return {
             'user': participation.user.username,
             'contest': participation.contest.key,
@@ -585,6 +608,13 @@ class APISubmissionList(APIListView):
 
     def get_unfiltered_queryset(self):
         queryset = Submission.objects.exclude(problem__code__startswith='ct_')
+        # Same freeze the submission lists apply; the API is a shortcut to the same rows.
+        frozen = Contest.frozen_submission_filter(self.request.user)
+        if frozen is not None:
+            if self.request.user.is_authenticated:
+                queryset = queryset.exclude(frozen & ~Q(user_id=self.request.profile.id))
+            else:
+                queryset = queryset.exclude(frozen)
         use_straight_join(queryset)
         join_sql_subquery(
             queryset,

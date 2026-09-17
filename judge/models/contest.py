@@ -1,3 +1,6 @@
+from datetime import timedelta
+
+from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 from django.db import models, transaction
@@ -54,6 +57,7 @@ class ContestTag(models.Model):
 
 
 class Contest(models.Model):
+    FROZEN_WINDOWS_CACHE_KEY = 'frozen_contest_windows'
     SCOREBOARD_VISIBLE = 'V'
     SCOREBOARD_AFTER_CONTEST = 'C'
     SCOREBOARD_AFTER_PARTICIPATION = 'P'
@@ -174,6 +178,16 @@ class Contest(models.Model):
     locked_after = models.DateTimeField(verbose_name=_('contest lock'), null=True, blank=True,
                                         help_text=_('Prevent submissions from this contest '
                                                     'from being rejudged after this date.'))
+    freeze_minutes = models.PositiveIntegerField(
+        verbose_name=_('scoreboard freeze'), null=True, blank=True,
+        help_text=_('Freeze the public scoreboard over the last this many minutes of each participation. Leave '
+                    'empty not to freeze it. A virtual participation is frozen over its own last minutes, not '
+                    'over the clock of the live contest.'))
+    scoreboard_revealed = models.BooleanField(
+        verbose_name=_('scoreboard revealed'), default=False,
+        help_text=_('A frozen scoreboard stays frozen after the contest ends, so the result can be revealed at a '
+                    'ceremony. Check this to lift the freeze and show everyone the real scoreboard and the '
+                    'submissions it was hiding.'))
     points_precision = models.IntegerField(verbose_name=_('precision points'), default=3,
                                            validators=[MinValueValidator(0), MaxValueValidator(10)],
                                            help_text=_('Number of digits to round points to.'))
@@ -261,6 +275,87 @@ class Contest(models.Model):
                 not self.ended):
             return False
         return self.scoreboard_visibility != self.SCOREBOARD_HIDDEN
+
+    @cached_property
+    def freeze_delta(self):
+        return timedelta(minutes=self.freeze_minutes) if self.freeze_minutes else None
+
+    @cached_property
+    def freeze_active(self):
+        """Whether this contest freezes anything at all right now.
+
+        A revealed scoreboard never freezes again, and an unrevealed one stays frozen after the contest ends:
+        that is what leaves something to reveal.
+        """
+        return self.freeze_delta is not None and not self.scoreboard_revealed
+
+    @cached_property
+    def submission_freeze_cutoff(self):
+        """Earliest moment at which any participation of this contest can have entered its freeze window.
+
+        Used to hide submissions, where a per-participation cutoff is not available in one query. For a contest
+        with a per-user time limit this hides a little more than strictly necessary for whoever started late.
+        It never hides less.
+        """
+        if self.freeze_delta is None:
+            return None
+        end = min(self.start_time + self.time_limit, self.end_time) if self.time_limit else self.end_time
+        return end - self.freeze_delta
+
+    @cached_property
+    def freeze_started(self):
+        cutoff = self.submission_freeze_cutoff
+        return cutoff is not None and self._now >= cutoff
+
+    def is_frozen_for(self, user):
+        """Whether this user has to be shown the frozen scoreboard and the submissions that go with it.
+
+        Only those who can edit the contest see through the freeze. A staff account that can read every
+        submission but cannot edit this contest is deliberately included in the freeze.
+        """
+        return self.freeze_active and self.freeze_started and not self.is_editable_by(user)
+
+    @classmethod
+    def frozen_submission_filter(cls, user):
+        """Q matching the submissions the freeze hides from this user, or None if it hides nothing.
+
+        This runs on every submission list, so the set of frozen contests — normally empty, at most a handful —
+        is cached for half a minute. Revealing a scoreboard drops that cache, so the reveal is immediate.
+        """
+        windows = cache.get(cls.FROZEN_WINDOWS_CACHE_KEY)
+        if windows is None:
+            windows = []
+            configurados = cls.objects.filter(freeze_minutes__isnull=False, scoreboard_revealed=False)
+            for contest in configurados.only('id', 'start_time', 'end_time', 'time_limit',
+                                             'freeze_minutes'):
+                if contest.freeze_started:
+                    windows.append((contest.id, contest.submission_freeze_cutoff))
+            cache.set(cls.FROZEN_WINDOWS_CACHE_KEY, windows, 30)
+        if not windows:
+            return None
+
+        # Whoever can edit a contest sees through its freeze, so those contests drop out of the filter. One
+        # query for all of them, with the same authors-or-curators rule `editor_ids` uses.
+        seen_through = set()
+        if user.is_authenticated:
+            if user.has_perm('judge.edit_all_contest'):
+                return None
+            if user.has_perm('judge.edit_own_contest'):
+                profile_id = user.profile.id
+                seen_through = set(
+                    cls.objects.filter(id__in=[contest_id for contest_id, _cutoff in windows])
+                       .filter(Q(authors=profile_id) | Q(curators=profile_id))
+                       .values_list('id', flat=True),
+                )
+
+        query = Q()
+        hides_something = False
+        for contest_id, cutoff in windows:
+            if contest_id in seen_through:
+                continue
+            query |= Q(contest_object_id=contest_id, date__gte=cutoff)
+            hides_something = True
+        return query if hides_something else None
 
     @property
     def contest_window_length(self):
@@ -509,9 +604,53 @@ class ContestParticipation(models.Model):
     virtual = models.IntegerField(verbose_name=_('virtual participation id'), default=LIVE,
                                   help_text=_('0 means non-virtual, otherwise the n-th virtual participation.'))
     format_data = JSONField(verbose_name=_('contest format specific data'), null=True, blank=True)
+    frozen_score = models.FloatField(verbose_name=_('score at freeze time'), null=True, blank=True)
+    frozen_cumtime = models.PositiveIntegerField(verbose_name=_('cumulative time at freeze time'),
+                                                 null=True, blank=True)
+    frozen_tiebreaker = models.FloatField(verbose_name=_('tie-breaking field at freeze time'), null=True, blank=True)
+    frozen_format_data = JSONField(verbose_name=_('contest format specific data at freeze time'),
+                                   null=True, blank=True)
+    frozen_at = models.DateTimeField(verbose_name=_('scoreboard frozen at'), null=True, blank=True,
+                                     help_text=_('When the frozen copy above was taken. Empty means no copy was '
+                                                 'needed, because nothing has changed since the freeze.'))
+
+    @cached_property
+    def freeze_starts_at(self):
+        """When this participation enters its own freeze window.
+
+        Measured from this participation's end, so a virtual participation freezes over its own last minutes
+        instead of at a clock time that means nothing to it.
+        """
+        delta = self.contest.freeze_delta
+        return None if delta is None else self.end_time - delta
+
+    @property
+    def is_frozen(self):
+        return (self.contest.freeze_active and self.freeze_starts_at is not None and
+                self._now >= self.freeze_starts_at)
+
+    def freeze_scoreboard(self):
+        """Keep the scoreboard as it stood when this participation entered its freeze window.
+
+        Called right before recomputing, so what gets stored is the state before the first correction that
+        lands after the freeze: exactly what the public has to keep seeing. A participation that is never
+        recomputed again needs no copy, because its live fields still hold the frozen state — which is why
+        every reader falls back to the live fields when `frozen_at` is empty.
+        """
+        if self.frozen_at is not None or not self.is_frozen:
+            return
+        self.frozen_score = self.score
+        self.frozen_cumtime = self.cumtime
+        self.frozen_tiebreaker = self.tiebreaker
+        self.frozen_format_data = self.format_data
+        self.frozen_at = self._now
+        self.save(update_fields=['frozen_score', 'frozen_cumtime', 'frozen_tiebreaker',
+                                 'frozen_format_data', 'frozen_at'])
+    freeze_scoreboard.alters_data = True
 
     def recompute_results(self):
         with transaction.atomic():
+            self.freeze_scoreboard()
             self.contest.format.update_participation(self)
             if self.is_disqualified:
                 self.score = -9999
