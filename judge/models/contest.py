@@ -188,6 +188,11 @@ class Contest(models.Model):
         help_text=_('A frozen scoreboard stays frozen after the contest ends, so the result can be revealed at a '
                     'ceremony. Check this to lift the freeze and show everyone the real scoreboard and the '
                     'submissions it was hiding.'))
+    balloon_staff = models.ManyToManyField(Profile, verbose_name=_('balloon staff'), blank=True,
+                                           related_name='balloon_contests',
+                                           help_text=_('These users will be able to see which balloons are due and '
+                                                       'mark them as delivered, without being able to edit the '
+                                                       'contest or see its submissions.'))
     points_precision = models.IntegerField(verbose_name=_('precision points'), default=3,
                                            validators=[MinValueValidator(0), MaxValueValidator(10)],
                                            help_text=_('Number of digits to round points to.'))
@@ -537,6 +542,17 @@ class Contest(models.Model):
 
         return False
 
+    def is_balloon_staff(self, user):
+        return user.is_authenticated and self.balloon_staff.filter(id=user.profile.id).exists()
+
+    def can_manage_balloons(self, user):
+        """Whether this user may open the balloon sheet and mark balloons as delivered.
+
+        Balloon staff get exactly that and nothing else: the sheet shows who solved which problem outside the
+        freeze window, and never what the freeze is hiding.
+        """
+        return self.is_editable_by(user) or self.is_balloon_staff(user)
+
     @classmethod
     def get_visible_contests(cls, user):
         if not user.is_authenticated:
@@ -744,6 +760,21 @@ class ContestProblem(models.Model):
                                           default=None, null=True, blank=True,
                                           validators=[MinValueOrNoneValidator(1, _('Why include a problem you '
                                                                                    "can't submit to?"))])
+    balloon_color = models.CharField(max_length=7, verbose_name=_('balloon colour'), blank=True, default='',
+                                     validators=[ContestTag.color_validator],
+                                     help_text=_('As #rrggbb. Leave empty if this problem has no balloon colour.'))
+    balloon_color_name = models.CharField(max_length=30, verbose_name=_('balloon colour name'), blank=True,
+                                          default='', help_text=_('What the balloon staff call it, e.g. "red".'))
+
+    @property
+    def balloon_text_color(self):
+        if not self.balloon_color:
+            return ''
+        hex_digits = self.balloon_color[1:]
+        if len(hex_digits) == 3:
+            hex_digits = ''.join(digit * 2 for digit in hex_digits)
+        r, g, b = bytes.fromhex(hex_digits)
+        return '#000' if 299 * r + 587 * g + 144 * b > 140000 else '#fff'
 
     class Meta:
         unique_together = ('problem', 'contest')

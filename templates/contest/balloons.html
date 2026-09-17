@@ -1,0 +1,502 @@
+{% extends "common-content.html" %}
+
+{% block title_ruler %}{% endblock %}
+
+{% block title_row %}
+    {% set title = contest.name %}
+    {% include "contest/contest-tabs.html" %}
+{% endblock %}
+
+{% block content_media %}
+    <style>
+
+        :root {
+            --balloon-bg: #fff;
+            --balloon-soft: #f4f6f8;
+            --balloon-hover: #eaf0f5;
+            --balloon-text: #202b36;
+            --balloon-muted: #536272;
+            --balloon-border: #c6cdd5;
+            --balloon-accent: #17689e;
+            --balloon-new: #fff3c4;
+            --balloon-warning: #a52b21;
+        }
+        {% macro dark_palette() %}
+        :root {
+            --balloon-bg: #282c32;
+            --balloon-soft: #22262b;
+            --balloon-hover: #343b44;
+            --balloon-text: #f0f3f6;
+            --balloon-muted: #b9c4cf;
+            --balloon-border: #505963;
+            --balloon-accent: #7dc9ff;
+            --balloon-new: #493d20;
+            --balloon-warning: #ffaaa1;
+        }
+        {% endmacro %}
+        {% if perms.judge.test_site %}
+            {% if PREFERRED_STYLE_CSS == DARK_STYLE_CSS %}
+                {{ dark_palette() }}
+            {% elif PREFERRED_STYLE_CSS is none %}
+                @media (prefers-color-scheme: dark) { {{ dark_palette() }} }
+            {% endif %}
+        {% endif %}
+        .balloon-note {
+            color: var(--balloon-text);
+            border: 1px solid var(--balloon-border);
+            border-radius: 3px;
+            background: var(--balloon-soft);
+            padding: 0.6em 0.9em;
+            margin-bottom: 0.8em;
+        }
+
+        .balloon-note.balloon-errors {
+            border-color: #d9534f;
+            color: var(--balloon-warning);
+        }
+
+        .balloon-note.balloon-freeze {
+            border-color: var(--balloon-accent);
+        }
+
+        .balloon-problems {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4em;
+            margin: 0.4em 0 0.8em;
+        }
+
+        /* The site styles every button as a blue one with white text, the colour with !important. */
+        #balloon-sheet .balloon-problem {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4em;
+            border: 1px solid var(--balloon-border);
+            border-radius: 3px;
+            background: var(--balloon-bg);
+            color: var(--balloon-text) !important;
+            padding: 0.25em 0.5em 0.25em 0.25em;
+            font: inherit;
+            cursor: pointer;
+        }
+
+        #balloon-sheet .balloon-problem:hover {
+            background: var(--balloon-hover);
+        }
+
+        .balloon-problem.selected {
+            border-color: var(--balloon-accent);
+            box-shadow: inset 0 0 0 1px var(--balloon-accent);
+        }
+
+        .balloon-count, .balloon-total {
+            color: var(--balloon-muted);
+            font-weight: normal;
+        }
+
+        .balloon-swatch {
+            display: inline-block;
+            min-width: 2em;
+            padding: 0.2em 0.35em;
+            border-radius: 2px;
+            text-align: center;
+            font-weight: bold;
+            box-sizing: border-box;
+        }
+
+        .balloon-swatch.no-color {
+            border: 1px dashed #999;
+            background: var(--balloon-bg);
+            color: var(--balloon-text);
+        }
+
+        .balloon-list {
+            list-style: none;
+            margin: 0 0 1em;
+            padding: 0;
+            border: 1px solid var(--balloon-border);
+            border-radius: 3px;
+        }
+
+        .balloon-row {
+            display: flex;
+            align-items: center;
+            gap: 0.7em;
+            padding: 0.55em 0.7em;
+            border-top: 1px solid var(--balloon-border);
+            background: var(--balloon-bg);
+        }
+
+        .balloon-row:first-child {
+            border-top: none;
+        }
+
+        .balloon-row .balloon-swatch {
+            min-width: 2.6em;
+            padding: 0.55em 0.4em;
+            font-size: 1.1em;
+        }
+
+        .balloon-row.delivered {
+            background: var(--balloon-soft);
+        }
+
+        .balloon-row.new {
+            background: var(--balloon-new);
+        }
+
+        .balloon-main {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .balloon-user {
+            color: var(--balloon-text);
+            overflow-wrap: anywhere;
+            font-weight: bold;
+        }
+
+        .balloon-username, .balloon-meta {
+            color: var(--balloon-muted);
+        }
+
+        .balloon-meta {
+            font-size: 0.9em;
+        }
+
+        .balloon-meta > span + span {
+            margin-left: 0.8em;
+        }
+
+        .balloon-location {
+            color: var(--balloon-text);
+            font-weight: bold;
+        }
+
+        .balloon-first {
+            display: inline-block;
+            margin-left: 0.4em;
+            padding: 0 0.4em;
+            border-radius: 2px;
+            background: #f4c35b;
+            color: #302400;
+            font-size: 0.85em;
+        }
+
+        .balloon-warning {
+            margin-left: 0.4em;
+            color: var(--balloon-warning);
+            font-size: 0.9em;
+        }
+
+        .balloon-mark {
+            margin: 0;
+        }
+
+        .balloon-mark .button {
+            white-space: nowrap;
+        }
+
+        #balloon-sheet .balloon-deliver {
+            background: #187640;
+            border-color: #1e8449;
+        }
+
+        #balloon-sheet .balloon-deliver:hover, #balloon-sheet .balloon-deliver:active {
+            background: #1e8449;
+        }
+
+        #balloon-sheet .balloon-undo {
+            background: var(--balloon-bg);
+            border-color: var(--balloon-border);
+            color: var(--balloon-text) !important;
+        }
+
+        #balloon-sheet .balloon-undo:hover, #balloon-sheet .balloon-undo:active {
+            background: var(--balloon-hover);
+        }
+
+        #balloon-sheet button[disabled] {
+            opacity: 0.6;
+            cursor: default;
+        }
+
+        .balloon-empty {
+            color: var(--balloon-muted);
+        }
+
+        .balloon-log {
+            margin-top: 1em;
+        }
+
+        .balloon-log summary, .balloon-locations summary {
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .balloon-log-table {
+            width: 100%;
+            margin-top: 0.5em;
+        }
+
+        .balloon-log-table .balloon-swatch {
+            min-width: 1.8em;
+        }
+
+        .balloon-locations {
+            margin-top: 1.5em;
+        }
+
+        .balloon-location-table { width: 100%; margin: 0.8em 0; border-collapse: collapse; }
+        .balloon-location-table th, .balloon-location-table td {
+            padding: 0.7em; text-align: left; border: 1px solid var(--balloon-border);
+            background: var(--balloon-bg); color: var(--balloon-text);
+        }
+        .balloon-location-table th { background: var(--balloon-soft); }
+        .balloon-location-table th:first-child { width: 40%; }
+        .balloon-location-table input, .balloon-location-search input {
+            width: 100%; min-width: 0; box-sizing: border-box; padding: 0.6em;
+            color: var(--balloon-text); background: var(--balloon-soft); border: 1px solid var(--balloon-border);
+        }
+        .balloon-location-table input::placeholder { color: var(--balloon-muted); opacity: 1; }
+        .balloon-location-table .balloon-username { display: block; font-size: 0.9em; overflow-wrap: anywhere; }
+        .balloon-location-search { display: flex; gap: 0.6em; align-items: end; margin-top: 1em; }
+        .balloon-location-search label { flex: 1; }
+        .balloon-location-pagination { display: flex; align-items: center; gap: 1em; margin: 0.8em 0; }
+        .balloon-locations .balloon-help { color: var(--balloon-muted); }
+        #balloon-sheet .balloon-all { padding: 0.5em 0.8em; font-weight: bold; }
+        #balloon-sheet .balloon-problem:focus-visible, .balloon-locations input:focus-visible {
+            outline: 2px solid var(--balloon-accent); outline-offset: 2px;
+        }
+
+        @media (max-width: 760px) {
+            .balloon-row {
+                flex-wrap: wrap;
+            }
+
+            .balloon-mark {
+                width: 100%;
+            }
+
+            .balloon-mark .button {
+                width: 100%;
+                padding: 0.8em 0;
+            }
+        }
+    </style>
+{% endblock %}
+
+{% block content_js_media %}
+    {% if event_daemon %}
+        {# Deliberately outside any compress block, so the compression manifest does not change. #}
+        <script type="text/javascript" src="{{ static('event.js') }}"></script>
+    {% endif %}
+    <script type="text/javascript">
+        $(function () {
+            var url = '{{ url('contest_balloons_ajax', contest.key) }}';
+            // The event daemon says when to look again. Polling is only the safety net for a lost connection and
+            // for changes that post no event, such as a rejudge.
+            var POLL_INTERVAL = {{ 60000 if event_daemon else 15000 }};
+            var FILTER_KEY = 'balloons-filter-{{ contest.id }}';
+            var timer = null, fetching = false, again = false, stopped = false;
+            var known = null, currentFilter = null;
+
+            function keys() {
+                return $('#balloon-sheet .balloon-row:not(.delivered)').map(function () {
+                    return $(this).data('key');
+                }).get();
+            }
+
+            function applyFilter() {
+                var selected = '';
+                try { selected = localStorage.getItem(FILTER_KEY) || ''; } catch (e) { /* storage may be disabled */ }
+                if (currentFilter !== null) selected = currentFilter;
+                var $problems = $('#balloon-sheet .balloon-problem');
+                if (!$problems.filter(function () { return this.dataset.problem === selected; }).length)
+                    selected = '';
+                $problems.each(function () {
+                    var active = this.dataset.problem === selected;
+                    $(this).toggleClass('selected', active).attr('aria-pressed', active ? 'true' : 'false');
+                });
+                $('#balloon-sheet .balloon-row').each(function () {
+                    $(this).toggle(!selected || String($(this).data('problem')) === selected);
+                });
+            }
+
+            function afterRender() {
+                var current = keys();
+                if (known !== null) {
+                    current.forEach(function (key) {
+                        if (known.indexOf(key) < 0)
+                            $('#balloon-sheet .balloon-row[data-key="' + key + '"]').addClass('new');
+                    });
+                }
+                known = current;
+                applyFilter();
+                var pending = $('#balloon-sheet').data('pending');
+                document.title = (pending ? '(' + pending + ') ' : '') + {{ (_('Balloons') + ' - ' + contest.name)|htmltojs }};
+            }
+
+            function schedule(delay) {
+                if (timer !== null)
+                    clearTimeout(timer);
+                timer = stopped ? null : setTimeout(refresh, delay);
+            }
+
+            function refresh() {
+                if (fetching) {
+                    again = true;
+                    return;
+                }
+                fetching = true;
+                again = false;
+                var logOpen = $('#balloon-sheet .balloon-log').prop('open');
+                $.ajax({url: url, dataType: 'html', cache: false}).done(function (data) {
+                    $('#balloon-sheet').replaceWith(data);
+                    $('#balloon-sheet .balloon-log').prop('open', logOpen);
+                    afterRender();
+                    $('#balloon-offline').hide();
+                }).fail(function (jqXHR) {
+                    // The permission was taken away, or the contest is gone: nothing to retry for.
+                    if (jqXHR.status === 403 || jqXHR.status === 404) {
+                        stopped = true;
+                        return;
+                    }
+                    $('#balloon-offline').show();
+                }).always(function () {
+                    fetching = false;
+                    if (again)
+                        refresh();
+                    else
+                        schedule(POLL_INTERVAL);
+                });
+            }
+
+            // Bursts of verdicts arrive together; one refresh is enough for all of them.
+            var pendingRefresh = null;
+            function soon() {
+                if (pendingRefresh === null)
+                    pendingRefresh = setTimeout(function () {
+                        pendingRefresh = null;
+                        refresh();
+                    }, 1000);
+            }
+
+            $(document).on('click', '#balloon-sheet .balloon-problem', function () {
+                var problem = String($(this).data('problem'));
+                currentFilter = problem;
+                try { localStorage.setItem(FILTER_KEY, problem); } catch (e) { /* keep filtering without storage */ }
+                applyFilter();
+            });
+
+            $(document).on('submit', '#balloon-sheet form.balloon-mark', function (event) {
+                event.preventDefault();
+                var $form = $(this);
+                if ($form.find('[name="balloon_action"]').val() === 'U' &&
+                        !confirm({{ _('Mark this balloon as not delivered?')|htmltojs }}))
+                    return;
+                var $button = $form.find('button').prop('disabled', true);
+                $.ajax({
+                    url: $form.attr('action'), type: 'POST', data: $form.serialize(), dataType: 'json',
+                    headers: {'X-Requested-With': 'XMLHttpRequest'}
+                }).done(function (data) {
+                    if (!data.ok)
+                        alert(data.message);
+                    $form.closest('.balloon-row').fadeTo(150, 0.3);
+                }).fail(function () {
+                    alert({{ _('Could not save it. Check the connection and try again.')|htmltojs }});
+                    $button.prop('disabled', false);
+                }).always(function () {
+                    refresh();
+                });
+            });
+
+            $(window).on('dmoj:window-visible', function () {
+                refresh();
+            });
+
+            {% if event_daemon %}
+                new EventReceiver(
+                    "{{ EVENT_DAEMON_LOCATION }}", "{{ EVENT_DAEMON_POLL_LOCATION }}",
+                    ['contest_{{ contest.id }}', 'balloons_{{ contest.id }}'], {{ last_msg }}, function (message) {
+                        soon();
+                    }
+                );
+            {% endif %}
+
+            var locationsDirty = false;
+            $('#balloon-location-form').on('input', 'input[type="text"]', function () { locationsDirty = true; });
+            $('#balloon-location-form').on('submit', function () { locationsDirty = false; });
+            $(window).on('beforeunload', function (event) {
+                if (locationsDirty) {
+                    event.preventDefault();
+                    event.originalEvent.returnValue = '';
+                }
+            });
+            afterRender();
+            schedule(POLL_INTERVAL);
+        });
+    </script>
+{% endblock %}
+
+{% block body %}
+    <div id="balloon-offline" class="balloon-note balloon-errors" style="display: none">
+        {{ _('Could not update the sheet. Retrying.') }}
+    </div>
+    {% for error in balloon_errors %}
+        <div class="balloon-note balloon-errors">{{ error }}</div>
+    {% endfor %}
+    {% for notice in balloon_notices %}
+        <div class="balloon-note">{{ notice }}</div>
+    {% endfor %}
+
+    {% include "contest/balloons-sheet.html" %}
+
+    {% if can_edit %}
+        <details class="balloon-locations" id="locations" open>
+            <summary>{{ _('Locations') }}</summary>
+            <p class="balloon-help">{{ _('Each contestant already has a row. Fill in their seat, or leave it blank if absent. Only edited locations are saved.') }}</p>
+            <form method="get" action="{{ url('contest_balloons', contest.key) }}#locations" class="balloon-location-search">
+                <label for="balloon-location-search">{{ _('Search contestants') }}
+                    <input id="balloon-location-search" type="search" name="q" value="{{ location_query }}" maxlength="150">
+                </label>
+                <button type="submit" class="button">{{ _('Search') }}</button>
+            </form>
+            <form id="balloon-location-form" method="post"
+                  action="{{ url('contest_balloon_locations', contest.key) }}?page={{ location_page.number }}&amp;q={{ location_query|urlencode }}#locations">
+                {% csrf_token %}
+                <input type="hidden" name="location_snapshot" value="{{ location_snapshot }}">
+                {% if location_rows %}
+                    <table class="balloon-location-table">
+                        <thead><tr><th scope="col">{{ _('Contestant') }}</th><th scope="col">{{ _('Location') }}</th></tr></thead>
+                        <tbody>
+                        {% for row in location_rows %}
+                            <tr>
+                                <th scope="row">
+                                    <label for="location-{{ row.profile.id }}" class="balloon-user">{{ row.profile.display_name }}</label>
+                                    {% if row.profile.display_name != row.profile.username %}
+                                        <span class="balloon-username">{{ row.profile.username }}</span>
+                                    {% endif %}
+                                </th>
+                                <td><input type="text" id="location-{{ row.profile.id }}" name="location_{{ row.profile.id }}"
+                                           value="{{ row.location }}" maxlength="{{ max_location }}" autocomplete="off"
+                                           placeholder="{{ _('Room, row, seat…') }}"></td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                    <input type="submit" class="button" value="{{ _('Save locations') }}">
+                {% else %}
+                    <p class="balloon-empty">{{ _('No contestants found. Registered contestants and preassigned private contestants appear here automatically.') }}</p>
+                {% endif %}
+            </form>
+            {% if location_page.has_other_pages() %}
+                <nav class="balloon-location-pagination" aria-label="{{ _('Locations') }}">
+                    {% if location_page.has_previous() %}<a href="?page={{ location_page.previous_page_number() }}&amp;q={{ location_query|urlencode }}#locations">{{ _('Previous') }}</a>{% endif %}
+                    <span>{{ location_page.number }} / {{ location_page.paginator.num_pages }}</span>
+                    {% if location_page.has_next() %}<a href="?page={{ location_page.next_page_number() }}&amp;q={{ location_query|urlencode }}#locations">{{ _('Next') }}</a>{% endif %}
+                </nav>
+            {% endif %}
+        </details>
+    {% endif %}
+{% endblock %}

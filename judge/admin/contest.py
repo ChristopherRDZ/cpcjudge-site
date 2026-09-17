@@ -6,7 +6,7 @@ from django.core.cache import cache
 from django.core.exceptions import PermissionDenied
 from django.db import connection, transaction
 from django.db.models import Q, TextField
-from django.forms import ModelForm, ModelMultipleChoiceField
+from django.forms import ModelForm, ModelMultipleChoiceField, TextInput
 from django.http import Http404, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from django.urls import path, reverse, reverse_lazy
@@ -61,15 +61,19 @@ class ContestTagAdmin(admin.ModelAdmin):
 
 class ContestProblemInlineForm(ModelForm):
     class Meta:
-        widgets = {'problem': AdminHeavySelect2Widget(data_view='problem_select2')}
+        widgets = {
+            'problem': AdminHeavySelect2Widget(data_view='problem_select2'),
+            'balloon_color': TextInput(attrs={'size': 7, 'placeholder': '#e74c3c'}),
+            'balloon_color_name': TextInput(attrs={'size': 10}),
+        }
 
 
 class ContestProblemInline(SortableInlineAdminMixin, admin.TabularInline):
     model = ContestProblem
     verbose_name = _('Problem')
     verbose_name_plural = _('Problems')
-    fields = ('problem', 'points', 'partial', 'is_pretested', 'max_submissions', 'output_prefix_override', 'order',
-              'rejudge_column')
+    fields = ('problem', 'points', 'partial', 'is_pretested', 'max_submissions', 'output_prefix_override',
+              'balloon_color', 'balloon_color_name', 'order', 'rejudge_column')
     readonly_fields = ('rejudge_column',)
     form = ContestProblemInlineForm
 
@@ -92,6 +96,7 @@ class ContestForm(ModelForm):
                 self.fields['rate_exclude'].queryset = Profile.objects.none()
         self.fields['banned_users'].widget.can_add_related = False
         self.fields['view_contest_scoreboard'].widget.can_add_related = False
+        self.fields['balloon_staff'].widget.can_add_related = False
 
     def clean(self):
         cleaned_data = super().clean()
@@ -120,6 +125,7 @@ class ContestForm(ModelForm):
             'banned_users': AdminHeavySelect2MultipleWidget(data_view='profile_select2'),
             'view_contest_scoreboard': AdminHeavySelect2MultipleWidget(data_view='profile_select2'),
             'view_contest_submissions': AdminHeavySelect2MultipleWidget(data_view='profile_select2'),
+            'balloon_staff': AdminHeavySelect2MultipleWidget(data_view='profile_select2'),
             'description': AdminMartorWidget(attrs={'data-markdownfy-url': reverse_lazy('contest_preview')}),
         }
 
@@ -138,6 +144,7 @@ class ContestAdmin(NoBatchDeleteMixin, SortableAdminBase, VersionAdmin):
         (_('Access'), {'fields': ('access_code', 'private_contestants', 'organizations', 'classes',
                                   'join_organizations', 'view_contest_scoreboard', 'view_contest_submissions')}),
         (_('Justice'), {'fields': ('banned_users',)}),
+        (_('Balloons'), {'fields': ('balloon_staff',)}),
     )
     list_display = ('key', 'name', 'is_visible', 'is_rated', 'locked_after', 'start_time', 'end_time', 'time_limit',
                     'user_count', 'reveal_link')

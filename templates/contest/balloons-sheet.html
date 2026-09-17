@@ -1,0 +1,148 @@
+{# The part of the balloon sheet that refreshes itself. Rendered by the page and by the AJAX view alike. #}
+{% macro swatch(problem, label) -%}
+    <span class="balloon-swatch{% if not problem.balloon_color %} no-color{% endif %}"
+          {% if problem.balloon_color %}style="background: {{ problem.balloon_color }}; color: {{ problem.balloon_text_color }}"{% endif %}
+          title="{{ problem.problem.name }}">{{ label }}</span>
+{%- endmacro %}
+
+{% macro who(balloon) -%}
+    {% set profile = balloon.profile %}
+    <span class="balloon-user">{{ profile.display_name }}</span>
+    {% if profile.display_name != profile.username %}<span class="balloon-username">{{ profile.username }}</span>{% endif %}
+{%- endmacro %}
+
+{% macro location(balloon) -%}
+    {% set place = sheet.locations.get(balloon.profile.id) %}
+    {% if place %}<span class="balloon-location"><i class="fa fa-map-marker"></i> {{ place }}</span>{% endif %}
+{%- endmacro %}
+
+{% macro mark_form(balloon, action, text, css) -%}
+    <form method="post" action="{{ url('contest_balloon_mark', contest.key) }}" class="balloon-mark">
+        {% csrf_token %}
+        <input type="hidden" name="participation" value="{{ balloon.participation.id }}">
+        <input type="hidden" name="problem" value="{{ balloon.problem.id }}">
+        <input type="hidden" name="balloon_action" value="{{ action }}">
+        <button type="submit" class="button {{ css }}">{{ text }}</button>
+    </form>
+{%- endmacro %}
+
+<div id="balloon-sheet" data-pending="{{ sheet.pending|length }}">
+    {% if sheet.freeze_on %}
+        <div class="balloon-note balloon-freeze">
+            <i class="fa fa-snowflake-o"></i>
+            {{ _('The scoreboard is frozen: problems solved from the freeze on get no balloon.') }}
+            {% if can_edit and sheet.held %}
+                <span class="balloon-held">{{ _('Accepted submissions held back: %(count)d.', count=sheet.held) }}</span>
+            {% endif %}
+        </div>
+    {% endif %}
+
+    <div class="balloon-problems" role="group" aria-label="{{ _('Filter balloons') }}">
+        <button type="button" class="balloon-problem balloon-all selected" data-problem="" aria-pressed="true">{{ _('All balloons') }}</button>
+        {% for item in sheet.problems %}
+            <button type="button" class="balloon-problem" aria-pressed="false" data-problem="{{ item.problem.id }}"
+                    title="{{ _('Show only this problem') }}">
+                {{ swatch(item.problem, item.label) }}
+                {% if item.problem.balloon_color_name %}
+                    <span class="balloon-color-name">{{ item.problem.balloon_color_name }}</span>
+                {% endif %}
+                <span class="balloon-count">{{ item.accepted - item.pending }}/{{ item.accepted }}</span>
+            </button>
+        {% endfor %}
+    </div>
+
+    <h3>{{ _('Pending balloons') }} <span class="balloon-total">{{ sheet.pending|length }}</span></h3>
+    {% if sheet.pending %}
+        <ul class="balloon-list">
+            {% for balloon in sheet.pending %}
+                <li class="balloon-row" data-key="{{ balloon.key }}" data-problem="{{ balloon.problem.id }}">
+                    {{ swatch(balloon.problem, balloon.label) }}
+                    <div class="balloon-main">
+                        <div>
+                            {{ who(balloon) }}
+                            {% if balloon.first_blood %}
+                                <span class="balloon-first" title="{{ _('First to solve this problem') }}">
+                                    <i class="fa fa-star"></i> {{ _('First to solve') }}
+                                </span>
+                            {% endif %}
+                        </div>
+                        <div class="balloon-meta">
+                            {{ location(balloon) }}
+                            {% if balloon.problem.balloon_color_name %}
+                                <span>{{ balloon.problem.balloon_color_name }}</span>
+                            {% endif %}
+                            <span title="{{ balloon.solved_at|date('H:i:s') }}">
+                                {{ _('Solved at %(time)s', time=balloon.contest_time) }}</span>
+                        </div>
+                    </div>
+                    {{ mark_form(balloon, 'D', _('Mark delivered'), 'balloon-deliver') }}
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p class="balloon-empty">{{ _('No balloons pending.') }}</p>
+    {% endif %}
+
+    <h3>{{ _('Delivered balloons') }} <span class="balloon-total">{{ sheet.delivered|length }}</span></h3>
+    {% if sheet.delivered %}
+        <ul class="balloon-list">
+            {% for balloon in sheet.delivered %}
+                <li class="balloon-row delivered" data-key="{{ balloon.key }}" data-problem="{{ balloon.problem.id }}">
+                    {{ swatch(balloon.problem, balloon.label) }}
+                    <div class="balloon-main">
+                        <div>
+                            {{ who(balloon) }}
+                            {% if not balloon.is_accepted %}
+                                <span class="balloon-warning">
+                                    <i class="fa fa-exclamation-triangle"></i> {{ _('No longer accepted') }}
+                                </span>
+                            {% endif %}
+                        </div>
+                        <div class="balloon-meta">
+                            {{ location(balloon) }}
+                            <span>{{ _('Delivered by %(user)s at %(time)s',
+                                       user=balloon.delivered_by.username if balloon.delivered_by else '?',
+                                       time=balloon.delivered_at|date('H:i:s')) }}</span>
+                        </div>
+                    </div>
+                    {{ mark_form(balloon, 'U', _('Undo'), 'balloon-undo') }}
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p class="balloon-empty">{{ _('No balloons delivered yet.') }}</p>
+    {% endif %}
+
+    <details class="balloon-log">
+        <summary>{{ _('Log') }} ({{ sheet.log_total }})</summary>
+        {% if sheet.log %}
+            <table class="table balloon-log-table">
+                <thead>
+                <tr>
+                    <th>{{ _('When') }}</th>
+                    <th>{{ _('Action') }}</th>
+                    <th>{{ _('Problem') }}</th>
+                    <th>{{ _('Contestant') }}</th>
+                    <th>{{ _('Marked by') }}</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for entry in sheet.log %}
+                    <tr>
+                        <td>{{ entry.action.time|date('H:i:s') }}</td>
+                        <td>{{ entry.action.get_action_display() }}</td>
+                        <td>{{ swatch(entry.problem, entry.label) }}</td>
+                        <td>{{ entry.profile.username }}</td>
+                        <td>{{ entry.action.user.username if entry.action.user else '?' }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% if sheet.log_total > sheet.log|length %}
+                <p class="balloon-empty">{{ _('Showing the latest %(count)d entries.', count=sheet.log|length) }}</p>
+            {% endif %}
+        {% else %}
+            <p class="balloon-empty">{{ _('Nothing has been marked yet.') }}</p>
+        {% endif %}
+    </details>
+</div>

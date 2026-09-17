@@ -2,8 +2,52 @@
 {% load i18n %}
 
 {% block extrahead %}{{ block.super }}
+    <style>
+        .balloon-color-widget { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4em; }
+        .balloon-color-widget input[type="color"] { width: 2.8em; height: 2.5em; padding: 2px; cursor: pointer; }
+        .balloon-color-widget .balloon-color-clear { padding: 0.35em 0.5em; cursor: pointer; }
+    </style>
     <script>
         django.jQuery(function ($) {
+            function addBalloonColorPickers() {
+                $('input[name$="-balloon_color"]').each(function () {
+                    var text = this;
+                    if (text.name.indexOf('__prefix__') !== -1 || text.dataset.balloonPicker) return;
+                    text.dataset.balloonPicker = '1';
+                    var wrapper = document.createElement('span');
+                    wrapper.className = 'balloon-color-widget';
+                    text.parentNode.insertBefore(wrapper, text);
+                    var picker = document.createElement('input');
+                    picker.type = 'color';
+                    picker.title = picker.ariaLabel = '{{ _("Choose balloon color")|escapejs }}';
+                    picker.disabled = text.disabled;
+                    // The original text field is the only submitted value; an empty field stays empty.
+                    function sync() {
+                        var value = text.value.trim();
+                        if (/^#[a-f0-9]{3}$/i.test(value))
+                            value = '#' + value.slice(1).split('').map(function (c) { return c + c; }).join('');
+                        picker.value = /^#[a-f0-9]{6}$/i.test(value) ? value : '#ffffff';
+                    }
+                    function changed() { text.dispatchEvent(new Event('change', {bubbles: true})); }
+                    picker.addEventListener('input', function () { text.value = picker.value; changed(); });
+                    picker.addEventListener('change', function () { text.value = picker.value; changed(); });
+                    text.addEventListener('input', sync);
+                    text.addEventListener('change', sync);
+                    var clear = document.createElement('button');
+                    clear.type = 'button';
+                    clear.className = 'balloon-color-clear';
+                    clear.textContent = '{{ _("No color")|escapejs }}';
+                    clear.disabled = text.disabled;
+                    clear.addEventListener('click', function () { text.value = ''; sync(); changed(); });
+                    wrapper.appendChild(picker);
+                    wrapper.appendChild(text);
+                    wrapper.appendChild(clear);
+                    sync();
+                });
+            }
+            addBalloonColorPickers();
+            document.addEventListener('formset:added', addBalloonColorPickers);
+            $(document).on('formset:added', addBalloonColorPickers);
             $('.rerate-link').appendTo('div#bottombar').show();
             $('.rejudge-link').click(function (event) {
                 if (confirm('{{ _('Are you sure you want to rejudge ALL the submissions?') }}')) {
@@ -22,6 +66,12 @@
             <a href="{% url 'contest_reveal' original.key %}" target="_blank" rel="noopener"
                title="{% trans "Reveal the frozen scoreboard at the closing ceremony" %}">
                 <i class="fa fa-trophy"></i> {% trans "Reveal scoreboard" %}
+            </a>
+        </li>
+        <li>
+            <a href="{% url 'contest_balloons' original.key %}" target="_blank" rel="noopener"
+               title="{% trans "Balloons due and delivered, for on-site contests" %}">
+                <i class="fa fa-circle"></i> {% trans "Balloons" %}
             </a>
         </li>
     {% endif %}

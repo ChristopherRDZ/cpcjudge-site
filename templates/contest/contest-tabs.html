@@ -21,6 +21,9 @@
     {% if contest.started or can_edit %}
         {{ make_tab('announcements', 'fa-bullhorn', url('contest_announcements', contest.key), _('Clarifications')) }}
     {% endif %}
+    {% if can_edit or contest.is_balloon_staff(request.user) %}
+        {{ make_tab('balloons', 'fa-circle', url('contest_balloons', contest.key), _('Balloons')) }}
+    {% endif %}
     {% if can_edit %}
         {% if perms.judge.moss_contest and has_moss_api_key %}
             {{ make_tab('moss', 'fa-gavel', url('contest_moss', contest.key), _('MOSS')) }}

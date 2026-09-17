@@ -6930,3 +6930,212 @@ msgstr "Guardar configuración"
 
 msgid "Continue"
 msgstr "Continuar"
+
+# Control de globos, 2026-09-16.
+
+msgid "balloon staff"
+msgstr "personal de globos"
+
+msgid "These users will be able to see which balloons are due and mark them as delivered, without being able to edit the contest or see its submissions."
+msgstr "Estos usuarios podrán ver qué globos faltan por entregar y marcarlos como entregados, sin poder editar el concurso ni ver sus envíos."
+
+msgid "balloon colour"
+msgstr "color del globo"
+
+msgid "As #rrggbb. Leave empty if this problem has no balloon colour."
+msgstr "En formato #rrggbb. Déjalo vacío si este problema no tiene color de globo."
+
+msgid "balloon colour name"
+msgstr "nombre del color"
+
+msgid "What the balloon staff call it, e.g. \"red\"."
+msgstr "Cómo lo llama el personal de globos, por ejemplo «rojo»."
+
+msgid "Delivered"
+msgstr "Entregado"
+
+msgid "Delivery undone"
+msgstr "Entrega deshecha"
+
+msgid "action"
+msgstr "acción"
+
+msgid "marked by"
+msgstr "marcado por"
+
+msgid "marked at"
+msgstr "marcado el"
+
+msgid "balloon action"
+msgstr "movimiento de globo"
+
+msgid "balloon actions"
+msgstr "movimientos de globos"
+
+msgid "location"
+msgstr "ubicación"
+
+msgid "contest location"
+msgstr "ubicación en el concurso"
+
+msgid "contest locations"
+msgstr "ubicaciones en el concurso"
+
+msgid "%(user)s already marked this balloon as delivered."
+msgstr "%(user)s ya marcó este globo como entregado."
+
+msgid "This balloon is not due anymore. The sheet has been refreshed."
+msgstr "Este globo ya no está pendiente. La hoja se actualizó."
+
+msgid "This balloon is not marked as delivered anymore. The sheet has been refreshed."
+msgstr "Este globo ya no está marcado como entregado. La hoja se actualizó."
+
+msgid "Too many lines: at most %(count)d."
+msgstr "Demasiadas líneas: como máximo %(count)d."
+
+msgid "Line %(line)d has a username but no location."
+msgstr "La línea %(line)d tiene un usuario pero no una ubicación."
+
+msgid "Line %(line)d: the location is longer than %(count)d characters."
+msgstr "Línea %(line)d: la ubicación tiene más de %(count)d caracteres."
+
+msgid "Line %(line)d repeats the user %(user)s."
+msgstr "La línea %(line)d repite al usuario %(user)s."
+
+msgid "Unknown users, nothing was saved: %(users)s"
+msgstr "Usuarios desconocidos; no se guardó nada: %(users)s"
+
+msgid "Locations saved: %(count)d."
+msgstr "Ubicaciones guardadas: %(count)d."
+
+msgid "Balloons"
+msgstr "Globos"
+
+msgid "Balloons due and delivered, for on-site contests"
+msgstr "Globos pendientes y entregados, para concursos presenciales"
+
+msgid "The scoreboard is frozen: problems solved from the freeze on get no balloon."
+msgstr "El marcador está congelado: los problemas resueltos desde la congelación no reciben globo."
+
+msgid "Accepted submissions held back: %(count)d."
+msgstr "Envíos aceptados retenidos: %(count)d."
+
+msgid "Show only this problem"
+msgstr "Mostrar sólo este problema"
+
+msgid "Pending balloons"
+msgstr "Globos pendientes"
+
+msgid "Delivered balloons"
+msgstr "Globos entregados"
+
+msgid "Mark delivered"
+msgstr "Marcar entregado"
+
+msgid "First to solve this problem"
+msgstr "Primero en resolver este problema"
+
+msgid "First to solve"
+msgstr "Primero en resolver"
+
+msgid "Solved at %(time)s"
+msgstr "Resuelto en %(time)s"
+
+msgid "No balloons pending."
+msgstr "No hay globos pendientes."
+
+msgid "No longer accepted"
+msgstr "Ya no está aceptado"
+
+msgid "Delivered by %(user)s at %(time)s"
+msgstr "Entregado por %(user)s a las %(time)s"
+
+msgid "Undo"
+msgstr "Deshacer"
+
+msgid "No balloons delivered yet."
+msgstr "Aún no se ha entregado ningún globo."
+
+msgid "When"
+msgstr "Hora"
+
+msgid "Action"
+msgstr "Acción"
+
+msgid "Contestant"
+msgstr "Participante"
+
+msgid "Marked by"
+msgstr "Marcado por"
+
+msgid "Showing the latest %(count)d entries."
+msgstr "Se muestran las últimas %(count)d entradas."
+
+msgid "Nothing has been marked yet."
+msgstr "Todavía no se ha marcado nada."
+
+msgid "Mark this balloon as not delivered?"
+msgstr "¿Marcar este globo como no entregado?"
+
+msgid "Could not save it. Check the connection and try again."
+msgstr "No se pudo guardar. Revisa la conexión e inténtalo de nuevo."
+
+msgid "Could not update the sheet. Retrying."
+msgstr "No se pudo actualizar la hoja. Reintentando."
+
+msgid "Locations"
+msgstr "Ubicaciones"
+
+msgid "One contestant per line: the username, then where they sit. Whatever is in this box replaces every location of the contest. Only you and other editors of the contest can change it."
+msgstr "Un participante por línea: el nombre de usuario y después dónde se sienta. Lo que haya en este cuadro sustituye todas las ubicaciones del concurso. Sólo tú y quienes editan el concurso pueden cambiarlas."
+
+msgid "Save locations"
+msgstr "Guardar ubicaciones"
+
+#: templates/contest/balloons.html judge/views/contest_balloons.py
+msgid "All balloons"
+msgstr "Todos"
+
+#: templates/contest/balloons.html judge/views/contest_balloons.py
+msgid "Filter balloons"
+msgstr "Filtrar globos"
+
+#: templates/contest/balloons.html judge/views/contest_balloons.py
+msgid "Each contestant already has a row. Fill in their seat, or leave it blank if absent. Only edited locations are saved."
+msgstr "Cada participante ya tiene una fila. Indica dónde se sienta o déjalo vacío si no asistió. Sólo se guardan las ubicaciones modificadas."
+
+#: templates/contest/balloons.html judge/views/contest_balloons.py
+msgid "Search contestants"
+msgstr "Buscar participantes"
+
+#: templates/contest/balloons.html judge/views/contest_balloons.py
+msgid "Room, row, seat…"
+msgstr "Salón, fila, lugar…"
+
+#: templates/contest/balloons.html judge/views/contest_balloons.py
+msgid "No contestants found. Registered contestants and preassigned private contestants appear here automatically."
+msgstr "No se encontraron participantes. Los inscritos y los preasignados al concurso privado aparecen aquí automáticamente."
+
+#: templates/contest/balloons.html judge/views/contest_balloons.py
+msgid "This form has expired. Reload the page and try again."
+msgstr "Este formulario venció. Recarga la página e inténtalo de nuevo."
+
+#: templates/contest/balloons.html judge/views/contest_balloons.py
+msgid "Some locations are missing or too long. Nothing was saved."
+msgstr "Faltan campos de ubicación o superan la longitud permitida. No se guardó nada."
+
+#: templates/contest/balloons.html judge/views/contest_balloons.py
+msgid "Another editor changed these locations. Review your entries and save again."
+msgstr "Otro administrador cambió estas ubicaciones. Revisa lo que escribiste y vuelve a guardar."
+
+#: templates/contest/balloons.html judge/views/contest_balloons.py
+msgid "Location"
+msgstr "Ubicación"
+
+#: templates/admin/judge/contest/change_form.html
+msgid "Choose balloon color"
+msgstr "Elegir color del globo"
+
+#: templates/admin/judge/contest/change_form.html
+msgid "No color"
+msgstr "Sin color"
