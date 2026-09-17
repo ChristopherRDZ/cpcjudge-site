@@ -1,8 +1,9 @@
 # CPC-UAEH modifications to DMOJ
 
-As of 2026-09-15, this source includes contest announcements and clarifications,
-self-refreshing rankings, resilient live updates, custom-test admission controls
-and the deployed Django 5.2.17 upgrade.
+As of 2026-09-16, this source includes frozen scoreboards, a reveal ceremony,
+balloon operations, contest announcements and clarifications, self-refreshing
+rankings, resilient live updates, custom-test admission controls and the deployed
+Django 5.2.17 upgrade.
 Timezone, storage/dependency and contest administration adaptations are
 documented in the [upgrade record](docs/django52/README.md).
 
@@ -24,6 +25,23 @@ GNU Affero General Public License version 3.
 - Authentication using either a username or an email address.
 - A signed-in custom code testing workflow and its judge bridge support.
 - Minor registration and presentation adjustments.
+
+## Freeze, reveal and balloon operations — 2026-09-16
+
+- Configurable scoreboard freeze with snapshots and filtering across shared
+  submission views, statistics, APIs and public events; explicit reveal.
+- Reveal ceremony with animated standings, adjustable speed, result colors,
+  per-participant award cards, medal ranges, tied ranks and first-to-solve awards.
+- Balloon desk with dedicated staff permissions, live updates, delivery/undo
+  history, problem colors and the rule that frozen-window ACs earn no balloon.
+- Theme-aware contrast, explicit All filter and searchable, paginated location
+  fields; updates preserve untouched rows and detect conflicting editor changes.
+- Native color picker, editable hex and No color control for contest problems,
+  including dynamically added administration rows.
+- Migrations `0153` and `0154`, Spanish translations and isolated regression tests.
+
+See the [organiser guide](docs/contest-tools.md) and
+[test instructions](tests/contest_features/README.md).
 
 ## Contest features — 2026-09-15
 

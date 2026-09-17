@@ -1,7 +1,6 @@
-> **Contest features, 2026-09-15.** Announcements and clarifications,
-> self-refreshing contest rankings and resilient live updates, with the new
-> interface translated into Spanish. See
-> [the highlights](#contest-features-added-by-cpc-uaeh--2026-09-15).
+> **Contest tools, 2026-09-16.** Frozen scoreboards, a reveal ceremony with
+> awards and speed controls, and a live balloon desk with participant locations,
+> dark mode and visual color selection. See [the organiser guide](docs/contest-tools.md).
 
 > **Django 5.2.17 production source.** The `cpc-production` branch includes the
 > deployed Django upgrade. See the [upgrade record](docs/django52/README.md) for
@@ -43,6 +42,14 @@ application fixes and generic deployment controls, with their validation limits.
 
 Highlights of the contest tooling built on top of the upstream feature set:
 
+- **Scoreboard freeze and reveal.** Configurable freeze windows also protect
+  submissions, statistics, APIs and public events. The reveal ceremony animates
+  final standings, supports medal ranges and first-to-solve awards, and requires
+  an explicit action to publish. Adds migration `0153`.
+- **Balloon desk.** Live pending/delivered lists, delivery history, undo and
+  dedicated staff permissions. Includes an explicit All filter, light/dark themes,
+  searchable participant location fields that preserve other edits, and a visual
+  color picker in contest administration. Adds migration `0154`.
 - **Announcements and clarifications.** Announcements reach either the whole site
   or a single contest, are shown as a dismissable overlay and stay archived on a
   per-contest Clarifications tab. Contestants ask the jury questions, optionally
@@ -65,6 +72,8 @@ Highlights of the contest tooling built on top of the upstream feature set:
   features above is translated in `locale/es`.
 
 The complete list of fork changes remains in [MODIFICATIONS.md](MODIFICATIONS.md).
+The [organiser guide](docs/contest-tools.md) explains freeze rules, permissions,
+locations, deployment considerations and validation limits.
 
 A modern open-source online judge and contest platform system. It has been used to host thousands of competitions, including several national olympiads.
 
