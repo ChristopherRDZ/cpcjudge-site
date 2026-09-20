@@ -1,29 +1,26 @@
-# Screenshots
+# Screenshot gallery
 
-Every file in this directory is a placeholder. Replace it with a real capture
-using the **same file name** and the images in the main README start working; no
-other file needs to change.
+These screenshots show the fork's interface in an isolated demonstration
+instance. All accounts, teams, contests, submissions and results are fictional;
+no production user data is included. The custom-test output is simulated for the
+example, without sending code to a judging server.
 
-Suggested capture width is 1200 px or wider. Before capturing, check the frame
-for anything you would rather not publish: real user names, email addresses,
-your host name in the address bar, and submission source code that belongs to
-somebody else. A throwaway contest with invented accounts makes this easy.
+The Spanish interface is shown throughout. English translations are also included
+in the fork.
 
-| File | What to capture | Account needed |
-| --- | --- | --- |
-| `teams-my-teams.png` | My teams, with at least one team, one pending invitation and the create form visible | Any signed-in user |
-| `contest-join.png` | Contest registration, showing the mode selector and the member checkboxes | A user who belongs to a team |
-| `contest-ranking-teams.png` | Contest ranking with the individual and team tabs | Any user |
-| `scoreboard-freeze.png` | A frozen scoreboard with the freeze notice on screen | A contestant, during the frozen window |
-| `reveal-ceremony.png` | The reveal, with an award card open | Contest organiser |
-| `balloon-desk.png` | Balloon desk with pending deliveries and a location column | Balloon staff |
-| `announcements.png` | The announcement overlay, or the clarifications tab with one answered question | Any contestant |
-| `custom-test.png` | Custom test with code, input and output filled in | Any signed-in user |
-| `dark-mode.png` | The same page in light and dark theme, side by side in one image | Any user |
-| `testcase-autofill.png` | Problem data right after a zip filled the cases, with the summary message | Problem setter |
-| `admin-teams.png` | The teams tab in the admin, with the members and participations columns | Staff |
-| `admin-owner-lock.png` | The delete confirmation that lists what will disappear | The owner account |
+| Screenshot | Feature |
+| --- | --- |
+| [Frozen scoreboard](scoreboard-freeze.png) | Team standings during the freeze window |
+| [Reveal ceremony](reveal-ceremony.png) | Team award card and reveal controls |
+| [Balloon desk](balloon-desk.png) | Problem colors, delivery tracking and locations |
+| [Announcements](announcements.png) | Contest messages and answered clarifications |
+| [My teams](teams-my-teams.png) | Team members, invitations and team creation |
+| [Contest registration](contest-join.png) | Participation mode and roster selection |
+| [Team rankings](contest-ranking-teams.png) | Separate individual and team divisions |
+| [Light and dark themes](dark-mode.png) | The same page in both themes |
+| [Custom test](custom-test.png) | Example code, input and simulated output |
+| [Test case autofill](testcase-autofill.png) | Cases paired from a sample archive |
+| [Team administration](admin-teams.png) | Members and contest participation counts |
+| [Owner-only deletion](admin-owner-lock.png) | Confirmation with affected record counts |
 
-A quick way to show the delete lock is two captures side by side: the same admin
-page seen by the owner account and by another superuser, where the delete
-actions are missing.
+[Back to the README](../../README.md)

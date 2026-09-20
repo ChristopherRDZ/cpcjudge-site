@@ -1,13 +1,10 @@
 # Setting up this fork
 
-This guide takes you from a working stock DMOJ to this fork, running with the
-contest tooling, the team support and the hardening described in the README.
+This guide configures the fork's contest tools, team support and deployment
+controls on top of a working DMOJ installation.
 
-It does **not** replace the upstream installation instructions. Install a normal
-DMOJ first, following <https://docs.dmoj.ca/>, and make sure you can sign in,
-create a problem and get a submission judged. Everything below assumes that
-already works, because if something breaks afterwards you want to know it was
-one of these steps.
+First follow the [upstream installation instructions](https://docs.dmoj.ca/) and
+verify login, problem creation and submission judging before continuing.
 
 Paths used throughout: `/srv/dmoj/site` for the checkout, `/srv/dmoj/venv` for
 the virtualenv, `/srv/dmoj/problems` for problem data, `judge.example.org` for
@@ -69,8 +66,8 @@ Never commit `dmoj/local_settings.py`. It is already in `.gitignore`.
 ```
 
 This fork adds migrations `0150` through `0155`: announcements, clarifications,
-scoreboard freeze, balloons and teams. None of them rewrites existing rows, but
-take the dump from step 1 anyway.
+scoreboard freeze, balloons and teams. Keep the database backup from step 1
+before applying them to an existing installation.
 
 ## 4. Translations
 
@@ -80,8 +77,7 @@ The interface ships Spanish and English catalogs:
 /srv/dmoj/venv/bin/python manage.py compilemessages -l es -l en
 ```
 
-Compile **both**. Compiling only one leaves the other language showing raw
-strings from the wrong language, and nothing warns you.
+Compile **both** catalogs so each language displays the correct translations.
 
 > **Do not run `makemessages` on this tree.** Since Django 5.2 the extractor no
 > longer recognises `{{ make_tab(..., _('Text')) }}`, and regenerating the
@@ -115,11 +111,10 @@ If you enable `COMPRESS_OFFLINE` (recommended for a read-only deployment; see
 /srv/dmoj/venv/bin/python manage.py compress --force
 ```
 
-**Remember this rule, it is the single easiest way to take the site down:** any
-change to a template, stylesheet, script or translation catalog invalidates the
-manifest, and the affected pages answer HTTP 500 until you regenerate it and
-restart the web service. It fails per page and per language, so a quick check of
-the home page will not catch it.
+Changes that affect a rendered compression block can invalidate the offline
+manifest. Regenerate it after changes to templates, stylesheets, scripts or
+translations, then restart the web service. Verify the affected pages in both
+languages; a stale manifest can cause HTTP 500 responses on specific pages.
 
 ## 6. The owner account
 
@@ -137,8 +132,8 @@ it controls:
 - viewing two-factor secrets;
 - the permanent-delete path for teams and contests.
 
-Leaving it empty means nobody can delete from the admin, which is a valid choice
-but surprises people. Set it before you hand out staff accounts.
+An empty setting disables deletion from the admin for every account. Configure
+the intended owner accounts before granting staff access.
 
 ## 7. Services
 
@@ -200,8 +195,7 @@ period (20 minutes by default, `--minutos`).
 
 ## 10. Check it works
 
-Start the services and walk through this list. Each item has caught a real
-regression at least once:
+Start the services and verify these workflows:
 
 1. The home page, in **both** languages. `Accept-Language: en` and `es`.
 2. `/problems/`, `/submissions/` and `/stats/language/` in several languages.
@@ -250,6 +244,5 @@ Wrapping the settings in your own module does not work: `dmoj/__init__.py`
 imports Celery, and Celery reads settings while it is being imported.
 
 **New `.pyc` files appear world-writable.** Set `PYTHONDONTWRITEBYTECODE=1` in
-the service units, and pass `-B` when you run `manage.py` by hand. This bites
-hardest on filesystems that do not carry Unix permissions, such as a Windows
-drive mounted under WSL.
+the service units, and pass `-B` when running `manage.py` manually. Check file
+permissions separately on filesystems such as Windows drives mounted under WSL.

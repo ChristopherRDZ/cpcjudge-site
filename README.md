@@ -1,298 +1,158 @@
 <h1 align="center">
-  <img src="https://github.com/DMOJ/online-judge/blob/master/logo.png?raw=true" width="120px">
+  <img src="logo.png" alt="DMOJ" width="120">
   <br>
-  DMOJ: Modern Online Judge
+  CPC Online Judge
 </h1>
+<p align="center">A DMOJ fork for programming practice and ICPC-style contests.</p>
 <p align="center">
-  <a href="https://github.com/DMOJ/online-judge/actions?query=workflow%3Abuild">
-    <img alt="Build Status" src="https://img.shields.io/github/actions/workflow/status/DMOJ/online-judge/build.yml?branch=master"/>
-  </a>
-  <a href="LICENSE">
-    <img alt="License" src="https://img.shields.io/github/license/DMOJ/online-judge"/>
-  </a>
-  <a href="https://dmoj.ca/about/discord/">
-    <img src="https://img.shields.io/discord/677340492651954177?color=%237289DA&label=Discord"/>
-  </a>
+  <a href="LICENSE"><img alt="License: AGPL v3" src="https://img.shields.io/badge/license-AGPL--3.0-blue"></a>
+  <a href="docs/setup-guide.md">Installation</a> ·
+  <a href="docs/fork-overview.md">Features</a> ·
+  <a href="docs/contest-tools.md">Contest guide</a> ·
+  <a href="MODIFICATIONS.md">Changelog</a>
 </p>
 
-## A DMOJ fork for ICPC-style contests
+Run individual or team contests with frozen scoreboards, an interactive reveal
+ceremony, balloon delivery tools and a Spanish interface. This fork is maintained
+by **CPC-UAEH** and builds on [DMOJ](https://github.com/DMOJ/online-judge), with
+additional contest, administration and deployment features.
 
-This branch is the source of the DMOJ installation operated by **CPC-UAEH**. It
-adds contest tooling, team support, a Spanish interface and a set of hardening
-changes to upstream DMOJ, and it is published so that anyone can fork it and run
-the same thing.
+**Get started:** follow the [installation guide](docs/setup-guide.md) to configure
+your own instance. DMOJ provides problem statements in Markdown and LaTeX, live
+submission results, multiple contest formats, virtual participation and support
+for many programming languages through the
+[judge server](https://github.com/DMOJ/judge-server).
 
-**Start here:** [Setting up this fork](docs/setup-guide.md) — install a stock
-DMOJ first, then follow that guide.
-Full change list: [fork overview](docs/fork-overview.md) ·
-[MODIFICATIONS.md](MODIFICATIONS.md).
-
-Based on DMOJ commit `97f3722ef3f7ca9731727c220622bdd1eab7d4b3` and distributed
-under the GNU Affero General Public License version 3. Production credentials,
-user data, problem packages, uploaded media, logs and generated static files are
-deliberately not part of this repository.
-
----
+*The screenshots below show this fork's interface with fictional demo accounts,
+teams, contests and results. They do not represent a real competition.*
 
 ## Contests
 
-**Scoreboard freeze.** A configurable freeze window that actually freezes: the
-board, the participation pages, the API, the submission list, the live event
-feed, the submission detail and the statistics. A scoreboard that is frozen
-while the submission list stays open is not frozen. Unfreezing is explicit.
+### Frozen scoreboards
 
-![Frozen scoreboard](docs/screenshots/scoreboard-freeze.png)
+Configure a freeze window and keep results hidden across the scoreboard,
+participation pages, submissions, statistics, API and live updates. Organizers
+explicitly release the final results.
 
-**Reveal ceremony.** The ICPC reveal, driven entirely by the server so a slow
-projector laptop cannot get the order wrong. Adjustable speed, medal ranges,
-respected ties, first-to-solve awards, and an award card for each contestant as
-their position becomes final.
+![Team scoreboard during the freeze window](docs/screenshots/scoreboard-freeze.png)
 
-![Reveal ceremony](docs/screenshots/reveal-ceremony.png)
+### Reveal ceremony
 
-**Balloon desk.** Pending and delivered lists that update live, delivery history
-with undo, per-problem colors chosen with a real color picker, per-participant
-locations, and a staff permission of its own. Accepted submissions inside the
-frozen window earn no balloon.
+Reveal results in order with adjustable playback speed, medal ranges,
+tie handling, first-to-solve awards and individual or team award cards.
 
-![Balloon desk](docs/screenshots/balloon-desk.png)
+![Reveal ceremony with a team award card](docs/screenshots/reveal-ceremony.png)
 
-**Announcements and clarifications.** Announcements reach the whole site or a
-single contest and are archived on a per-contest tab. Contestants ask the jury
-about the contest or about one problem; answers are private to whoever asked or
-broadcast to everyone. Bodies are plain text, rate limited and length capped.
+### Balloon delivery
 
-![Announcements](docs/screenshots/announcements.png)
+Track pending and delivered balloons, assign problem colors and participant
+locations, and undo delivery mistakes. Dedicated staff permissions control access
+to the desk; accepted submissions during the freeze remain hidden.
 
-**Rankings that refresh themselves**, polling only while the tab is visible and
-backing off when the server is slow, over an event daemon with a heartbeat and a
-browser client that reconnects with exponential backoff.
+![Balloon desk with problem colors, delivery status and team locations](docs/screenshots/balloon-desk.png)
+
+### Announcements and clarifications
+
+Publish announcements for the whole site or one contest. Contestants can ask
+about a problem or the contest rules; the jury can answer privately or share an
+answer with everyone.
+
+![Contest announcements and an answered clarification](docs/screenshots/announcements.png)
 
 ## Teams
 
-**Teams, invitations and team contests.** Contests run in individual, team or
-mixed mode, with separate rankings for each.
+### Teams and invitations
 
-![My teams](docs/screenshots/teams-my-teams.png)
+Create a team, invite members and manage the roster from **My teams**. Members
+submit from their own accounts while sharing the team's contest score and clock.
 
-**One access code for the whole roster.** Whoever registers the team types the
-code once and the entire roster is in. Contest access is checked against that
-person; what nobody can delegate is still checked one by one — a disabled
-account, a ban from that contest, running the contest yourself — and the message
-names who is blocking and why.
+![My teams with members and a pending invitation](docs/screenshots/teams-my-teams.png)
 
-**Pick who competes.** When registering a team you tick which members take part,
-and the minimum and maximum team sizes are measured on that selection.
+### Contest registration
 
-![Contest registration](docs/screenshots/contest-join.png)
+Choose individual or team participation and select the members who will compete.
+One access code registers the selected roster, subject to the contest's team
+size and individual eligibility rules.
 
-Teams are visible and editable from the admin, searchable by member, with
-membership edited inline.
+![Contest registration with team member selection](docs/screenshots/contest-join.png)
 
-![Teams in the admin](docs/screenshots/admin-teams.png)
+### Separate rankings
+
+Run individual, team or mixed contests. Mixed contests have separate ranking
+tabs, and team results stay separate from individual site ratings. Rankings
+refresh automatically while the browser tab is visible.
+
+![Mixed contest with separate individual and team rankings](docs/screenshots/contest-ranking-teams.png)
 
 ## Interface
 
-**Dark theme for every account.** Upstream hides it behind the `test_site`
-permission; here it is available to everyone, and `auto` follows the operating
-system so a reader in dark mode gets a dark site without asking.
+### Light and dark themes
 
-![Light and dark](docs/screenshots/dark-mode.png)
+Every account can choose a light or dark theme, or follow the system preference.
+The fork's screens and navigation include Spanish and English translations.
 
-**Rebuilt custom test.** The editor uses the available width and height and no
-longer wraps long lines; output is no longer cut at 64 bytes; the messages
-inside the JavaScript are translated.
+![The same teams page in light and dark themes](docs/screenshots/dark-mode.png)
 
-![Custom test](docs/screenshots/custom-test.png)
+### Custom tests
 
-**Test cases filled in from the zip.** Upload an archive whose files are named
-`case1.in` and `case1.out` and the rows build themselves: pairing by extension
-or by folder, natural ordering so `case2` comes before `case10`, batch detection
-from the `1-1` / `1_2` convention, and an exact integer point split. Files left
-without a pair are reported rather than dropped silently.
+Try code with your own input in a spacious editor, with translated status
+messages and output up to 64 KB by default. Custom tests remain separate from
+public submission histories and statistics.
 
-![Test case autofill](docs/screenshots/testcase-autofill.png)
+![Custom test editor with example code, input and simulated output](docs/screenshots/custom-test.png)
 
-**A Spanish interface**, including the navigation bar, which upstream leaves
-untranslated because it reads from a catalog that did not exist.
+### Test cases from ZIP archives
 
-## Security
+Populate test cases from paired input and output files. Automatic pairing
+supports extensions or folders, natural ordering, batch detection and integer
+point distribution, with feedback for unpaired files.
 
-**An owner account that other superusers cannot touch.** `is_superuser` short
-circuits Django's permission check, so no permission can separate one superuser
-from another; the separation is enforced in the admin instead. The account named
-in `CPC_SERVER_OWNERS` is the only one that may delete anything, hand out the
-Staff and Superuser checkboxes, or read two-factor secrets, and it is the only
-one that can edit itself.
+![Problem data form populated from a sample ZIP archive](docs/screenshots/testcase-autofill.png)
 
-![Owner-only deletion](docs/screenshots/admin-owner-lock.png)
+## Administration
 
-**A permanent deletion path.** Five `PROTECT` keys stop a contest or a team with
-history from being deleted by accident. None of them was removed; instead there
-is an explicit route that dismantles the dependencies in order inside a
-transaction, behind a confirmation that counts exactly what will disappear.
-Submissions themselves are kept — only their link to the contest goes.
+Manage teams, invitations, memberships and contest participation from the admin,
+with search by team or member.
 
-**Impersonation, actually restricted.** `IMPERSONATE_REQUIRE_SUPERUSER` was
-being ignored by the installed library, which reads a dictionary instead, so
-every staff account could impersonate any non-superuser. Fixed, with the audit
-log deliberately left on.
+![Team administration with members and participation counts](docs/screenshots/admin-teams.png)
 
-**Custom tests.** Signed ownership checks, read-only result polling, exclusion
-from shared submission histories and statistics, and per-user ceilings of two in
-flight, twelve per minute and two hundred per hour, answered with HTTP 429.
+Accounts configured in `CPC_SERVER_OWNERS` control deletion and sensitive account
+administration. Other superusers cannot edit those accounts or grant the protected
+privileges. Permanent team and contest deletion requires a confirmation that
+lists the affected records; submission records are preserved.
 
-**Deployment hardening.** One unprivileged account per service under systemd
-namespace restrictions, Redis authentication, loopback-only listeners, request
-body ceilings with a single documented exception for problem archives, HSTS,
-structural CSP, referrer policy and secure cookies. The
-[maintenance record](docs/security/README.md) documents each change with its
-verification scope and its remaining limitations.
+![Owner-only deletion confirmation listing affected records](docs/screenshots/admin-owner-lock.png)
 
-## Running it
+## Installation and documentation
 
-[Setting up this fork](docs/setup-guide.md) walks through settings, migrations,
-translations, styles, the owner account, services, the front end and the
-scheduled cleanup, and ends with a checklist of things that have each caught a
-real regression. [Sanitized deployment examples](deploy/examples/README.md)
-contain the systemd units, the front-end configuration and the maintenance
-timer, with every path and host name invented.
+Start with a working [DMOJ installation](https://docs.dmoj.ca/#/site/installation),
+then follow [Setting up this fork](docs/setup-guide.md) for settings, migrations,
+translations, static assets, service configuration and scheduled cleanup.
 
----
+| Guide | Contents |
+| --- | --- |
+| [Setup guide](docs/setup-guide.md) | Installation, configuration and verification |
+| [Fork overview](docs/fork-overview.md) | Features and changes relative to upstream |
+| [Contest tools](docs/contest-tools.md) | Freeze, reveal and balloon workflows |
+| [Deployment examples](deploy/examples/README.md) | Example service units, Nginx settings and maintenance tasks |
+| [Security maintenance](docs/security/README.md) | Controls, verification scope and known limitations |
+| [Screenshot gallery](docs/screenshots/README.md) | Full-size demonstration images |
 
-# Upstream DMOJ
+Deployment examples include separate service accounts, systemd restrictions,
+Redis authentication, private listeners, request limits and HTTPS headers.
+Custom tests include signed ownership checks and configurable per-user limits.
+Review the deployment guidance for your environment before exposing an instance.
 
-Everything below is the upstream project's own README, kept as it is. The
-installation instructions it links to are the ones to follow first; this fork's
-[setup guide](docs/setup-guide.md) picks up from there.
+## Upstream and license
 
-A modern open-source online judge and contest platform system. It has been used to host thousands of competitions, including several national olympiads.
+Based on DMOJ commit `97f3722ef3f7ca9731727c220622bdd1eab7d4b3`.
+Distributed under the [GNU Affero General Public License v3](LICENSE).
+See [MODIFICATIONS.md](MODIFICATIONS.md) for the fork's changes and attribution.
 
-See it live at [dmoj.ca](https://dmoj.ca/)!
+Production credentials, user data, problem packages, uploaded media, logs and
+generated static files are excluded from this repository.
 
-## Features
-
-* [Support for over **60 language runtimes**](https://github.com/DMOJ/online-judge#supported-languages)
-* Highly robust judging system:
-   * Supports **interactive** and **signature-graded** tasks
-   * Supports **runtime data generators** and **custom output validators**
-   * Specifying **per-language resource limits**
-   * Capable of scaling to hundreds of judging servers
-* Extremely configurable contest system:
-   * Supports ICPC/IOI/AtCoder/ECOO formats out-of-the-box
-   * **System testing** supported
-   * **Hidden scoreboards** and **virtual participation**
-   * [Elo-MMR](https://arxiv.org/abs/2101.00400)-style **rating**
-   * **Plagiarism detection** via [Stanford MOSS](https://theory.stanford.edu/~aiken/moss/)
-   * Restricting contest access to particular organizations or users
-* Rich problem statements, with support for **LaTeX math and diagrams**
-   * Automatic **PDF generation** for easy distribution
-   * Built-in support for **editorials**
-* **Live updates** for submissions
-* Internationalized site interface
-* Home page blog and activity stream
-* Fine-grained permission control for staff
-* OAuth login with Google, Facebook, and Github
-* Two-factor authentication support
-
-## Installation
-
-Check out the install documentation at [docs.dmoj.ca](https://docs.dmoj.ca/#/site/installation). Feel free to reach out to us on [Discord](https://dmoj.ca/about/discord/) if you have any questions.
-
-## Screenshots
-
-### Sleek problem statements
-Problems are written in Markdown, with LaTeX-enabled math and figures, as well as syntax highlighting. Problem statements can be saved to PDF for ease of distribution to contestants.
-
-![](https://i.imgur.com/7KD7h5r.png)
-
-### Submit in over 60 languages
-Contestants may submit in over 60 programming languages with syntax highlighting. Problem authors can restrict problems to specific languages, and set language-specific resource limits.
-
-![](https://i.imgur.com/8CjfHQb.png)
-
-### Live submission status
-Submission pages feature live updates, and submissions may be aborted by both submission authors and administrators. Compilation errors and warnings for a number of languages feature color highlighting.
-
-![](https://i.imgur.com/Hom0U3R.png)
-
-Global, per-problem, and per-contest submission lists are live-updating, and can be filtered by status and language.
-
-![](https://i.imgur.com/rc7orzj.png)
-
-### Extensible contest system
-Contests feature an optional rating system, and can be configured to run in any timeframe. Users are also able to participate virtually after the contest ends. ICPC, IOI, AtCoder, and ECOO contest formats are supported out-of-the-box, and new formats can be added with custom code.
-
-![](https://i.imgur.com/0V1fzZi.png)
-
-Contests may be limited to particular organizations, or require access codes to join. Hidden scoreboards are supported. The contest system integrates with [Stanford MOSS](https://theory.stanford.edu/~aiken/moss/) to provide plagiarism checking.
-Editorial support is built-in, and editorials are automatically published once a contest ends.
-
-### Home page blog and activity stream
-
-Announcements from administrators, ongoing contests, recent comments and new problems are easily accessible from the home page.
-
-![](https://i.imgur.com/zpQAoDB.png)
-
-### Internationalized interface
-Use the site in whatever language you're most comfortable in &mdash; visit [translate.dmoj.ca](https://translate.dmoj.ca/) to check the translation status of your preferred language. Problem authors can provide statements in multiple languages, and DMOJ will display the most relevant one to a reader.
-
-![](https://i.imgur.com/OeuI0o5.png)
-
-### Highly featured administration interface
-The DMOJ admin interface is highly versatile, and can be efficiently used for anything from managing users to authoring problem statements.
-
-![](https://static.dmoj.ca/data/_other/readme/problem-admin.png)
-
-![](https://static.dmoj.ca/data/_other/readme/admin-dashboard.png)
-
-## Supported languages
-
-Check out [**DMOJ/judge-server**](https://github.com/DMOJ/judge-server) for more judging backend details.
-
-Supported languages include:
-* C++ 11/14/17/20 (GCC and Clang)
-* C 99/11
-* Java 8-22
-* Python 2/3
-* PyPy 2/3
-* Pascal
-* Mono C#/F#/VB
-
-The judge can also grade in the languages listed below:
-* Ada
-* Algol 68
-* AWK
-* COBOL
-* D
-* Dart
-* Fortran
-* Forth
-* Go
-* Groovy
-* GAS x86/x64/ARM
-* Haskell
-* INTERCAL
-* Kotlin
-* Lua
-* LLVM IR
-* NASM x86/x64
-* Objective-C
-* OCaml
-* Perl
-* PHP
-* Pike
-* Prolog
-* Racket
-* Ruby
-* Rust
-* Scala
-* Chicken Scheme
-* sed
-* Steel Bank Common Lisp
-* Swift
-* Tcl
-* Turing
-* V8 JavaScript
-* Brain\*\*\*\*
-* Zig
+Upstream resources: [DMOJ](https://github.com/DMOJ/online-judge) ·
+[Documentation](https://docs.dmoj.ca/) ·
+[Judge server](https://github.com/DMOJ/judge-server) ·
+[Community](https://dmoj.ca/about/discord/).
