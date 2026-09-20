@@ -1,11 +1,3 @@
-> **Contest tools, 2026-09-16.** Frozen scoreboards, a reveal ceremony with
-> awards and speed controls, and a live balloon desk with participant locations,
-> dark mode and visual color selection. See [the organiser guide](docs/contest-tools.md).
-
-> **Django 5.2.17 production source.** The `cpc-production` branch includes the
-> deployed Django upgrade. See the [upgrade record](docs/django52/README.md) for
-> adaptations, configuration guidance and the scope of validation.
-
 <h1 align="center">
   <img src="https://github.com/DMOJ/online-judge/blob/master/logo.png?raw=true" width="120px">
   <br>
@@ -23,57 +15,156 @@
   </a>
 </p>
 
-## CPC-UAEH production fork
+## A DMOJ fork for ICPC-style contests
 
-The `cpc-production` branch contains the source code corresponding to the
-modified DMOJ version operated by CPC-UAEH. It is based on DMOJ commit
-`97f3722ef3f7ca9731727c220622bdd1eab7d4b3` and is distributed under the GNU
-Affero General Public License version 3.
+This branch is the source of the DMOJ installation operated by **CPC-UAEH**. It
+adds contest tooling, team support, a Spanish interface and a set of hardening
+changes to upstream DMOJ, and it is published so that anyone can fork it and run
+the same thing.
 
-See [MODIFICATIONS.md](MODIFICATIONS.md) for the changes made to the upstream
-project. Production credentials, user data, problem packages, uploaded media,
-logs, and generated static files are intentionally not part of this source
-repository.
+**Start here:** [Setting up this fork](docs/setup-guide.md) — install a stock
+DMOJ first, then follow that guide.
+Full change list: [fork overview](docs/fork-overview.md) ·
+[MODIFICATIONS.md](MODIFICATIONS.md).
 
-The [security maintenance record](docs/security/README.md) documents the deployed
-application fixes and generic deployment controls, with their validation limits.
+Based on DMOJ commit `97f3722ef3f7ca9731727c220622bdd1eab7d4b3` and distributed
+under the GNU Affero General Public License version 3. Production credentials,
+user data, problem packages, uploaded media, logs and generated static files are
+deliberately not part of this repository.
 
-## Contest features added by CPC-UAEH — 2026-09-15
+---
 
-Highlights of the contest tooling built on top of the upstream feature set:
+## Contests
 
-- **Scoreboard freeze and reveal.** Configurable freeze windows also protect
-  submissions, statistics, APIs and public events. The reveal ceremony animates
-  final standings, supports medal ranges and first-to-solve awards, and requires
-  an explicit action to publish. Adds migration `0153`.
-- **Balloon desk.** Live pending/delivered lists, delivery history, undo and
-  dedicated staff permissions. Includes an explicit All filter, light/dark themes,
-  searchable participant location fields that preserve other edits, and a visual
-  color picker in contest administration. Adds migration `0154`.
-- **Announcements and clarifications.** Announcements reach either the whole site
-  or a single contest, are shown as a dismissable overlay and stay archived on a
-  per-contest Clarifications tab. Contestants ask the jury questions, optionally
-  about one problem; the jury answers privately to whoever asked, or broadcasts
-  the answer to every contestant, in which case it is also archived as an
-  announcement of that contest. Announcement and question bodies are plain text:
-  neither HTML nor Markdown is interpreted. Questions are rate limited per user
-  and capped in length. Adds migrations `0150`–`0152`.
-- **Self-refreshing contest rankings.** The scoreboard now refreshes on its own
-  instead of requiring a manual reload. It reuses the existing ranking fragment
-  endpoint, polls only while the tab is visible and the viewer may see the full
-  scoreboard, preserves the reader's column preferences across refreshes, backs
-  off when the server answers slowly and stops shortly after the contest ends.
-- **Resilient live updates.** The event daemon sends a periodic heartbeat and the
-  browser client reconnects with exponential backoff, falling back to long
-  polling and reconnecting when the tab or the network comes back. Long-lived
-  submission, ticket and clarification pages no longer show a disconnection
-  warning after an idle edge timeout.
-- **Spanish interface for the new screens.** Every string introduced by the
-  features above is translated in `locale/es`.
+**Scoreboard freeze.** A configurable freeze window that actually freezes: the
+board, the participation pages, the API, the submission list, the live event
+feed, the submission detail and the statistics. A scoreboard that is frozen
+while the submission list stays open is not frozen. Unfreezing is explicit.
 
-The complete list of fork changes remains in [MODIFICATIONS.md](MODIFICATIONS.md).
-The [organiser guide](docs/contest-tools.md) explains freeze rules, permissions,
-locations, deployment considerations and validation limits.
+![Frozen scoreboard](docs/screenshots/scoreboard-freeze.png)
+
+**Reveal ceremony.** The ICPC reveal, driven entirely by the server so a slow
+projector laptop cannot get the order wrong. Adjustable speed, medal ranges,
+respected ties, first-to-solve awards, and an award card for each contestant as
+their position becomes final.
+
+![Reveal ceremony](docs/screenshots/reveal-ceremony.png)
+
+**Balloon desk.** Pending and delivered lists that update live, delivery history
+with undo, per-problem colors chosen with a real color picker, per-participant
+locations, and a staff permission of its own. Accepted submissions inside the
+frozen window earn no balloon.
+
+![Balloon desk](docs/screenshots/balloon-desk.png)
+
+**Announcements and clarifications.** Announcements reach the whole site or a
+single contest and are archived on a per-contest tab. Contestants ask the jury
+about the contest or about one problem; answers are private to whoever asked or
+broadcast to everyone. Bodies are plain text, rate limited and length capped.
+
+![Announcements](docs/screenshots/announcements.png)
+
+**Rankings that refresh themselves**, polling only while the tab is visible and
+backing off when the server is slow, over an event daemon with a heartbeat and a
+browser client that reconnects with exponential backoff.
+
+## Teams
+
+**Teams, invitations and team contests.** Contests run in individual, team or
+mixed mode, with separate rankings for each.
+
+![My teams](docs/screenshots/teams-my-teams.png)
+
+**One access code for the whole roster.** Whoever registers the team types the
+code once and the entire roster is in. Contest access is checked against that
+person; what nobody can delegate is still checked one by one — a disabled
+account, a ban from that contest, running the contest yourself — and the message
+names who is blocking and why.
+
+**Pick who competes.** When registering a team you tick which members take part,
+and the minimum and maximum team sizes are measured on that selection.
+
+![Contest registration](docs/screenshots/contest-join.png)
+
+Teams are visible and editable from the admin, searchable by member, with
+membership edited inline.
+
+![Teams in the admin](docs/screenshots/admin-teams.png)
+
+## Interface
+
+**Dark theme for every account.** Upstream hides it behind the `test_site`
+permission; here it is available to everyone, and `auto` follows the operating
+system so a reader in dark mode gets a dark site without asking.
+
+![Light and dark](docs/screenshots/dark-mode.png)
+
+**Rebuilt custom test.** The editor uses the available width and height and no
+longer wraps long lines; output is no longer cut at 64 bytes; the messages
+inside the JavaScript are translated.
+
+![Custom test](docs/screenshots/custom-test.png)
+
+**Test cases filled in from the zip.** Upload an archive whose files are named
+`case1.in` and `case1.out` and the rows build themselves: pairing by extension
+or by folder, natural ordering so `case2` comes before `case10`, batch detection
+from the `1-1` / `1_2` convention, and an exact integer point split. Files left
+without a pair are reported rather than dropped silently.
+
+![Test case autofill](docs/screenshots/testcase-autofill.png)
+
+**A Spanish interface**, including the navigation bar, which upstream leaves
+untranslated because it reads from a catalog that did not exist.
+
+## Security
+
+**An owner account that other superusers cannot touch.** `is_superuser` short
+circuits Django's permission check, so no permission can separate one superuser
+from another; the separation is enforced in the admin instead. The account named
+in `CPC_SERVER_OWNERS` is the only one that may delete anything, hand out the
+Staff and Superuser checkboxes, or read two-factor secrets, and it is the only
+one that can edit itself.
+
+![Owner-only deletion](docs/screenshots/admin-owner-lock.png)
+
+**A permanent deletion path.** Five `PROTECT` keys stop a contest or a team with
+history from being deleted by accident. None of them was removed; instead there
+is an explicit route that dismantles the dependencies in order inside a
+transaction, behind a confirmation that counts exactly what will disappear.
+Submissions themselves are kept — only their link to the contest goes.
+
+**Impersonation, actually restricted.** `IMPERSONATE_REQUIRE_SUPERUSER` was
+being ignored by the installed library, which reads a dictionary instead, so
+every staff account could impersonate any non-superuser. Fixed, with the audit
+log deliberately left on.
+
+**Custom tests.** Signed ownership checks, read-only result polling, exclusion
+from shared submission histories and statistics, and per-user ceilings of two in
+flight, twelve per minute and two hundred per hour, answered with HTTP 429.
+
+**Deployment hardening.** One unprivileged account per service under systemd
+namespace restrictions, Redis authentication, loopback-only listeners, request
+body ceilings with a single documented exception for problem archives, HSTS,
+structural CSP, referrer policy and secure cookies. The
+[maintenance record](docs/security/README.md) documents each change with its
+verification scope and its remaining limitations.
+
+## Running it
+
+[Setting up this fork](docs/setup-guide.md) walks through settings, migrations,
+translations, styles, the owner account, services, the front end and the
+scheduled cleanup, and ends with a checklist of things that have each caught a
+real regression. [Sanitized deployment examples](deploy/examples/README.md)
+contain the systemd units, the front-end configuration and the maintenance
+timer, with every path and host name invented.
+
+---
+
+# Upstream DMOJ
+
+Everything below is the upstream project's own README, kept as it is. The
+installation instructions it links to are the ones to follow first; this fork's
+[setup guide](docs/setup-guide.md) picks up from there.
 
 A modern open-source online judge and contest platform system. It has been used to host thousands of competitions, including several national olympiads.
 

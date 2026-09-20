@@ -1,11 +1,14 @@
 # CPC-UAEH modifications to DMOJ
 
-As of 2026-09-16, this source includes frozen scoreboards, a reveal ceremony,
-balloon operations, contest announcements and clarifications, self-refreshing
-rankings, resilient live updates, custom-test admission controls and the deployed
-Django 5.2.17 upgrade.
+As of 2026-09-19, this source includes team support and team contests, an owner
+account that restricts deletion in the administration interface, a dark theme
+available to every account, test cases filled in from a problem data archive,
+frozen scoreboards, a reveal ceremony, balloon operations, contest announcements
+and clarifications, self-refreshing rankings, resilient live updates, custom-test
+admission controls and the deployed Django 5.2.17 upgrade.
 Timezone, storage/dependency and contest administration adaptations are
-documented in the [upgrade record](docs/django52/README.md).
+documented in the [upgrade record](docs/django52/README.md). A grouped list of
+every change is in the [fork overview](docs/fork-overview.md).
 
 This repository contains a modified version of
 [DMOJ](https://github.com/DMOJ/online-judge), originally distributed under the
@@ -25,6 +28,60 @@ GNU Affero General Public License version 3.
 - Authentication using either a username or an email address.
 - A signed-in custom code testing workflow and its judge bridge support.
 - Minor registration and presentation adjustments.
+
+## Administration and deletion control — 2026-09-19
+
+- `CPC_SERVER_OWNERS` in settings names the accounts allowed to delete from the
+  administration interface. The restriction is applied in the admin rather than
+  through a permission, because `PermissionsMixin.has_perm` returns True for any
+  superuser without consulting permissions or backends. Two layers: the wrapped
+  `has_delete_permission` of every registered ModelAdmin and inline, and the
+  `delete_view`, `delete_model` and `delete_queryset` of `ModelAdmin`.
+- The owner account is protected from other superusers: its user and profile
+  cannot be edited, the Staff and Superuser fields are removed from the form for
+  anybody else rather than shown read-only, and TOTP records are reserved.
+- A permanent deletion path for teams and contests that dismantles the five
+  `PROTECT` relations in order inside a transaction, behind a confirmation that
+  enumerates what will be destroyed. Submissions are preserved; only their link
+  to the contest is removed. No `PROTECT` relation was dropped.
+- `IMPERSONATE_REQUIRE_SUPERUSER` was ignored by the installed
+  django-impersonate, which reads an `IMPERSONATE` dictionary; impersonation was
+  therefore open to every staff account. Corrected, with the audit log enabled.
+- Teams and team invitations registered in the administration interface, with
+  search by member, member and participation columns, inline membership editing
+  and invitation cancellation.
+- No migration and no schema or data change.
+
+## Teams and team contests — 2026-09-18 and 2026-09-19
+
+- Teams, memberships and invitations, with a My teams page. Migration `0155`.
+- Individual, team and mixed participation modes per contest, a single official
+  registration, shared virtual participations and separate rankings.
+- Registration admits the whole roster on one access code: contest access is
+  evaluated for whoever registers, while conditions that cannot be delegated —
+  an inactive account, a ban from that contest, organising or testing it — are
+  still evaluated per member, and the message names who is blocked and why.
+- The members who compete are selected at registration time and frozen; minimum
+  and maximum team sizes are measured on that selection.
+- Member photographs in the award ceremony and balloons per team.
+
+## Interface — 2026-09-18 and 2026-09-19
+
+- The dark theme no longer depends on the `judge.test_site` permission and is
+  available to every account; `auto` follows the operating system preference.
+  The `{% compress %}` blocks of `base.html` were left byte-identical and the
+  dark stylesheet is linked outside them, so the offline manifest stays valid.
+- The custom test page was rebuilt: full width and height editor without line
+  wrapping, output no longer truncated at 64 bytes, a configurable output prefix
+  and translated messages inside the JavaScript.
+- The navigation bar is translated through a `dmoj-user` catalog, which upstream
+  does not provide.
+- Test cases are filled in from an uploaded archive: pairing by extension or by
+  folder, natural ordering, batch detection, an exact integer point split, and a
+  report of files left without a pair. The view also reports how many form rows
+  fit, since the form posts 14 fields per row.
+- A scheduled cleanup for finished custom tests across all accounts, published
+  as a deployment example rather than as application code.
 
 ## Freeze, reveal and balloon operations — 2026-09-16
 

@@ -1,0 +1,27 @@
+[Unit]
+Description=DMOJ judge (%i)
+After=network.target dmoj-bridge.service
+
+[Service]
+Type=simple
+User=dmoj-judge
+Group=dmoj-judge
+WorkingDirectory=/var/lib/dmoj-judges/%i
+ExecStart=/srv/dmoj/venv/bin/dmoj -c /etc/dmoj-judges/%i.yml -p 9999 --no-ansi -e AWK,C,CPP03,CPP11,CPP14,CPP17,CPP20,JAVA8,PERL,PY3,SED 127.0.0.1
+Restart=on-failure
+RestartSec=10
+UMask=0022
+Environment=HOME=/nonexistent
+Environment=PATH=/srv/dmoj/venv/bin:/usr/local/bin:/usr/bin:/bin
+StateDirectory=dmoj-judges/%i
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,13 @@
+id: example-judge
+# Generated in the site admin under Judges. Never commit the real value.
+key: "REPLACE_WITH_THE_KEY_FROM_THE_ADMIN"
+
+problem_storage_globs:
+  - /srv/dmoj/problems/*
+
+runtime:
+  gcc: /usr/bin/gcc
+  g++: /usr/bin/g++
+  python3: /usr/bin/python3
+  javac: /usr/bin/javac
+  java: /usr/bin/java

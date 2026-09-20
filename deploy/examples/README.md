@@ -1,24 +1,63 @@
 # Sanitized deployment examples
 
-These files document the shape of a deployment without exposing production
-paths or credentials. They are examples, not drop-in production configuration.
+These files describe the shape of the deployment this fork runs on. Every path,
+host name, port and account in them is invented. They are examples to adapt, not
+drop-in production configuration.
 
-- Keep `dmoj/local_settings.py`, `websocket/config.js`, tunnel credentials,
-  judge keys, database passwords, and email credentials outside Git.
-- Run the application under a dedicated unprivileged account.
-- Restrict Unix sockets to the application and proxy groups.
-- Keep database and Redis listeners on loopback or a protected private network.
-- Test all deployment changes outside the live checkout before rollout.
+All of them assume the layout used throughout [the setup guide](../../docs/setup-guide.md):
 
-See the maintenance notes on [service isolation](../../docs/security/service-isolation.md)
-and [private files and backups](../../docs/security/private-files-and-backups.md).
-The uWSGI example illustrates a restricted application socket; it does not
-provide the accounts, ACLs, boot-time runtime directory or complete systemd
-namespace setup needed for a deployment. Keep those host-specific definitions
-private and validate the effective access of every runtime role.
+| Path | Contents |
+| --- | --- |
+| `/srv/dmoj/site` | this checkout, read-only to the services |
+| `/srv/dmoj/venv` | Python virtualenv |
+| `/srv/dmoj/problems` | problem data, writable by the web and bridge |
+| `/srv/dmoj/media` | uploaded images |
+| `judge.example.org` | public host name |
 
-The [runtime hardening fragment](runtime-hardening.settings.py) documents
-offline compression, custom-test ceilings and local error logging. Generate
-and verify the [offline build](../../docs/security/offline-compression.md)
-before enabling it. The uWSGI timeout must allow legitimate requests and is
-applied to an entire worker, including its other active threads.
+## What is here
+
+| File | Purpose |
+| --- | --- |
+| [`nginx.conf`](nginx.conf) | Front end, request body ceilings and the upload exception |
+| [`uwsgi.ini`](uwsgi.ini) | Application socket and request timeout |
+| [`runtime-hardening.settings.py`](runtime-hardening.settings.py) | Offline compression and custom-test ceilings |
+| [`judge.example.yml`](judge.example.yml) | Judge configuration skeleton |
+| [`cleanup_custom_tests.py`](cleanup_custom_tests.py) | Scheduled custom-test cleanup |
+| [`systemd/`](systemd) | One unit per service, each under its own account |
+
+## Accounts
+
+Each service runs as its own unprivileged user, so that a flaw in one of them
+does not reach the others: `dmoj-uwsgi`, `dmoj-celery`, `dmoj-bridge`,
+`dmoj-events`, `dmoj-proxy` and `dmoj-judge`. The units apply the same set of
+namespace restrictions, collected in
+[`systemd/common-hardening.conf`](systemd/common-hardening.conf).
+
+`/srv/dmoj/problems` is group-writable by the accounts that need it
+(`root:dmoj-uwsgi 2775` in this fork's deployment); everything else under
+`/srv/dmoj` is read-only to the services.
+
+## Things that are easy to get wrong
+
+- **Keep secrets out of Git.** `dmoj/local_settings.py`, `websocket/config.js`,
+  judge keys, database and Redis passwords, tunnel credentials.
+- **Offline compression.** If `COMPRESS_OFFLINE` is on, regenerate the manifest
+  and restart the web service after touching any template, stylesheet, script or
+  translation catalog. A stale manifest answers HTTP 500 on the affected pages.
+  See [offline compression](../../docs/security/offline-compression.md).
+- **Request body ceilings.** The 500M exception on the problem data route exists
+  because real archives reach ~100 MB. Nginx buffers the body before Django
+  checks the session, so that route accepts large anonymous uploads too, and the
+  buffer lands wherever `client_body_temp_path` points. On a host where that
+  path is a RAM-backed tmpfs, size it deliberately.
+- **Reload, do not restart, the front end** when only `nginx.conf` changed. A
+  restart recreates the temporary directories, and getting their ownership wrong
+  produces a silent HTTP 500 on every large POST that never reaches the
+  application log.
+- **The cleanup tool speaks Spanish.** Its flags are `--ejecutar` and
+  `--minutos`, and it prints in Spanish, because it is published exactly as it
+  runs in production except for the paths. Without `--ejecutar` it only reports.
+
+The uWSGI and systemd examples illustrate the restrictions this fork applies;
+they do not create the accounts, directories or ACLs a deployment needs. Verify
+the effective access of every runtime role before trusting them.

@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily custom-test cleanup
+
+[Timer]
+OnCalendar=*-*-* 04:00:00
+Persistent=true
+AccuracySec=1min
+Unit=dmoj-custom-test-cleanup.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,23 @@
+[Unit]
+Description=Remove finished custom tests from every account
+After=mariadb.service redis-server.service
+ConditionPathIsDirectory=/srv/dmoj/problems
+
+[Service]
+Type=oneshot
+User=dmoj-uwsgi
+Environment=HOME=/nonexistent
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=DJANGO_SETTINGS_MODULE=dmoj.settings
+WorkingDirectory=/srv/dmoj/site
+ExecStart=/srv/dmoj/venv/bin/python -B /usr/local/lib/dmoj-maintenance/cleanup_custom_tests.py --ejecutar --minutos 20
+Nice=15
+IOSchedulingClass=idle
+CPUWeight=10
+IOWeight=10
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/srv/dmoj/problems
+PrivateTmp=true
+TimeoutStartSec=15min
