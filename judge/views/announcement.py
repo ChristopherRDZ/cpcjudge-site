@@ -3,6 +3,7 @@ from datetime import timedelta
 from django import forms
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
+from django.db import transaction
 from django.db.models import Q
 from django.http import Http404, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404
@@ -12,7 +13,7 @@ from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_POST
 from django.views.generic import DetailView
 
-from judge.models import Announcement, ContestClarification
+from judge.models import Announcement, ContestClarification, ContestParticipation
 from judge.models.clarification import MAX_PENDING_PER_USER, MAX_QUESTION, MIN_SECONDS_BETWEEN
 from judge.utils.views import TitleMixin
 from judge.views.contests import ContestMixin, _find_contest
@@ -68,7 +69,8 @@ def active_announcements(request):
     # asked twice over.
     if contest_id is not None:
         answered = ContestClarification.objects.filter(
-            user=profile, contest_id=contest_id, answered__isnull=False, is_public=False,
+            ContestClarification.ownership_filter(profile),
+            contest_id=contest_id, answered__isnull=False, is_public=False,
             contest__end_time__gt=now,
         ).select_related('contest').order_by('-answered')[:MAX_ACTIVE]
         for clarification in answered:
@@ -124,7 +126,8 @@ class ClarificationForm(forms.ModelForm):
 
 
 def _visible_clarifications(contest, profile, can_edit):
-    queryset = contest.clarifications.select_related('user__user', 'answered_by__user', 'problem__problem')
+    queryset = contest.clarifications.select_related('user__user', 'answered_by__user', 'problem__problem',
+                                                     'team_participation')
     # An answer made public is shown in the announcements above, laid out as
     # question and answer. Leaving it here too put the same text on the page
     # twice, which is what the list is kept clear of.
@@ -134,7 +137,7 @@ def _visible_clarifications(contest, profile, can_edit):
     if profile is None:
         return queryset.none()
     # What is left is your own: waiting, or answered just for you.
-    return queryset.filter(user=profile)
+    return queryset.filter(ContestClarification.ownership_filter(profile)).distinct()
 
 
 class ContestAnnouncements(ContestMixin, TitleMixin, DetailView):
@@ -177,6 +180,7 @@ def _contest_or_404(request, contest):
 
 @login_required
 @require_POST
+@transaction.atomic
 def ask_clarification(request, contest):
     contest = _contest_or_404(request, contest)
     profile = request.profile
@@ -185,15 +189,20 @@ def ask_clarification(request, contest):
     if contest.ended or participation is None or participation.contest_id != contest.id:
         raise PermissionDenied()
 
-    # Two cheap limits so one person cannot bury the jury. They are checked
-    # without locking, so two requests landing in the same instant could both
-    # get through; that is a nuisance, not a hole, and the cost of a lock here
-    # is not worth it.
+    # Teammates share the jury conversation and its limits. Serialize on the
+    # participation so simultaneous questions do not bypass the shared cap.
+    team_participation = None
+    if participation.team_id:
+        participation = ContestParticipation.objects.select_for_update().get(pk=participation.pk)
+        if participation.ended or participation.is_disqualified or not participation.contains_profile(profile.pk):
+            raise PermissionDenied()
+        team_participation = participation
+        questions = ContestClarification.objects.filter(team_participation=participation)
+    else:
+        questions = ContestClarification.objects.filter(user=profile, contest=contest, team_participation__isnull=True)
     now = timezone.now()
-    too_soon = ContestClarification.objects.filter(
-        user=profile, contest=contest, asked__gte=now - timedelta(seconds=MIN_SECONDS_BETWEEN),
-    ).exists()
-    pending = ContestClarification.objects.filter(user=profile, contest=contest, answer='').count()
+    too_soon = questions.filter(asked__gte=now - timedelta(seconds=MIN_SECONDS_BETWEEN)).exists()
+    pending = questions.filter(answer='').count()
 
     form = ClarificationForm(request.POST, contest=contest)
     errors = []
@@ -206,6 +215,7 @@ def ask_clarification(request, contest):
         clarification = form.save(commit=False)
         clarification.contest = contest
         clarification.user = profile
+        clarification.team_participation = team_participation
         clarification.save()
     else:
         errors = [str(error) for field_errors in form.errors.values() for error in field_errors]
@@ -213,7 +223,7 @@ def ask_clarification(request, contest):
     if errors:
         # Carried in the session because the answer is a redirect, so the tab can
         # say what went wrong without the question being re-posted on refresh.
-        request.session['clarification_errors'] = errors
+        request.session['clarification_errors'] = [str(error) for error in errors]
     return HttpResponseRedirect(reverse('contest_announcements', args=[contest.key]))
 
 

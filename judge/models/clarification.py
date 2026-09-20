@@ -24,6 +24,8 @@ class ContestClarification(models.Model):
                                 help_text=_('Leave empty for a question about the contest as a whole.'))
     user = models.ForeignKey(Profile, verbose_name=_('asked by'), related_name='clarifications',
                              on_delete=models.CASCADE)
+    team_participation = models.ForeignKey('ContestParticipation', null=True, blank=True,
+                                          related_name='team_clarifications', on_delete=models.PROTECT)
     question = models.TextField(verbose_name=_('question'))
     asked = models.DateTimeField(verbose_name=_('asked at'), auto_now_add=True, db_index=True)
     answer = models.TextField(verbose_name=_('answer'), blank=True)
@@ -33,6 +35,17 @@ class ContestClarification(models.Model):
     is_public = models.BooleanField(verbose_name=_('answer is public'), default=False,
                                     help_text=_('A public answer is shown to every contestant. A private one only '
                                                 'goes back to whoever asked.'))
+
+    @property
+    def participant_name(self):
+        return self.team_participation.team_name if self.team_participation_id else self.user.username
+
+    @staticmethod
+    def ownership_filter(profile):
+        if profile is None:
+            return models.Q(pk__in=[])
+        return (models.Q(user=profile, team_participation__isnull=True) |
+                models.Q(team_participation_id__in=profile.team_contest_entries.values('participation_id')))
 
     @property
     def is_answered(self):

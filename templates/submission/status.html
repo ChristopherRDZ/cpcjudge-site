@@ -74,7 +74,7 @@
 {% block body %}
     <br>
     <div><a href="{{ url('submission_source', submission.id) }}">{{ _('View source') }}</a></div>
-    {% if request.user == submission.user.user or perms.judge.resubmit_other %}
+    {% if submission.is_owned_by(request.user) or perms.judge.resubmit_other %}
         <div><a href="{{ url('problem_submit', submission.problem.code, submission.id) }}">{{ _('Resubmit') }}</a></div>
     {% endif %}
     {% if perms.judge.rejudge_submission and not submission.is_locked %}
@@ -104,7 +104,7 @@
     <div id="test-cases">{% include "submission/status-testcases.html" %}</div>
 
     {% if not submission.is_graded %}
-        {% if request.user == submission.user.user or perms.judge.abort_any_submission %}
+        {% if submission.is_owned_by(request.user) or perms.judge.abort_any_submission %}
             <div id="abort-button">
                 <br>
                 <hr class="half-hr">

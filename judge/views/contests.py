@@ -11,7 +11,8 @@ from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.core.exceptions import ImproperlyConfigured, ObjectDoesNotExist
 from django.db import IntegrityError
-from django.db.models import BooleanField, Case, Count, F, FloatField, IntegerField, Max, Min, Q, Sum, Value, When
+from django.db.models import (BooleanField, Case, Count, F, FloatField, IntegerField, Max, Min, Prefetch, Q,
+                              Sum, Value, When)
 from django.db.models.expressions import CombinedExpression, Exists, OuterRef
 from django.db.models.functions import Coalesce
 from django.http import Http404, HttpResponse, HttpResponseBadRequest, HttpResponseRedirect
@@ -99,7 +100,7 @@ class ContestList(QueryStringSortMixin, DiggPaginatorMixin, TitleMixin, ContestL
             editor_or_tester=Exists(Contest.authors.through.objects.filter(contest=OuterRef('pk'), profile=profile)) |
             Exists(Contest.curators.through.objects.filter(contest=OuterRef('pk'), profile=profile)) |
             Exists(Contest.testers.through.objects.filter(contest=OuterRef('pk'), profile=profile)),
-            completed_contest=Exists(ContestParticipation.objects.filter(contest=OuterRef('pk'), user=profile,
+            completed_contest=Exists(ContestParticipation.objects.for_profile(profile).filter(contest=OuterRef('pk'),
                                                                          virtual=ContestParticipation.LIVE)),
         )
 
@@ -128,7 +129,7 @@ class ContestList(QueryStringSortMixin, DiggPaginatorMixin, TitleMixin, ContestL
 
         if self.request.user.is_authenticated:
             for participation in (
-                ContestParticipation.objects.filter(virtual=0, user=self.request.profile, contest_id__in=present)
+                ContestParticipation.objects.for_profile(self.request.profile).filter(virtual=0, contest_id__in=present)
                 .select_related('contest')
                 .prefetch_related('contest__authors', 'contest__curators', 'contest__testers', 'contest__spectators')
                 .annotate(key=F('contest__key'))
@@ -197,7 +198,7 @@ class ContestMixin(object):
         if self.request.user.is_authenticated:
             try:
                 context['live_participation'] = (
-                    self.request.profile.contest_history.get(
+                    ContestParticipation.objects.for_profile(self.request.profile).get(
                         contest=self.object,
                         virtual=ContestParticipation.LIVE,
                     )
@@ -326,6 +327,7 @@ class ContestClone(ContestMixin, PermissionRequiredMixin, TitleMixin, SingleObje
         tags = contest.tags.all()
         organizations = contest.organizations.all()
         private_contestants = contest.private_contestants.all()
+        private_teams = list(contest.private_teams.all())
         view_contest_scoreboard = contest.view_contest_scoreboard.all()
         contest_problems = contest.contest_problems.all()
         old_key = contest.key
@@ -340,6 +342,7 @@ class ContestClone(ContestMixin, PermissionRequiredMixin, TitleMixin, SingleObje
             contest.tags.set(tags)
             contest.organizations.set(organizations)
             contest.private_contestants.set(private_contestants)
+            contest.private_teams.set(private_teams)
             contest.view_contest_scoreboard.set(view_contest_scoreboard)
             contest.authors.add(self.request.profile)
 
@@ -369,100 +372,48 @@ class ContestAccessCodeForm(forms.Form):
 class ContestJoin(LoginRequiredMixin, ContestMixin, SingleObjectMixin, View):
     def get(self, request, *args, **kwargs):
         self.object = self.get_object()
-        return self.ask_for_access_code()
+        return self.choose_participation()
 
     def post(self, request, *args, **kwargs):
+        from django.core.exceptions import ValidationError
+        from judge.contest_teams import join_attempt
         self.object = self.get_object()
+        selection = request.POST.get('selection', '')
+        if not selection and self.object.participation_mode == Contest.INDIVIDUAL:
+            selection = 'individual'
+        spectator = (not self.object.ended and (self.is_editor or self.is_tester or
+                                               self.object.has_completed_contest(request.user)))
+        if not selection and not spectator:
+            return self.choose_participation()
+        # Only the join form sends `roster`. The plain Join buttons on the contest tabs and the
+        # contest list do not, and for them `None` keeps the old meaning: the whole team.
+        picked = request.POST.getlist('members') if request.POST.get('roster') else None
+        member_ids = None
+        if picked is not None and selection.startswith('team:'):
+            # Every team on the page renders its own boxes, so keep this team's only.
+            prefix = selection[len('team:'):] + ':'
+            member_ids = [value[len(prefix):] for value in picked if value.startswith(prefix)]
         try:
-            return self.join_contest(request)
-        except ContestAccessDenied:
-            if request.POST.get('access_code'):
-                return self.ask_for_access_code(ContestAccessCodeForm(request.POST))
-            else:
-                return HttpResponseRedirect(request.path)
-
-    def join_contest(self, request, access_code=None):
-        contest = self.object
-
-        if not contest.started and not (self.is_editor or self.is_tester):
-            return generic_message(request, _('Contest not ongoing'),
-                                   _('"%s" is not currently ongoing.') % contest.name)
-
-        profile = request.profile
-
-        if not request.user.is_superuser and contest.banned_users.filter(id=profile.id).exists():
-            return generic_message(request, _('Banned from joining'),
-                                   _('You have been declared persona non grata for this contest. '
-                                     'You are permanently barred from joining this contest.'))
-
-        requires_access_code = (not self.can_edit and contest.access_code and access_code != contest.access_code)
-        if contest.ended:
-            if requires_access_code:
-                raise ContestAccessDenied()
-
-            while True:
-                virtual_id = max((ContestParticipation.objects.filter(contest=contest, user=profile)
-                                  .aggregate(virtual_id=Max('virtual'))['virtual_id'] or 0) + 1, 1)
-                try:
-                    participation = ContestParticipation.objects.create(
-                        contest=contest, user=profile, virtual=virtual_id,
-                        real_start=timezone.now(),
-                    )
-                # There is obviously a race condition here, so we keep trying until we win the race.
-                except IntegrityError:
-                    pass
-                else:
-                    break
-        else:
-            SPECTATE = ContestParticipation.SPECTATE
-            LIVE = ContestParticipation.LIVE
-
-            if contest.is_live_joinable_by(request.user):
-                participation_type = LIVE
-            elif contest.is_spectatable_by(request.user):
-                participation_type = SPECTATE
-            else:
-                return generic_message(request, _('Cannot enter'),
-                                       _('You are not able to join this contest.'))
-            try:
-                participation = ContestParticipation.objects.get(
-                    contest=contest, user=profile, virtual=participation_type,
-                )
-            except ContestParticipation.DoesNotExist:
-                if requires_access_code:
-                    raise ContestAccessDenied()
-
-                participation = ContestParticipation.objects.create(
-                    contest=contest, user=profile, virtual=participation_type,
-                    real_start=timezone.now(),
-                )
-            else:
-                if participation.ended:
-                    participation = ContestParticipation.objects.get_or_create(
-                        contest=contest, user=profile, virtual=SPECTATE,
-                        defaults={'real_start': timezone.now()},
-                    )[0]
-
-        profile.current_contest = participation
-        profile.save()
-        contest._updating_stats_only = True
-        contest.update_user_count()
+            join_attempt(self.object.pk, request.profile, selection, request.POST.get('access_code', ''),
+                         member_ids)
+        except ValidationError as exc:
+            return self.choose_participation(' '.join(exc.messages), selection, status=400, picked=picked)
         return HttpResponseRedirect(reverse('problem_list'))
 
-    def ask_for_access_code(self, form=None):
+    def choose_participation(self, error=None, selection='', status=200, picked=None):
+        from judge.models import Profile, Team
         contest = self.object
-        wrong_code = False
-        if form:
-            if form.is_valid():
-                if form.cleaned_data['access_code'] == contest.access_code:
-                    return self.join_contest(self.request, form.cleaned_data['access_code'])
-                wrong_code = True
-        else:
-            form = ContestAccessCodeForm()
-        return render(self.request, 'contest/access_code.html', {
-            'form': form, 'wrong_code': wrong_code,
-            'title': _('Enter access code for "%s"') % contest.name,
-        })
+        resumable = [p for p in contest.users.for_profile(self.request.profile).filter(virtual__gte=0)
+                     .select_related('contest', 'user__user').order_by('-virtual') if not p.ended and not p.is_disqualified]
+        return render(self.request, 'contest/join.html', {
+            'title': _('Entrar al concurso'), 'contest': contest, 'error': error, 'selection': selection,
+            'resumable': resumable, 'can_edit': self.can_edit,
+            'teams': Team.objects.filter(members=self.request.profile, is_active=True).prefetch_related(
+                Prefetch('members', queryset=Profile.objects.select_related('user').order_by('id'))),
+            'picked': picked, 'own_id': self.request.profile.id,
+            'spectator': not contest.ended and (self.is_editor or self.is_tester or
+                                               contest.has_completed_contest(self.request.user)),
+        }, status=status)
 
 
 class ContestLeave(LoginRequiredMixin, ContestMixin, SingleObjectMixin, View):
@@ -783,37 +734,39 @@ def make_contest_ranking_profile(contest, participation, contest_problems, froze
     return ContestRankingProfile(
         id=user.id,
         user=user.user,
-        css_class=user.css_class,
-        username=user.username,
+        css_class='' if participation.team_id else user.css_class,
+        username=('team-%s' % participation.id) if participation.team_id else user.username,
         points=participation.score,
         cumtime=participation.cumtime,
         tiebreaker=participation.tiebreaker,
-        organization=user.organization,
+        organization=None if participation.team_id else user.organization,
         participation_rating=participation.rating.rating if hasattr(participation, 'rating') else None,
         problem_cells=[display_user_problem(contest_problem) for contest_problem in contest_problems],
         result_cell=contest.format.display_participation_result(participation),
         participation=participation,
-        display_name=user.display_name,
+        display_name=participation.display_name,
     )
 
 
 def base_contest_ranking_list(contest, problems, queryset, frozen=False, own_profile_id=None):
-    participations = list(queryset.select_related('user__user', 'rating')
+    participations = list(queryset.select_related('user__user', 'rating', 'team').prefetch_related('team_roster')
                                   .defer('user__about', 'user__organizations__about'))
     pending = None
     if frozen and own_profile_id is not None:
         # Only the reader's own rows get marked. A `?` on somebody else's row announces that that somebody
         # submitted, which is the one thing a frozen scoreboard must not say. Marking only your own rows also
         # shrinks the query to the one or two participations that are yours.
-        mine = [p for p in participations if p.user_id == own_profile_id]
+        mine = [p for p in participations if p.contains_profile(own_profile_id)]
         if mine:
             pending = frozen_pending_map(contest, mine)
     return [make_contest_ranking_profile(contest, participation, problems, frozen=frozen, pending=pending)
             for participation in participations]
 
 
-def contest_ranking_list(contest, problems, frozen=False, own_profile_id=None):
-    queryset = contest.users.filter(virtual=0).prefetch_related('user__organizations')
+def contest_ranking_list(contest, problems, frozen=False, own_profile_id=None, division=None):
+    from judge.contest_teams import in_division
+    division = division or ('team' if contest.participation_mode == Contest.TEAM else 'individual')
+    queryset = in_division(contest.users.filter(virtual=0), division).prefetch_related('user__organizations')
     if frozen:
         # Rank by what the reader is allowed to see. A participation with no frozen copy has not moved since
         # the freeze, so its live fields are also its frozen ones.
@@ -838,6 +791,10 @@ def get_contest_ranking_list(request, contest, participation=None, ranking_list=
     frozen = contest.is_frozen_for(request.user)
     own_profile_id = request.profile.id if request.user.is_authenticated else None
 
+    from judge.contest_teams import ranking_division
+    division = ranking_division(request, contest)
+    if ranking_list is contest_ranking_list:
+        ranking_list = partial(ranking_list, division=division)
     users = ranker(ranking_list(contest, problems, frozen=frozen, own_profile_id=own_profile_id),
                    key=attrgetter('points', 'cumtime', 'tiebreaker'))
 
@@ -846,7 +803,8 @@ def get_contest_ranking_list(request, contest, participation=None, ranking_list=
             participation = request.profile.current_contest
             if participation is None or participation.contest_id != contest.id:
                 participation = None
-        if participation is not None and participation.virtual:
+        if (participation is not None and participation.virtual and
+                bool(participation.team_id) == (division == 'team')):
             pending = frozen_pending_map(contest, [participation]) if frozen else None
             users = chain([('-', make_contest_ranking_profile(contest, participation, problems,
                                                               frozen=frozen, pending=pending))], users)
@@ -861,12 +819,15 @@ def contest_ranking_ajax(request, contest, participation=None):
     if not contest.can_see_full_scoreboard(request.user):
         raise Http404()
 
+    from judge.contest_teams import ranking_division
+    division = ranking_division(request, contest)
     users, problems = get_contest_ranking_list(request, contest, participation)
     return render(request, 'contest/ranking-table.html', {
         'users': users,
         'problems': problems,
         'contest': contest,
-        'has_rating': contest.ratings.exists(),
+        'has_rating': division == 'individual' and contest.ratings.exists(),
+        'ranking_division': division,
         # The ranking page refreshes itself by swapping in this fragment, so it
         # has to carry everything the first render did: without `can_edit` an
         # editor would lose the disqualify controls on the first refresh, and
@@ -911,7 +872,9 @@ class ContestRanking(ContestRankingBase):
 
     def get_ranking_list(self):
         if not self.object.can_see_full_scoreboard(self.request.user):
-            queryset = self.object.users.filter(user=self.request.profile, virtual=ContestParticipation.LIVE)
+            from judge.contest_teams import in_division, ranking_division
+            queryset = in_division(self.object.users.for_profile(self.request.profile),
+                                   ranking_division(self.request, self.object)).filter(virtual=ContestParticipation.LIVE)
             return get_contest_ranking_list(
                 self.request, self.object,
                 ranking_list=partial(base_contest_ranking_list, queryset=queryset),
@@ -922,12 +885,39 @@ class ContestRanking(ContestRankingBase):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['has_rating'] = self.object.ratings.exists()
+        from judge.contest_teams import ranking_division
+        context['ranking_division'] = ranking_division(self.request, self.object)
+        context['has_rating'] = context['ranking_division'] == 'individual' and self.object.ratings.exists()
         context['scoreboard_frozen'] = self.object.is_frozen_for(self.request.user)
         # The jury sees the real board; this is what tells them the public does not, and that nothing lifts the
         # freeze on its own.
         context['scoreboard_awaiting_reveal'] = (self.object.freeze_active and self.object.freeze_started and
                                                  not context['scoreboard_frozen'])
+        return context
+
+
+class ContestTeamParticipation(ContestRankingBase):
+    tab = 'participation'
+
+    @cached_property
+    def entry(self):
+        return get_object_or_404(self.object.users, pk=self.kwargs['participation'], team__isnull=False)
+
+    def get_title(self):
+        return _('%(team)s en %(contest)s') % {'team': self.entry.team_name, 'contest': self.object.name}
+
+    def get_ranking_list(self):
+        own = self.request.user.is_authenticated and self.entry.contains_profile(self.request.profile.pk)
+        if not own and not self.object.can_see_full_scoreboard(self.request.user):
+            raise Http404()
+        return get_contest_ranking_list(self.request, self.object, show_current_virtual=False,
+            ranking_list=partial(base_contest_ranking_list, queryset=self.object.users.filter(pk=self.entry.pk)),
+            ranker=lambda users, key: ((self.entry.virtual or _('Live'), user) for user in users))
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update(has_rating=False, ranking_division='team', rank_header=_('Participation'),
+                       scoreboard_frozen=self.object.is_frozen_for(self.request.user))
         return context
 
 
@@ -945,7 +935,7 @@ class ContestParticipationList(LoginRequiredMixin, ContestRankingBase):
         if not self.object.can_see_full_scoreboard(self.request.user) and self.profile != self.request.profile:
             raise Http404()
 
-        queryset = self.object.users.filter(user=self.profile, virtual__gte=0).order_by('-virtual')
+        queryset = self.object.users.for_profile(self.profile).filter(virtual__gte=0).order_by('-virtual')
         live_link = format_html('<a href="{2}#!{1}">{0}</a>', _('Live'), self.profile.username,
                                 reverse('contest_ranking', args=[self.object.key]))
 

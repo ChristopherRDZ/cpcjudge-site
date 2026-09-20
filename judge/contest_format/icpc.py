@@ -106,8 +106,7 @@ class ICPCContestFormat(DefaultContestFormat):
                 '<td class="{state}"><a href="{url}">{points}{penalty}<div class="solving-time">{time}</div></a></td>',
                 state=(('pretest-' if self.contest.run_pretests_only and contest_problem.is_pretested else '') +
                        self.best_solution_state(format_data['points'], contest_problem.points)),
-                url=reverse('contest_user_submissions',
-                            args=[self.contest.key, participation.user.user.username, contest_problem.problem.code]),
+                url=participation.submissions_url(contest_problem.problem),
                 points=floatformat(format_data['points']),
                 penalty=penalty,
                 time=nice_repr(timedelta(seconds=format_data['time']), 'noday'),

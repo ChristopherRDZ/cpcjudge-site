@@ -226,6 +226,7 @@ class APIContestList(APIListView):
 
     def get_object_data(self, contest):
         return {
+            'participation_mode': contest.participation_mode,
             'key': contest.key,
             'name': contest.name,
             'start_time': contest.start_time.isoformat(),
@@ -332,17 +333,33 @@ class APIContestDetail(APIDetailView):
             ] if can_see_problems else [],
             'rankings': [
                 {
-                    'user': participation.username,
+                    'user': None if participation.team_id else participation.username,
+                    'team': {'id': participation.team_id, 'name': participation.team_name} if participation.team_id else None,
                     'start_time': participation.start.isoformat(),
                     'end_time': participation.end_time.isoformat(),
                     'score': participation.score,
                     'cumulative_time': participation.cumtime,
                     'tiebreaker': participation.tiebreaker,
-                    'old_rating': participation.old_rating,
-                    'new_rating': participation.new_rating,
+                    'old_rating': None if participation.team_id else participation.old_rating,
+                    'new_rating': None if participation.team_id else participation.new_rating,
                     'is_disqualified': participation.is_disqualified,
                     'solutions': contest.format.get_problem_breakdown(participation, problems),
-                } for participation in participations
+                } for participation in participations if not participation.team_id
+            ] if can_see_rankings else [],
+            'team_rankings': [
+                {
+                    'user': None if participation.team_id else participation.username,
+                    'team': {'id': participation.team_id, 'name': participation.team_name} if participation.team_id else None,
+                    'start_time': participation.start.isoformat(),
+                    'end_time': participation.end_time.isoformat(),
+                    'score': participation.score,
+                    'cumulative_time': participation.cumtime,
+                    'tiebreaker': participation.tiebreaker,
+                    'old_rating': None if participation.team_id else participation.old_rating,
+                    'new_rating': None if participation.team_id else participation.new_rating,
+                    'is_disqualified': participation.is_disqualified,
+                    'solutions': contest.format.get_problem_breakdown(participation, problems),
+                } for participation in participations if participation.team_id
             ] if can_see_rankings else [],
         }
 
@@ -351,10 +368,17 @@ class APIContestParticipationList(APIListView):
     model = ContestParticipation
     basic_filters = (
         ('contest', 'contest__key'),
-        ('user', 'user__user__username'),
         ('is_disqualified', 'is_disqualified'),
         ('virtual_participation_number', 'virtual'),
     )
+
+    def filter_queryset(self, queryset):
+        queryset = super().filter_queryset(queryset)
+        if 'user' in self.request.GET:
+            self.used_basic_filters.add('user')
+            profile = Profile.objects.filter(user__username=self.request.GET['user']).first()
+            queryset = queryset.for_profile(profile) if profile else queryset.none()
+        return queryset
 
     def get_unfiltered_queryset(self):
         visible_contests = Contest.get_visible_contests(self.request.user)
@@ -381,6 +405,7 @@ class APIContestParticipationList(APIListView):
             .order_by('id')
             .only(
                 'user__user__username',
+                'team_id', 'team_name',
                 'contest__key',
                 'contest__start_time',
                 'contest__end_time',
@@ -404,7 +429,8 @@ class APIContestParticipationList(APIListView):
         if participation.contest.is_frozen_for(self.request.user):
             participation = FrozenParticipation(participation)
         return {
-            'user': participation.user.username,
+            'user': None if participation.team_id else participation.user.username,
+            'team': {'id': participation.team_id, 'name': participation.team_name} if participation.team_id else None,
             'contest': participation.contest.key,
             'start_time': participation.start.isoformat(),
             'end_time': participation.end_time.isoformat(),
@@ -544,7 +570,7 @@ class APIUserDetail(APIDetailView):
             Submission.objects
             .filter(
                 result='AC',
-                user=profile,
+                user=profile, contest__participation__team__isnull=True,
                 problem__is_public=True,
                 problem__is_organization_private=False,
             )
@@ -554,19 +580,19 @@ class APIUserDetail(APIDetailView):
 
         contest_history = []
         participations = (
-            ContestParticipation.objects
+            ContestParticipation.objects.for_profile(profile)
             .filter(
-                user=profile,
                 virtual=ContestParticipation.LIVE,
                 contest__in=Contest.get_visible_contests(self.request.user),
                 contest__end_time__lt=self._now,
             )
             .order_by('contest__end_time')
         )
-        for contest_key, score, cumtime, rating, mean, performance in participations.values_list(
-            'contest__key', 'score', 'cumtime', 'rating__rating', 'rating__mean', 'rating__performance',
+        for contest_key, score, cumtime, rating, mean, performance, team_id, team_name in participations.values_list(
+            'contest__key', 'score', 'cumtime', 'rating__rating', 'rating__mean', 'rating__performance', 'team_id', 'team_name',
         ):
             contest_history.append({
+                'team': {'id': team_id, 'name': team_name} if team_id else None,
                 'key': contest_key,
                 'score': score,
                 'cumulative_time': cumtime,
@@ -608,11 +634,14 @@ class APISubmissionList(APIListView):
 
     def get_unfiltered_queryset(self):
         queryset = Submission.objects.exclude(problem__code__startswith='ct_')
+        if 'user' in self.request.GET:
+            # A person's public history never identifies which teammate typed a team submission.
+            queryset = queryset.filter(contest__participation__team__isnull=True)
         # Same freeze the submission lists apply; the API is a shortcut to the same rows.
         frozen = Contest.frozen_submission_filter(self.request.user)
         if frozen is not None:
             if self.request.user.is_authenticated:
-                queryset = queryset.exclude(frozen & ~Q(user_id=self.request.profile.id))
+                queryset = queryset.exclude(frozen & ~Submission.ownership_filter(self.request.profile))
             else:
                 queryset = queryset.exclude(frozen)
         use_straight_join(queryset)
@@ -641,6 +670,8 @@ class APISubmissionList(APIListView):
                 'contest_object__key',
                 'contest__points',
                 'contest__participation__virtual',
+                'contest__participation__team_id',
+                'contest__participation__team_name',
                 'contest__participation__real_start',
             )
         )
@@ -649,7 +680,9 @@ class APISubmissionList(APIListView):
         return {
             'id': submission.id,
             'problem': submission.problem.code,
-            'user': submission.user.user.username,
+            'user': None if submission.team_participation else submission.user.user.username,
+            'team': ({'id': submission.team_participation.team_id, 'name': submission.team_participation.team_name,
+                      'participation': submission.team_participation.pk} if submission.team_participation else None),
             'date': submission.date.isoformat(),
             'language': submission.language.key,
             'time': submission.time,
@@ -707,7 +740,9 @@ class APISubmissionDetail(APILoginRequiredMixin, APIDetailView):
         return {
             'id': submission.id,
             'problem': submission.problem.code,
-            'user': submission.user.user.username,
+            'user': None if submission.team_participation else submission.user.user.username,
+            'team': ({'id': submission.team_participation.team_id, 'name': submission.team_participation.team_name,
+                      'participation': submission.team_participation.pk} if submission.team_participation else None),
             'date': submission.date.isoformat(),
             'time': submission.time,
             'memory': submission.memory,

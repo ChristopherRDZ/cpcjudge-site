@@ -628,6 +628,7 @@ class JudgeHandler(ZlibPacketHandler):
             self._submission_cache = data = Submission.objects.filter(id=id).values(
                 'problem__is_public', 'contest_object_id', 'date',
                 'user_id', 'problem_id', 'status', 'language__key',
+                'contest__participation__team_id', 'contest__participation_id',
             ).get()
             self._submission_cache_id = id
 
@@ -639,7 +640,9 @@ class JudgeHandler(ZlibPacketHandler):
                 'type': 'done-submission' if done else 'update-submission',
                 'state': state, 'id': id,
                 'contest': data['contest_object_id'],
-                'user': data['user_id'], 'problem': data['problem_id'],
+                'user': None if data['contest__participation__team_id'] else data['user_id'],
+                'participation': data['contest__participation_id'] if data['contest__participation__team_id'] else None,
+                'problem': data['problem_id'],
                 'status': data['status'], 'language': data['language__key'],
             })
 

@@ -26,7 +26,9 @@
             </div>
         {% endif %}
         <div>
-            {{ link_user(submission.user) }}
+            {% if submission.team_participation %}
+                <a href="{{ submission.owner_url }}">{{ submission.owner_name }}</a>
+            {% else %}{{ link_user(submission.user) }}{% endif %}
             <br class="xs-br">
             <span class="time">{{ relative_time(submission.date) }}</span>
             {% if not request.in_contest and submission.contest_object_id %}

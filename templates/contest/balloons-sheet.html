@@ -7,12 +7,12 @@
 
 {% macro who(balloon) -%}
     {% set profile = balloon.profile %}
-    <span class="balloon-user">{{ profile.display_name }}</span>
-    {% if profile.display_name != profile.username %}<span class="balloon-username">{{ profile.username }}</span>{% endif %}
+    <span class="balloon-user">{{ balloon.participation.display_name }}</span>
+    {% if not balloon.participation.team_id and profile.display_name != profile.username %}<span class="balloon-username">{{ profile.username }}</span>{% endif %}
 {%- endmacro %}
 
 {% macro location(balloon) -%}
-    {% set place = sheet.locations.get(balloon.profile.id) %}
+    {% set place = sheet.team_locations.get(balloon.participation.team_id) if balloon.participation.team_id else sheet.locations.get(balloon.profile.id) %}
     {% if place %}<span class="balloon-location"><i class="fa fa-map-marker"></i> {{ place }}</span>{% endif %}
 {%- endmacro %}
 
@@ -132,7 +132,7 @@
                         <td>{{ entry.action.time|date('H:i:s') }}</td>
                         <td>{{ entry.action.get_action_display() }}</td>
                         <td>{{ swatch(entry.problem, entry.label) }}</td>
-                        <td>{{ entry.profile.username }}</td>
+                        <td>{{ entry.action.participation.display_name }}</td>
                         <td>{{ entry.action.user.username if entry.action.user else '?' }}</td>
                     </tr>
                 {% endfor %}

@@ -150,7 +150,7 @@
                 // A little past the end, so the last verdicts still land.
                 var STOP_AFTER = {{ (contest.end_time.timestamp() * 1000)|int }} + 300000;
 
-                var url = '{{ url('contest_ranking_ajax', contest.key) }}';
+                var url = '{{ url('contest_ranking_ajax', contest.key) }}?division={{ ranking_division }}';
                 var timer = null;
                 var fetching = false;
                 var failures = 0;
@@ -218,6 +218,13 @@
 {% endblock %}
 
 {% block before_users_table %}
+    {% if tab == 'ranking' and contest.participation_mode == 'mixed' %}
+        <div class="contest-divisions" role="navigation" aria-label="{{ _('Rankings del concurso') }}" style="margin: 0 0 1em; display: flex; gap: 1em; flex-wrap: wrap">
+            <a href="{{ url('contest_ranking', contest.key) }}?division=individual" {% if ranking_division == 'individual' %}aria-current="page" style="font-weight: bold; text-decoration: underline"{% endif %}>{{ _('Individuales') }}</a>
+            <a href="{{ url('contest_ranking', contest.key) }}?division=team" {% if ranking_division == 'team' %}aria-current="page" style="font-weight: bold; text-decoration: underline"{% endif %}>{{ _('Equipos') }}</a>
+        </div>
+    {% endif %}
+    {% if can_edit and tab == 'ranking' %}<p><a href="{{ url('contest_reveal', contest.key) }}?division={{ ranking_division }}">{{ _('Reveal scoreboard') }}</a></p>{% endif %}
     {% if scoreboard_frozen %}
         <div class="scoreboard-freeze-note">
             {{ _('The scoreboard is frozen: it shows the standings as they were %(minutes)d minutes before the '
@@ -237,8 +244,8 @@
                 <input id="search-contest" type="text" placeholder="{{ _('View user participation') }}">
             {% endif %}
         {% endif %}
-        <input id="show-organizations-checkbox" type="checkbox" style="vertical-align: bottom">
-        <label for="show-organizations-checkbox" style="vertical-align: bottom">{{ _('Show organizations') }}</label>
+        {% if ranking_division != 'team' %}<input id="show-organizations-checkbox" type="checkbox" style="vertical-align: bottom">
+        <label for="show-organizations-checkbox" style="vertical-align: bottom">{{ _('Show organizations') }}</label>{% endif %}
     </div>
 {% endblock %}
 

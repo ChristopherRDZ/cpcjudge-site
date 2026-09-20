@@ -108,8 +108,7 @@ class ECOOContestFormat(DefaultContestFormat):
                 '<td class="{state}"><a href="{url}">{points}{bonus}<div class="solving-time">{time}</div></a></td>',
                 state=(('pretest-' if self.contest.run_pretests_only and contest_problem.is_pretested else '') +
                        self.best_solution_state(format_data['points'], contest_problem.points)),
-                url=reverse('contest_user_submissions',
-                            args=[self.contest.key, participation.user.user.username, contest_problem.problem.code]),
+                url=participation.submissions_url(contest_problem.problem),
                 points=floatformat(format_data['points']),
                 bonus=bonus,
                 time=nice_repr(timedelta(seconds=format_data['time']), 'noday'),
@@ -120,8 +119,7 @@ class ECOOContestFormat(DefaultContestFormat):
     def display_participation_result(self, participation):
         return format_html(
             '<td class="user-points"><a href="{url}">{points}<div class="solving-time">{cumtime}</div></a></td>',
-            url=reverse('contest_all_user_submissions',
-                        args=[self.contest.key, participation.user.user.username]),
+            url=participation.submissions_url(),
             points=floatformat(participation.score, -self.contest.points_precision),
             cumtime=nice_repr(timedelta(seconds=participation.cumtime), 'noday') if self.config['cumtime'] else '',
         )

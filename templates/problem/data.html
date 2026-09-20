@@ -5,6 +5,255 @@
     <script type="text/javascript" src="{{ static('libs/featherlight/featherlight.min.js') }}"></script>
     <script type="text/javascript">
         window.valid_files = {{ valid_files_json }};
+        window.autofill_max_rows = {{ max_case_rows_json|default('null', true) }};
+
+        /* ==== testcase-autofill:begin ====
+           Pairs the files of the uploaded zip into test cases and groups them
+           into batches. Pure logic: no jQuery, no DOM, no translations, so the
+           offline test runner can lift this block out and exercise it alone.
+           Everything is inline on purpose: no file under resources/, so no
+           collectstatic, no hashed copy and no compression manifest to rebuild.
+           It also sits outside every compress block of base.html. */
+        window.DMOJTestcaseAutofill = (function () {
+            'use strict';
+
+            var SENTINEL = '\u0001';
+
+            // Ordered from most to least specific. The first entry that matches
+            // a path decides whether it is an input or an output; every entry
+            // that matches is then blanked out of the path to build the pairing
+            // key, so that input/1.in and output/1.out collapse to the same key.
+            var MARKERS = [
+                {role: 'in', ext: true, re: /\.(?:in|inp|input)$/i},
+                {role: 'out', ext: true, re: /\.(?:out|ans|output|exp|expected|sol)$/i},
+                {role: 'in', ext: false, re: /(^|[\/_.\-])inputs?(?=[\/_.\-]|\d|$)/i},
+                {role: 'out', ext: false, re: /(^|[\/_.\-])(?:outputs?|answers?|ans)(?=[\/_.\-]|\d|$)/i},
+                {role: 'in', ext: false, re: /(^|[\/_.\-])in(?=[\/_.\-]|\d|$)/i},
+                {role: 'out', ext: false, re: /(^|[\/_.\-])out(?=[\/_.\-]|\d|$)/i}
+            ];
+
+            function classify(path) {
+                var role = null, key = path, i;
+                for (i = 0; i < MARKERS.length; i++) {
+                    if (!MARKERS[i].re.test(key))
+                        continue;
+                    if (role === null)
+                        role = MARKERS[i].role;
+                    key = key.replace(MARKERS[i].re, MARKERS[i].ext ? '' : '$1' + SENTINEL);
+                }
+                return role === null ? null : {role: role, key: key.toLowerCase()};
+            }
+
+            // Splits a string into runs of digits and runs of everything else so
+            // that caso2 sorts before caso10 instead of after it.
+            function chunks(text) {
+                var out = [];
+                text.replace(/(\d+)|(\D+)/g, function (all, digits, other) {
+                    out.push(digits === undefined ? [null, other] : [parseInt(digits, 10), '']);
+                    return '';
+                });
+                return out;
+            }
+
+            function natural_compare(a, b) {
+                var ac = chunks(a), bc = chunks(b), n = Math.min(ac.length, bc.length), i, x, y;
+                for (i = 0; i < n; i++) {
+                    x = ac[i];
+                    y = bc[i];
+                    if ((x[0] === null) !== (y[0] === null))
+                        return x[0] === null ? 1 : -1;
+                    if (x[0] !== null) {
+                        if (x[0] !== y[0])
+                            return x[0] - y[0];
+                    } else if (x[1] !== y[1]) {
+                        return x[1] < y[1] ? -1 : 1;
+                    }
+                }
+                return ac.length - bc.length;
+            }
+
+            function pair_files(files) {
+                var buckets = Object.create(null), seen = [], ignored = [], unpaired = [];
+                var pairs = [], i, path, info, bucket;
+
+                for (i = 0; i < files.length; i++) {
+                    path = files[i];
+                    if (!path || /[\/\\]$/.test(path))  // directory entry inside the zip
+                        continue;
+                    info = classify(path);
+                    if (info === null) {
+                        ignored.push(path);
+                        continue;
+                    }
+                    if (!(info.key in buckets)) {
+                        buckets[info.key] = {key: info.key, 'in': [], out: []};
+                        seen.push(info.key);
+                    }
+                    buckets[info.key][info.role].push(path);
+                }
+
+                for (i = 0; i < seen.length; i++) {
+                    bucket = buckets[seen[i]];
+                    bucket['in'].sort();
+                    bucket.out.sort();
+                    if (!bucket['in'].length || !bucket.out.length) {
+                        unpaired = unpaired.concat(bucket['in'], bucket.out);
+                        continue;
+                    }
+                    pairs.push({key: bucket.key, input: bucket['in'][0], output: bucket.out[0]});
+                    // A key can only name one case; anything else under it is a leftover.
+                    unpaired = unpaired.concat(bucket['in'].slice(1), bucket.out.slice(1));
+                }
+
+                pairs.sort(function (a, b) {
+                    return natural_compare(a.key, b.key);
+                });
+                unpaired.sort(natural_compare);
+                ignored.sort(natural_compare);
+                return {pairs: pairs, unpaired: unpaired, ignored: ignored};
+            }
+
+            function structure(key) {
+                var slash = key.lastIndexOf('/');
+                var base = slash < 0 ? key : key.slice(slash + 1);
+                var digits = base.match(/\d+/g) || [];
+                return {
+                    dir: slash < 0 ? '' : key.slice(0, slash),
+                    numbers: digits.map(function (text) {
+                        return parseInt(text, 10);
+                    })
+                };
+            }
+
+            // Returns the batches for a naming convention, or null when even a
+            // single file fails to follow it. Grouping order follows the already
+            // naturally sorted pairs, so batch 2 cannot land before batch 1.
+            function group_pairs(pairs, mode) {
+                var name_of, buckets = Object.create(null), seen = [], i, name;
+
+                if (mode === 'number') {
+                    name_of = function (pair) {
+                        return pair.st.numbers.length >= 2 ? String(pair.st.numbers[0]) : null;
+                    };
+                } else if (mode === 'folder') {
+                    name_of = function (pair) {
+                        return pair.st.dir || null;
+                    };
+                } else {
+                    return null;
+                }
+
+                for (i = 0; i < pairs.length; i++) {
+                    name = name_of(pairs[i]);
+                    if (name === null)
+                        return null;
+                    if (!(name in buckets)) {
+                        buckets[name] = [];
+                        seen.push(name);
+                    }
+                    buckets[name].push(pairs[i]);
+                }
+
+                return seen.map(function (key) {
+                    return {name: key, pairs: buckets[key]};
+                });
+            }
+
+            // Two batches of one case each is just a flat list wearing a hat, so
+            // auto-detection insists on a grouping that actually groups.
+            function worth_batching(groups) {
+                if (groups === null || groups.length < 2)
+                    return null;
+                for (var i = 0; i < groups.length; i++)
+                    if (groups[i].pairs.length >= 2)
+                        return groups;
+                return null;
+            }
+
+            // Points are an integer column, so a total is split as evenly as it
+            // can be and the remainder lands on the first units.
+            function allocate_points(value, mode, units) {
+                var out = [], total, base, rest, i;
+
+                if (value === null || value === undefined || String(value).trim() === '' ||
+                        isNaN(Number(value)) || units <= 0) {
+                    for (i = 0; i < units; i++)
+                        out.push(null);
+                    return out;
+                }
+
+                total = Math.round(Number(value));
+                if (mode === 'each') {
+                    for (i = 0; i < units; i++)
+                        out.push(total);
+                    return out;
+                }
+
+                base = Math.floor(total / units);
+                rest = total - base * units;
+                for (i = 0; i < units; i++)
+                    out.push(base + (i < rest ? 1 : 0));
+                return out;
+            }
+
+            function detect(files, options) {
+                options = options || {};
+                var found = pair_files(files || []);
+                var pairs = found.pairs;
+                var requested = options.batchMode || 'auto';
+                var groups = null, mode = 'flat', points, rows = [];
+
+                pairs.forEach(function (pair) {
+                    pair.st = structure(pair.key);
+                });
+
+                if (requested === 'auto') {
+                    groups = worth_batching(group_pairs(pairs, 'number'));
+                    if (groups !== null) {
+                        mode = 'number';
+                    } else {
+                        groups = worth_batching(group_pairs(pairs, 'folder'));
+                        if (groups !== null)
+                            mode = 'folder';
+                    }
+                } else if (requested !== 'none') {
+                    groups = group_pairs(pairs, requested);
+                    if (groups !== null)
+                        mode = requested;
+                }
+
+                points = allocate_points(options.points, options.pointsMode,
+                                         groups === null ? pairs.length : groups.length);
+
+                if (groups === null) {
+                    pairs.forEach(function (pair, index) {
+                        rows.push({type: 'C', input: pair.input, output: pair.output, points: points[index]});
+                    });
+                } else {
+                    groups.forEach(function (group, index) {
+                        rows.push({type: 'S', points: points[index], name: group.name});
+                        group.pairs.forEach(function (pair) {
+                            rows.push({type: 'C', input: pair.input, output: pair.output, points: null});
+                        });
+                        rows.push({type: 'E', points: null});
+                    });
+                }
+
+                return {
+                    mode: mode,
+                    requested: requested,
+                    rows: rows,
+                    cases: pairs.length,
+                    batches: groups === null ? 0 : groups.length,
+                    unpaired: found.unpaired,
+                    ignored: found.ignored
+                };
+            }
+
+            return {detect: detect, natural_compare: natural_compare, classify: classify};
+        })();
+        /* ==== testcase-autofill:end ==== */
+
         $(function () {
             function autofill_if_exists($select, file) {
                 if (!$select.val() && ~window.valid_files.indexOf(file))
@@ -41,6 +290,8 @@
             function handle_table_reorder() {
                 var in_batch = false;
                 $table.find('tbody:first tr').each(function () {
+                    if ($(this).is(':hidden'))  // retired by autofill, on its way out
+                        return;
                     switch ($(this).attr('data-type')) {
                         case 'C':
                             $(this).find('input[id$=points], input[id$=pretest]').toggle(!in_batch);
@@ -186,13 +437,18 @@
 
             var $total = $('#id_cases-TOTAL_FORMS');
 
-            $('a#add-case-row').click(function () {
+            function add_case_row() {
                 var $tr;
                 $table.find('tbody:first').append($tr = $($table.find('.extra-row-body').html()
                     .replace(/__prefix__/g, $total.val())));
                 $tr.find('.type-column select option[value="C"]').attr('selected', true);
                 $total.val(parseInt($total.val()) + 1);
                 $table.trigger('add-row', [$tr]);
+                return $tr;
+            }
+
+            $('a#add-case-row').click(function () {
+                var $tr = add_case_row();
                 window.scrollBy(0, $tr.height());
                 return false;
             });
@@ -248,6 +504,181 @@
                 }
                 $this.prop('checked', filled).trigger('change');
             });
+
+            // ---- Fill the case table from the uploaded zip ----
+
+            var AUTOFILL_TEXT = {
+                flat: {{ _('Detected {cases} test cases.')|htmltojs }},
+                batched: {{ _('Detected {cases} test cases in {batches} batches.')|htmltojs }},
+                unpaired: {{ _('{count} file(s) had no matching pair and were left out: {files}')|htmltojs }},
+                ignored: {{ _('{count} file(s) are not test data and were left out: {files}')|htmltojs }},
+                fallback: {{ _('These file names do not follow the batch convention you chose, so the cases were left unbatched.')|htmltojs }},
+                nothing: {{ _('No input/output pairs were found in the zip file.')|htmltojs }},
+                nofiles: {{ _('Upload a zip file and press Submit first, so that its file list becomes available.')|htmltojs }},
+                replace: {{ _('This replaces the {count} case(s) already in the table. Continue?')|htmltojs }},
+                toomany: {{ _('This zip file needs {rows} rows, but only {max} fit in one submission. Split the data set, or raise the limits, starting with DATA_UPLOAD_MAX_NUMBER_FIELDS.')|htmltojs }},
+                auto: {{ _('Filled in from the zip file automatically. Check the points, then press Submit.')|htmltojs }}
+            };
+
+            var $report = $('#autofill-report');
+
+            // Deliberately not gettext interpolation: these run through the
+            // catalogue untouched and are only filled in here, in the browser.
+            function fill_text(template, values) {
+                return template.replace(/\{(\w+)\}/g, function (all, name) {
+                    return Object.prototype.hasOwnProperty.call(values, name) ? values[name] : all;
+                });
+            }
+
+            function file_list(files) {
+                return files.length > 6 ? files.slice(0, 6).join(', ') + ', ...' : files.join(', ');
+            }
+
+            function report(messages) {
+                $report.empty();
+                messages.forEach(function (entry) {
+                    $('<div>', {'class': entry.warning ? 'autofill-note autofill-warning' : 'autofill-note'})
+                        .text(entry.text).appendTo($report);
+                });
+            }
+
+            function summarize(result) {
+                var messages = [result.batches ? {
+                    text: fill_text(AUTOFILL_TEXT.batched, {cases: result.cases, batches: result.batches}),
+                } : {
+                    text: fill_text(AUTOFILL_TEXT.flat, {cases: result.cases}),
+                }];
+                if (result.mode === 'flat' && result.requested !== 'auto' && result.requested !== 'none')
+                    messages.push({text: AUTOFILL_TEXT.fallback, warning: true});
+                // Better a plain warning here than a bare 400 on Submit. A null or
+                // missing ceiling means the server did not state one.
+                if (window.autofill_max_rows && result.rows.length > window.autofill_max_rows)
+                    messages.push({
+                        warning: true,
+                        text: fill_text(AUTOFILL_TEXT.toomany,
+                                        {rows: result.rows.length, max: window.autofill_max_rows}),
+                    });
+                if (result.unpaired.length)
+                    messages.push({
+                        warning: true,
+                        text: fill_text(AUTOFILL_TEXT.unpaired,
+                                        {count: result.unpaired.length, files: file_list(result.unpaired)}),
+                    });
+                if (result.ignored.length)
+                    messages.push({
+                        text: fill_text(AUTOFILL_TEXT.ignored,
+                                        {count: result.ignored.length, files: file_list(result.ignored)}),
+                    });
+                return messages;
+            }
+
+            // A row counts as real if it is already saved or if someone picked a
+            // file for it; the blank spare row the formset always renders does not.
+            function live_rows() {
+                var count = 0;
+                $table.find('tbody:first').find('tr').each(function () {
+                    var $tr = $(this), $id = $tr.find('input[id$="-id"]');
+                    if (($id.length && $id.val()) || $tr.find('select[id$=input_file]').val() ||
+                            $tr.find('select[id$=output_file]').val())
+                        count++;
+                });
+                return count;
+            }
+
+            function retire_rows() {
+                $table.find('tbody:first').find('tr').each(function () {
+                    var $tr = $(this), $id = $tr.find('input[id$="-id"]');
+                    if ($id.length && $id.val()) {
+                        // Already in the database: hand it to the delete column.
+                        $tr.find('input[id$="DELETE"]').prop('checked', true);
+                    } else {
+                        // Unsaved spare row: blank every field, the order among
+                        // them, so the formset sees an untouched extra form and
+                        // skips it. The type select keeps its value on purpose,
+                        // since changing it away from the initial would make the
+                        // form look edited and then fail validation.
+                        $tr.find('input[type=text], input[type=number], input[type=hidden]')
+                            .not('[id$="-id"]').val('');
+                        $tr.find('select[id$=input_file], select[id$=output_file]').val('').trigger('change');
+                        $tr.find('input[type=checkbox]').prop('checked', false);
+                    }
+                    // Nothing leaves the DOM: Django needs the form indices of
+                    // the management form to stay contiguous.
+                    $tr.hide();
+                });
+            }
+
+            function fill_row($tr, row) {
+                var $type = $tr.find('select[id$=type]');
+                if ($type.val() !== row.type)
+                    $type.val(row.type).trigger('change');
+                if (row.type === 'C') {
+                    // Output first: setting the input runs the pair guesser, and
+                    // that one only writes into an output that is still empty.
+                    $tr.find('select[id$=output_file]').val(row.output).trigger('change');
+                    $tr.find('select[id$=input_file]').val(row.input).trigger('change');
+                }
+                $tr.find('input[id$=points]').val(row.points === null ? '' : row.points);
+            }
+
+            function renumber_rows() {
+                var position = 0;
+                $table.find('tbody:first').find('tr').each(function () {
+                    var $tr = $(this), $order = $tr.find('input[id$=order]');
+                    if (!$order.length || $tr.is(':hidden'))
+                        return;
+                    $order.val(++position).siblings('span.order').text(position);
+                });
+                order = position;  // so that Add new case carries on from here
+            }
+
+            function run_autofill(interactive) {
+                var files = window.valid_files || [];
+                if (!files.length) {
+                    if (interactive)
+                        report([{text: AUTOFILL_TEXT.nofiles, warning: true}]);
+                    return;
+                }
+
+                var result = window.DMOJTestcaseAutofill.detect(files, {
+                    batchMode: $('#autofill-batches').val(),
+                    points: $('#autofill-points').val(),
+                    pointsMode: $('#autofill-points-mode').val(),
+                });
+
+                if (!result.rows.length) {
+                    if (interactive)
+                        report([{text: AUTOFILL_TEXT.nothing, warning: true}]);
+                    return;
+                }
+
+                var existing = live_rows();
+                if (interactive && existing &&
+                        !window.confirm(fill_text(AUTOFILL_TEXT.replace, {count: existing})))
+                    return;
+
+                retire_rows();
+                result.rows.forEach(function (row) {
+                    fill_row(add_case_row(), row);
+                });
+                renumber_rows();
+                handle_table_reorder();
+
+                var messages = summarize(result);
+                if (!interactive)
+                    messages.push({text: AUTOFILL_TEXT.auto});
+                report(messages);
+            }
+
+            $('a#autofill-cases').click(function () {
+                run_autofill(true);
+                return false;
+            });
+
+            // A zip that was just uploaded lands on an empty table, which is the
+            // whole point of this, so do it there without being asked.
+            if (!live_rows() && (window.valid_files || []).length)
+                run_autofill(false);
         });
     </script>
 {% endblock %}
@@ -329,6 +760,32 @@
             width: 8em;
         }
 
+        #autofill-controls {
+            margin-top: 0.6em;
+        }
+
+        #autofill-controls label {
+            margin-left: 0.6em;
+        }
+
+        #autofill-controls #autofill-points {
+            width: 4.5em;
+        }
+
+        a#autofill-cases {
+            display: inline-block;
+            margin-left: 0.2em;
+        }
+
+        #autofill-report .autofill-note {
+            margin-top: 0.4em;
+        }
+
+        #autofill-report .autofill-warning {
+            color: #d9534f;
+            font-weight: bold;
+        }
+
         ul.errorlist {
             border: 3px red solid;
             border-radius: 5px;
@@ -380,6 +837,32 @@
                 {{ _('Batch dependencies') }}
             </label>
         </div>
+        <div id="autofill-controls">
+            <strong>{{ _('From the zip file:') }}</strong>
+            <a id="autofill-cases" href="#" class="button inline-button">
+                <i class="fa fa-magic"></i> {{ _('Detect test cases') }}
+            </a>
+            <label>
+                {{ _('Points') }}
+                <input type="number" id="autofill-points" value="100" min="0" step="1">
+            </label>
+            <label>
+                <select id="autofill-points-mode">
+                    <option value="total" selected>{{ _('in total') }}</option>
+                    <option value="each">{{ _('to each one') }}</option>
+                </select>
+            </label>
+            <label>
+                {{ _('Batches') }}
+                <select id="autofill-batches">
+                    <option value="auto" selected>{{ _('detect') }}</option>
+                    <option value="number">{{ _('by number (1-1, 1-2)') }}</option>
+                    <option value="folder">{{ _('by folder') }}</option>
+                    <option value="none">{{ _('none') }}</option>
+                </select>
+            </label>
+        </div>
+        <div id="autofill-report"></div>
         <table id="case-table" class="table">
             <thead>
             <tr>

@@ -150,6 +150,40 @@ class Submission(models.Model):
         cutoff = contest.submission_freeze_cutoff
         return cutoff is not None and self.date >= cutoff
 
+    @cached_property
+    def team_participation(self):
+        if self.contest_object_id and self.contest_object.participation_mode != 'individual':
+            try:
+                participation = self.contest.participation
+            except ObjectDoesNotExist:
+                return None
+            if participation.team_id:
+                return participation
+        return None
+
+    @property
+    def owner_name(self):
+        return self.team_participation.team_name if self.team_participation else self.user.display_name
+
+    @property
+    def owner_url(self):
+        return self.team_participation.submissions_url() if self.team_participation else self.user.get_absolute_url()
+
+    def is_owned_by(self, user):
+        if not user.is_authenticated:
+            return False
+        if self.team_participation:
+            return self.team_participation.contains_profile(user.profile.id)
+        return self.user_id == user.profile.id
+
+    @staticmethod
+    def ownership_filter(profile):
+        from django.db.models import Q
+        if profile is None:
+            return Q(pk__in=[])
+        return (Q(user=profile, contest__participation__team__isnull=True) |
+                Q(contest__participation_id__in=profile.team_contest_entries.values('participation_id')))
+
     def is_hidden_by_freeze(self, user):
         """Whether a frozen scoreboard has to hide this submission from this user too.
 
@@ -159,7 +193,7 @@ class Submission(models.Model):
         """
         if not self.in_frozen_window:
             return False
-        if user.is_authenticated and self.user_id == user.profile.id:
+        if self.is_owned_by(user):
             return False
         return not self.contest_object.is_editable_by(user)
 
@@ -177,7 +211,7 @@ class Submission(models.Model):
             return True
         elif user.has_perm('judge.view_all_submission'):
             return True
-        elif self.user_id == profile.id:
+        elif self.is_owned_by(user):
             return True
         elif source_visibility == SubmissionSourceAccess.ALWAYS:
             return True

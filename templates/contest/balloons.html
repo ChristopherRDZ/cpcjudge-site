@@ -34,12 +34,11 @@
             --balloon-warning: #ffaaa1;
         }
         {% endmacro %}
-        {% if perms.judge.test_site %}
-            {% if PREFERRED_STYLE_CSS == DARK_STYLE_CSS %}
-                {{ dark_palette() }}
-            {% elif PREFERRED_STYLE_CSS is none %}
-                @media (prefers-color-scheme: dark) { {{ dark_palette() }} }
-            {% endif %}
+        {# El tema oscuro ya no depende de judge.test_site. #}
+        {% if PREFERRED_STYLE_CSS == DARK_STYLE_CSS %}
+            {{ dark_palette() }}
+        {% elif PREFERRED_STYLE_CSS is none %}
+            @media (prefers-color-scheme: dark) { {{ dark_palette() }} }
         {% endif %}
         .balloon-note {
             color: var(--balloon-text);
@@ -473,12 +472,12 @@
                         {% for row in location_rows %}
                             <tr>
                                 <th scope="row">
-                                    <label for="location-{{ row.profile.id }}" class="balloon-user">{{ row.profile.display_name }}</label>
-                                    {% if row.profile.display_name != row.profile.username %}
+                                    <label for="location-{{ row.key }}" class="balloon-user">{{ row.name }}</label>
+                                    {% if row.profile and row.profile.display_name != row.profile.username %}
                                         <span class="balloon-username">{{ row.profile.username }}</span>
                                     {% endif %}
                                 </th>
-                                <td><input type="text" id="location-{{ row.profile.id }}" name="location_{{ row.profile.id }}"
+                                <td><input type="text" id="location-{{ row.key }}" name="location_{{ row.key }}"
                                            value="{{ row.location }}" maxlength="{{ max_location }}" autocomplete="off"
                                            placeholder="{{ _('Room, row, seat…') }}"></td>
                             </tr>

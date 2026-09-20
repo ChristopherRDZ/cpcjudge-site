@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% block body %}
+{% include 'team/style.html' %}
+<div class="teams-layout">
+    <p><a href="{{ contest.get_absolute_url() }}">{{ contest.name }}</a> · {{ contest.get_participation_mode_display() }}</p>
+    {% if error %}<div class="team-error" role="alert">{{ error }}</div>{% endif %}
+    <form method="post" class="team-card" id="contest-join-form">{% csrf_token %}
+        {# Marca el formulario que sí trae casillas de integrantes: los botones «Entrar al
+           concurso» de otras páginas no las traen, y para ellos sigue valiendo el equipo entero. #}
+        <input type="hidden" name="roster" value="1">
+        <h3>{{ _('Elige cómo participar') }}</h3>
+        {% for entry in resumable %}
+            <label><input type="radio" name="selection" value="entry:{{ entry.pk }}" required {% if loop.first %}checked{% endif %}>
+                {{ _('Continuar participación') }}: {{ entry.display_name }}{% if entry.virtual > 0 %} · {{ _('Virtual') }} #{{ entry.virtual }}{% endif %}
+            </label>
+        {% endfor %}
+        {% if resumable %}<p>{{ _('Ya tienes una participación activa. Continuar conserva el equipo, los integrantes y el tiempo original.') }}</p>{% endif %}
+        {% if not resumable and not spectator %}
+        {% if contest.participation_mode != 'team' %}
+            <label><input type="radio" name="selection" value="individual" required {% if selection == 'individual' %}checked{% endif %}>
+                {{ _('Individual') }} · {{ request.profile.username }}
+            </label>
+        {% endif %}
+        {% if contest.participation_mode != 'individual' %}
+            {% for team in teams %}
+                {% set members = team.members.all() %}
+                {# Tras un error sólo se recuerda la selección del equipo que se envió;
+                   los demás equipos vuelven a aparecer con todos marcados. #}
+                {% set remembered = picked is not none and selection == 'team:' ~ team.pk %}
+                <label><input type="radio" name="selection" value="team:{{ team.pk }}" required {% if selection == 'team:' ~ team.pk %}checked{% endif %}>
+                    {{ team.name }} ({{ members|length }})
+                </label>
+                <div class="team-pick" data-team="{{ team.pk }}">
+                    <p class="team-label">{{ _('¿Quiénes participan?') }}</p>
+                    <ul class="team-roster">
+                        {% for member in members %}
+                            {% set value = team.pk ~ ':' ~ member.id %}
+                            <li>
+                                {% if member.id == own_id %}
+                                    {# Quien inscribe siempre entra: la participación se abre en su sesión. #}
+                                    <input type="hidden" name="members" value="{{ value }}">
+                                    <label><input type="checkbox" checked disabled>
+                                        <span class="team-roster-name">{{ member.username }}</span>
+                                        <span class="team-badge">{{ _('Tú') }}</span>
+                                    </label>
+                                {% else %}
+                                    <label><input type="checkbox" name="members" value="{{ value }}"
+                                                  {% if not remembered or value in picked %}checked{% endif %}>
+                                        <span class="team-roster-name">{{ member.username }}</span>
+                                        {% if member.id == team.owner_id %}<span class="team-badge team-badge-owner">{{ _('Propietario') }}</span>{% endif %}
+                                    </label>
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                    <p class="team-note">{{ _('Quien no marques se queda fuera de esta participación. No necesita entrar por su cuenta ni escribir el código: al inscribir el equipo queda dentro.') }}</p>
+                </div>
+            {% else %}<p>{{ _('No tienes equipos activos.') }} <a href="{{ url('my_teams') }}">{{ _('Crear equipo o revisar invitaciones') }}</a></p>{% endfor %}
+            <p class="team-note">{{ _('Integrantes por equipo: %(minimum)s a %(maximum)s.', minimum=contest.team_min_size, maximum=contest.team_max_size) }}</p>
+            <p>{{ _('Todos los integrantes compartirán puntaje y tiempo. La lista del equipo queda fijada al comenzar esta participación.') }}</p>
+            {% if contest.is_rated %}<p>{{ _('Sólo las participaciones individuales cuentan para la calificación del sitio.') }}</p>{% endif %}
+        {% endif %}
+        {% endif %}
+        {% if spectator %}
+            <label><input type="radio" name="selection" value="spectate" checked>{{ _('Spectate') }}</label>
+        {% endif %}
+        {% if contest.access_code and not can_edit %}
+            <label for="contest-access-code">{{ _('Access code') }}</label>
+            <input type="password" id="contest-access-code" name="access_code" maxlength="255" autocomplete="off">
+            <p class="team-note">{{ _('Basta con que lo escriba quien inscribe. Los demás integrantes entran con esa misma inscripción.') }}</p>
+        {% endif %}
+        <div class="team-actions"><button type="submit">{{ _('Continuar') }}</button></div>
+    </form>
+</div>
+{% endblock %}
+
+{% block js_media %}
+{# Mejora progresiva: sin JavaScript se ven todas las listas y el servidor se queda
+   con las casillas del equipo elegido, así que el formulario funciona igual.
+   `js_media` se pinta en el <head>, de ahí la espera al cuerpo. #}
+<script type="text/javascript">
+    document.addEventListener('DOMContentLoaded', function () {
+        var form = document.getElementById('contest-join-form');
+        if (!form) return;
+        var picks = form.querySelectorAll('.team-pick');
+        if (!picks.length) return;
+
+        function refresh() {
+            var chosen = form.querySelector('input[name=selection]:checked');
+            var team = chosen && chosen.value.indexOf('team:') === 0 ? chosen.value.slice(5) : null;
+            for (var i = 0; i < picks.length; i++)
+                picks[i].hidden = picks[i].getAttribute('data-team') !== team;
+        }
+
+        var radios = form.querySelectorAll('input[name=selection]');
+        for (var i = 0; i < radios.length; i++)
+            radios[i].addEventListener('change', refresh);
+        refresh();
+    });
+</script>
+{% endblock %}

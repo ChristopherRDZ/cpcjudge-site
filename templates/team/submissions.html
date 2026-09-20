@@ -1,0 +1,31 @@
+{% extends 'submission/list.html' %}
+{% block js_media %}
+{{ super() }}
+<script type="application/json" id="team-results">{{ results_json }}</script>
+{% if page_obj.number == 1 %}
+<script>
+$(function () {
+    var running = false;
+    function refreshTeamSubmissions() {
+        if (document.hidden || running) return;
+        running = true;
+        fetch(window.location.href, {credentials: 'same-origin', cache: 'no-store'})
+            .then(function (response) { if (!response.ok) throw new Error('refresh'); return response.text(); })
+            .then(function (html) {
+                var page = new DOMParser().parseFromString(html, 'text/html');
+                var updated = page.getElementById('submissions-table');
+                var current = document.getElementById('submissions-table');
+                if (updated && current) {
+                    current.innerHTML = updated.innerHTML;
+                    register_time($(current).find('.time-with-rel'));
+                }
+                var results = page.getElementById('team-results');
+                if (results) stats_graph(JSON.parse(results.textContent));
+            }).catch(function () {}).finally(function () { running = false; });
+    }
+    window.setInterval(refreshTeamSubmissions, 15000);
+    document.addEventListener('visibilitychange', refreshTeamSubmissions);
+});
+</script>
+{% endif %}
+{% endblock %}

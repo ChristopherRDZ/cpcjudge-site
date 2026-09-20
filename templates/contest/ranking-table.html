@@ -1,5 +1,13 @@
 {% extends "user/base-users-table.html" %}
 
+{% block username_heading %}{{ _('Equipo') if ranking_division == 'team' else _('Username') }}{% endblock %}
+{% block row_id scoped %}{{ 'team-' ~ user.participation.id if user.participation.team_id else 'user-' ~ user.username }}{% endblock %}
+{% block participant_name scoped %}
+    {% if user.participation.team_id %}
+        <a href="{{ user.participation.submissions_url() }}">{{ user.participation.team_name }}</a>
+    {% else %}{{ link_user(user) }}{% endif %}
+{% endblock %}
+
 {% block after_rank_head %}
     {% if has_rating %}
         <th class="rating-column">{{ _('Rating') }}</th>
@@ -56,7 +64,7 @@
 
 {% block before_point_head %}
     {% for problem in problems %}
-        <th class="points header"><a href="{{ url('contest_ranked_submissions', contest.key, problem.problem.code) }}">
+        <th class="points header"><a href="{{ url('contest_ranked_submissions', contest.key, problem.problem.code) }}?division={{ ranking_division|default('individual') }}">
             {{- contest.get_label_for_problem(loop.index0) }}
             <div class="point-denominator">{{ problem.points }}</div>
         </a></th>

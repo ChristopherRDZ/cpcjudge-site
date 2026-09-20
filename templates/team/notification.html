@@ -1,0 +1,53 @@
+{% if request.user.is_authenticated %}
+<style>
+    #user-links { display: flex; align-items: center; }
+    #user-links > ul > li > ul { left: auto; right: 0; }
+    .team-invite-badge { display: inline-block; border-radius: 1em; background: #b91c1c; color: #fff; font-size: 12px; font-weight: bold; padding: 0 .45em; line-height: 1.5; margin-left: .35em; }
+    .team-invite-badge[hidden], #team-notification[hidden] { display: none !important; }
+    #team-notification { display: inline-flex; align-items: center; min-height: 32px; padding: 0 .5em; color: #eee; }
+    #user-links > ul > li:focus-within > ul, #user-links > ul > li.team-menu-open > ul { display: block; }
+    @media(min-width: 761px) { #team-mobile-profile { display: none; } }
+    @media(max-width: 600px) { #team-notification { padding: 0 .3em; } }
+</style>
+<script>
+(function () {
+    var menu = document.querySelector('#user-links > ul > li');
+    var toggle = menu && menu.querySelector(':scope > a');
+    if (toggle) {
+        toggle.setAttribute('aria-haspopup', 'true');
+        toggle.addEventListener('click', function (event) {
+            if (!window.matchMedia('(max-width: 760px)').matches) return;
+            event.preventDefault();
+            var open = menu.classList.toggle('team-menu-open');
+            toggle.setAttribute('aria-expanded', String(open));
+            if (!open) toggle.blur();
+        });
+        document.addEventListener('click', function (event) {
+            if (!menu.contains(event.target)) {
+                menu.classList.remove('team-menu-open');
+                toggle.setAttribute('aria-expanded', 'false');
+            }
+        });
+    }
+    var inFlight = false;
+    function updateInvitations() {
+        if (document.hidden || inFlight) return;
+        inFlight = true;
+        fetch({{ url('team_invitation_count')|tojson }}, {credentials: 'same-origin', cache: 'no-store'})
+            .then(function (response) { if (!response.ok) throw new Error('count'); return response.json(); })
+            .then(function (data) {
+                var count = Number(data.count) || 0;
+                document.querySelectorAll('.team-invite-badge').forEach(function (badge) {
+                    badge.textContent = count > 99 ? '99+' : String(count);
+                    badge.hidden = count === 0;
+                });
+                var link = document.getElementById('team-notification');
+                if (link) link.hidden = count === 0;
+            }).catch(function () {}).finally(function () { inFlight = false; });
+    }
+    updateInvitations();
+    window.setInterval(updateInvitations, 60000);
+    document.addEventListener('visibilitychange', updateInvitations);
+})();
+</script>
+{% endif %}

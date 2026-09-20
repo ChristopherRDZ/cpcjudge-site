@@ -14,10 +14,13 @@ from judge.admin.profile import ProfileAdmin, UserAdmin
 from judge.admin.runtime import JudgeAdmin, LanguageAdmin
 from judge.admin.submission import SubmissionAdmin
 from judge.admin.taxon import ProblemGroupAdmin, ProblemTypeAdmin
+from judge.admin.team import TeamAdmin, TeamInvitationAdmin
 from judge.admin.ticket import TicketAdmin
+from judge.admin_owner import install as install_delete_guard
 from judge.models import Announcement, BlogPost, Class, Comment, CommentLock, Contest, ContestClarification, \
     ContestParticipation, ContestTag, Judge, Language, License, MiscConfig, NavigationBar, Organization, \
-    OrganizationRequest, Problem, ProblemGroup, ProblemPointsVote, ProblemType, Profile, Submission, Ticket
+    OrganizationRequest, Problem, ProblemGroup, ProblemPointsVote, ProblemType, Profile, Submission, Team, \
+    TeamInvitation, Ticket
 
 admin.site.register(Announcement, AnnouncementAdmin)
 admin.site.register(BlogPost, BlogPostAdmin)
@@ -44,6 +47,12 @@ admin.site.register(ProblemPointsVote, ProblemPointsVoteAdmin)
 admin.site.register(ProblemType, ProblemTypeAdmin)
 admin.site.register(Profile, ProfileAdmin)
 admin.site.register(Submission, SubmissionAdmin)
+admin.site.register(Team, TeamAdmin)
+admin.site.register(TeamInvitation, TeamInvitationAdmin)
 admin.site.register(Ticket, TicketAdmin)
 admin.site.unregister(User)
 admin.site.register(User, UserAdmin)
+
+# Debe ir al final: envuelve lo ya registrado, incluidos los admins que
+# reemplazan `has_delete_permission` por su cuenta. Ver judge/admin_owner.py.
+install_delete_guard(admin.site)

@@ -152,7 +152,7 @@ def rate_contest(contest):
                   times=Coalesce(Subquery(rating_subquery.order_by().values('user_id')
                                           .annotate(count=Count('id')).values('count')), 0)) \
         .exclude(user_id__in=contest.rate_exclude.all()) \
-        .filter(virtual=0).values('id', 'user_id', 'score', 'cumtime', 'tiebreaker',
+        .filter(virtual=0, team__isnull=True).values('id', 'user_id', 'score', 'cumtime', 'tiebreaker',
                                   'last_rating', 'last_mean', 'times')
     if not contest.rate_all:
         users = users.filter(submissions__gt=0)
@@ -185,7 +185,8 @@ def rate_contest(contest):
     with transaction.atomic():
         Rating.objects.bulk_create(ratings)
 
-        Profile.objects.filter(contest_history__contest=contest, contest_history__virtual=0).update(
+        Profile.objects.filter(contest_history__contest=contest, contest_history__virtual=0,
+                               contest_history__team__isnull=True).update(
             rating=Subquery(Rating.objects.filter(user=OuterRef('id'))
                             .order_by('-contest__end_time').values('rating')[:1]))
 

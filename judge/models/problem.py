@@ -396,7 +396,7 @@ class Problem(models.Model):
     def update_stats(self):
         all_queryset = self.submission_set.filter(user__is_unlisted=False)
         ac_queryset = all_queryset.filter(points__gte=self.points, result='AC')
-        self.user_count = ac_queryset.values('user').distinct().count()
+        self.user_count = ac_queryset.filter(contest__participation__team__isnull=True).values('user').distinct().count()
         submissions = all_queryset.count()
         if submissions:
             self.ac_rate = 100.0 * ac_queryset.count() / submissions
@@ -466,7 +466,8 @@ class Problem(models.Model):
 
     def is_solved_by(self, user):
         # Return true if a full AC submission to the problem from the user exists.
-        return self.submission_set.filter(user=user.profile, result='AC', points__gte=F('problem__points')).exists()
+        return self.submission_set.filter(user=user.profile, result='AC', points__gte=F('problem__points'),
+                                          contest__participation__team__isnull=True).exists()
 
     def vote_permission_for_user(self, user):
         if not user.is_authenticated:

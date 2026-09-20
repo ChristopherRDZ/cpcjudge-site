@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block body %}
+{% include 'team/style.html' %}
+<div class="teams-layout">
+    {% if error %}<div class="team-error" role="alert">{{ error }}</div>{% endif %}
+
+    {% if invitations %}
+        <section class="team-panel team-panel-invite" id="invitations" aria-labelledby="invitations-title">
+            <h3 class="team-panel-head" id="invitations-title">
+                <i class="fa fa-envelope-o" aria-hidden="true"></i>
+                {{ _('Invitaciones pendientes') }}
+                <span class="team-count">{{ invitations|length }}</span>
+            </h3>
+            <div class="team-panel-body">
+                {% for invitation in invitations %}
+                    <div class="team-invite">
+                        <div class="team-invite-text">
+                            <div class="team-invite-team">{{ invitation.team.name }}</div>
+                            <span class="team-note">{{ _('%(username)s te invitó a formar parte de este equipo.', username=invitation.sender.username) }}</span>
+                        </div>
+                        <div class="team-actions">
+                            <form action="{{ url('team_invitation_action', invitation.pk) }}" method="post">
+                                {% csrf_token %}
+                                <button name="action" value="accept">{{ _('Aceptar') }}</button>
+                                <button name="action" value="decline" class="team-btn-secondary">{{ _('Rechazar') }}</button>
+                            </form>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+    {% endif %}
+
+    <div class="team-columns">
+        <section class="team-panel" aria-labelledby="my-teams-title">
+            <h3 class="team-panel-head" id="my-teams-title">
+                <i class="fa fa-users" aria-hidden="true"></i>
+                {{ _('Tus equipos') }}
+                {% if teams %}<span class="team-count">{{ teams|length }}</span>{% endif %}
+            </h3>
+            <div class="team-panel-body">
+                {% if teams %}
+                    <div class="team-grid">
+                        {% for team in teams %}
+                            {% set members = team.members.all() %}
+                            <article class="team-item">
+                                <div class="team-item-head">
+                                    <a class="team-item-name" href="{{ team.get_absolute_url() }}">{{ team.name }}</a>
+                                    {% if team.owner_id == request.profile.id %}
+                                        <span class="team-badge team-badge-owner">{{ _('Propietario') }}</span>
+                                    {% else %}
+                                        <span class="team-badge">{{ _('Integrante') }}</span>
+                                    {% endif %}
+                                </div>
+                                <div class="team-item-body">
+                                    <div class="team-label">{{ _('Integrantes') }} · {{ members|length }}</div>
+                                    <ul class="team-chips">
+                                        {% for member in members %}
+                                            <li class="team-chip{% if member.id == team.owner_id %} team-chip-owner{% endif %}">{{ member.username }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                                <div class="team-item-foot">
+                                    <a href="{{ team.get_absolute_url() }}">{{ _('Ver equipo') }} →</a>
+                                </div>
+                            </article>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="team-empty">
+                        <i class="fa fa-users" aria-hidden="true"></i>
+                        <p><strong>{{ _('Todavía no formas parte de ningún equipo.') }}</strong></p>
+                        <p class="team-note">{{ _('Crea el tuyo en «Crear equipo», o espera a que alguien te invite.') }}</p>
+                    </div>
+                {% endif %}
+            </div>
+        </section>
+
+        <aside class="team-side">
+            <section class="team-panel" aria-labelledby="create-team-title">
+                <h3 class="team-panel-head" id="create-team-title">
+                    <i class="fa fa-plus" aria-hidden="true"></i>
+                    {{ _('Crear equipo') }}
+                </h3>
+                <div class="team-panel-body">
+                    <form method="post" class="team-create">
+                        {% csrf_token %}
+                        {% if form.non_field_errors() %}
+                            <div class="team-field-error" role="alert">{{ form.non_field_errors() }}</div>
+                        {% endif %}
+                        <label class="team-field-label" for="{{ form.name.id_for_label }}">{{ _('Nombre del equipo') }}</label>
+                        {{ form.name }}
+                        {% if form.name.errors %}<div class="team-field-error" role="alert">{{ form.name.errors }}</div>{% endif %}
+                        <p class="team-help">{{ _('Hasta 60 caracteres. Quedarás como propietario y podrás invitar integrantes enseguida.') }}</p>
+                        <button type="submit">{{ _('Crear equipo') }}</button>
+                    </form>
+                </div>
+            </section>
+
+            <section class="team-panel" aria-labelledby="team-help-title">
+                <h3 class="team-panel-head" id="team-help-title">
+                    <i class="fa fa-question-circle" aria-hidden="true"></i>
+                    {{ _('Cómo funcionan los equipos') }}
+                </h3>
+                <div class="team-panel-body">
+                    <ol class="team-steps team-note">
+                        <li>{{ _('Crea un equipo y elige su nombre. Serás su propietario.') }}</li>
+                        <li>{{ _('Invita a tus compañeros por nombre de usuario. Cada quien acepta desde esta misma página.') }}</li>
+                        <li>{{ _('Al entrar a un concurso que admita equipos, elige participar con él. La lista de integrantes queda fijada al comenzar.') }}</li>
+                        <li>{{ _('Durante el concurso cada quien envía desde su cuenta, pero el puntaje, el reloj y el historial son del equipo.') }}</li>
+                    </ol>
+                    <p class="team-help" style="margin-bottom: 0">{{ _('El ranking global del sitio sigue siendo individual: las participaciones por equipo no cambian tu calificación ni tus problemas resueltos.') }}</p>
+                </div>
+            </section>
+        </aside>
+    </div>
+</div>
+{% endblock %}

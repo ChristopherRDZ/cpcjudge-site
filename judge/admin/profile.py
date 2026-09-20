@@ -6,7 +6,8 @@ from django.utils.html import format_html
 from django.utils.translation import gettext, gettext_lazy as _, ngettext
 from reversion.admin import VersionAdmin
 
-from judge.models import Profile, WebAuthnCredential
+from judge.admin_owner import is_owner_account, is_server_owner
+from judge.models import ContestParticipation, Profile, WebAuthnCredential
 from judge.utils.views import NoBatchDeleteMixin
 from judge.widgets import AdminAceWidget, AdminMartorWidget, AdminSelect2Widget
 
@@ -16,7 +17,7 @@ class ProfileForm(ModelForm):
         super(ProfileForm, self).__init__(*args, **kwargs)
         if 'current_contest' in self.base_fields:
             # form.fields['current_contest'] does not exist when the user has only view permission on the model.
-            self.fields['current_contest'].queryset = self.instance.contest_history.select_related('contest') \
+            self.fields['current_contest'].queryset = ContestParticipation.objects.for_profile(self.instance).select_related('contest') \
                 .only('contest__name', 'user_id', 'virtual')
             self.fields['current_contest'].label_from_instance = \
                 lambda obj: '%s v%d' % (obj.contest.name, obj.virtual) if obj.virtual else obj.contest.name
@@ -84,7 +85,10 @@ class ProfileAdmin(NoBatchDeleteMixin, VersionAdmin):
         return super(ProfileAdmin, self).get_queryset(request).select_related('user')
 
     def get_fields(self, request, obj=None):
-        if request.user.has_perm('judge.totp'):
+        # `judge.totp` enseña la clave de doble factor en claro y los códigos de
+        # recuperación de cualquiera: con eso se entra a una cuenta ajena saltándose
+        # el segundo factor. Reservado a la cuenta dueña del servidor.
+        if is_server_owner(request) and request.user.has_perm('judge.totp'):
             fields = list(self.fields)
             fields.insert(fields.index('is_totp_enabled') + 1, 'totp_key')
             fields.insert(fields.index('totp_key') + 1, 'scratch_codes')
@@ -92,9 +96,16 @@ class ProfileAdmin(NoBatchDeleteMixin, VersionAdmin):
         else:
             return self.fields
 
+    def has_change_permission(self, request, obj=None):
+        # El perfil de una cuenta dueña sólo lo edita una cuenta dueña: desde aquí se
+        # cambian notas, organizaciones y la marca de doble factor.
+        if obj is not None and is_owner_account(obj.user) and not is_server_owner(request):
+            return False
+        return super().has_change_permission(request, obj)
+
     def get_readonly_fields(self, request, obj=None):
         fields = self.readonly_fields
-        if not request.user.has_perm('judge.totp'):
+        if not (is_server_owner(request) and request.user.has_perm('judge.totp')):
             fields += ('is_totp_enabled',)
         return fields
 
@@ -140,7 +151,33 @@ class ProfileAdmin(NoBatchDeleteMixin, VersionAdmin):
 
 
 class UserAdmin(OldUserAdmin):
+    # Campos que reparten poder. Sin esto, el candado de borrado no valdría nada:
+    # cualquier superusuario le cambiaría la contraseña a la cuenta dueña, entraría
+    # como ella y borraría lo que quisiera; o se fabricaría otra cuenta dueña.
+    POWER_FIELDS = ('is_superuser', 'is_staff')
+
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
         if not change:
             Profile.objects.create(user=obj)
+
+    def has_change_permission(self, request, obj=None):
+        if obj is not None and is_owner_account(obj) and not is_server_owner(request):
+            return False
+        return super().has_change_permission(request, obj)
+
+    def get_readonly_fields(self, request, obj=None):
+        fields = tuple(super().get_readonly_fields(request, obj))
+        if not is_server_owner(request):
+            fields += self.POWER_FIELDS
+        return fields
+
+    def get_form(self, request, obj=None, change=False, **kwargs):
+        form = super().get_form(request, obj, change=change, **kwargs)
+        # `get_readonly_fields` no alcanza al alta: el formulario de creación de
+        # Django no trae esos campos, pero sí los trae el de edición, y un POST
+        # directo los enviaría igual. Se quitan del formulario, no sólo de la página.
+        if not is_server_owner(request):
+            for field in self.POWER_FIELDS:
+                form.base_fields.pop(field, None)
+        return form

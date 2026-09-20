@@ -17,6 +17,8 @@ from django.utils.translation import gettext_lazy as _, ngettext
 from django.views.decorators.http import require_POST
 from reversion.admin import VersionAdmin
 
+from judge.admin.purge import PurgeMixin, contest_plan, purge_contest
+from judge.admin_owner import is_server_owner
 from judge.models import Class, Contest, ContestProblem, ContestSubmission, Profile, Rating, Submission
 from judge.ratings import rate_contest
 from judge.utils.views import NoBatchDeleteMixin
@@ -88,10 +90,24 @@ class ContestProblemInline(SortableInlineAdminMixin, admin.TabularInline):
 class ContestForm(ModelForm):
     def __init__(self, *args, **kwargs):
         super(ContestForm, self).__init__(*args, **kwargs)
+        if 'private_teams' in self.fields:
+            field = self.fields['private_teams']
+            visible = Q(is_active=True)
+            if self.instance.pk:
+                visible |= Q(private_contests=self.instance)
+            field.queryset = field.queryset.filter(visible).select_related('owner__user').distinct()
+            field.label_from_instance = lambda team: '%s · %s (#%s)' % (team.name, team.owner.username, team.pk)
+        if not self.instance.pk and 'participation_mode' in self.fields:
+            # Existing contests retain individual mode; new ones must choose explicitly.
+            self.fields['participation_mode'].initial = ''
+            self.initial['participation_mode'] = ''
+            self.fields['participation_mode'].choices = [('', _('Selecciona una modalidad'))] + list(
+                self.fields['participation_mode'].choices)
         if 'rate_exclude' in self.fields:
             if self.instance and self.instance.id:
                 self.fields['rate_exclude'].queryset = \
-                    Profile.objects.filter(contest_history__contest=self.instance).distinct()
+                    Profile.objects.filter(contest_history__contest=self.instance,
+                                           contest_history__team__isnull=True).distinct()
             else:
                 self.fields['rate_exclude'].queryset = Profile.objects.none()
         self.fields['banned_users'].widget.can_add_related = False
@@ -118,6 +134,7 @@ class ContestForm(ModelForm):
             'testers': AdminHeavySelect2MultipleWidget(data_view='profile_select2'),
             'spectators': AdminHeavySelect2MultipleWidget(data_view='profile_select2'),
             'private_contestants': AdminHeavySelect2MultipleWidget(data_view='profile_select2'),
+            'private_teams': AdminSelect2MultipleWidget,
             'organizations': AdminHeavySelect2MultipleWidget(data_view='organization_select2'),
             'classes': AdminHeavySelect2MultipleWidget(data_view='class_select2'),
             'join_organizations': AdminHeavySelect2MultipleWidget(data_view='organization_select2'),
@@ -130,18 +147,19 @@ class ContestForm(ModelForm):
         }
 
 
-class ContestAdmin(NoBatchDeleteMixin, SortableAdminBase, VersionAdmin):
+class ContestAdmin(PurgeMixin, NoBatchDeleteMixin, SortableAdminBase, VersionAdmin):
     fieldsets = (
         (None, {'fields': ('key', 'name', 'authors', 'curators', 'testers', 'tester_see_submissions',
                            'tester_see_scoreboard', 'spectators')}),
         (_('Settings'), {'fields': ('is_visible', 'use_clarifications', 'hide_problem_tags', 'hide_problem_authors',
                                     'show_short_display', 'run_pretests_only', 'locked_after', 'scoreboard_visibility',
                                     'freeze_minutes', 'scoreboard_revealed', 'points_precision')}),
+        (_('Participación'), {'fields': ('participation_mode', 'team_min_size', 'team_max_size')}),
         (_('Scheduling'), {'fields': ('start_time', 'end_time', 'time_limit')}),
         (_('Details'), {'fields': ('description', 'og_image', 'logo_override_image', 'tags', 'summary')}),
         (_('Format'), {'fields': ('format_name', 'format_config', 'problem_label_script')}),
         (_('Rating'), {'fields': ('is_rated', 'rate_all', 'rating_floor', 'rating_ceiling', 'rate_exclude')}),
-        (_('Access'), {'fields': ('access_code', 'private_contestants', 'organizations', 'classes',
+        (_('Access'), {'fields': ('access_code', 'private_contestants', 'private_teams', 'organizations', 'classes',
                                   'join_organizations', 'view_contest_scoreboard', 'view_contest_submissions')}),
         (_('Justice'), {'fields': ('banned_users',)}),
         (_('Balloons'), {'fields': ('balloon_staff',)}),
@@ -156,6 +174,12 @@ class ContestAdmin(NoBatchDeleteMixin, SortableAdminBase, VersionAdmin):
     change_list_template = 'admin/judge/contest/change_list.html'
     filter_horizontal = ['rate_exclude']
     date_hierarchy = 'start_time'
+    purge_action_name = 'purge_contests'
+    purge_title = _('Eliminar concursos definitivamente')
+    purge_warning = _('Se borra el concurso con todo lo que cuelga de él, incluidas las aclaraciones de equipos '
+                      'que hoy impiden borrarlo. No se puede deshacer y no queda copia. Los envíos en sí se '
+                      'conservan en el historial personal de cada quien; lo que desaparece es su vínculo con el '
+                      'concurso.')
 
     def get_actions(self, request):
         actions = super(ContestAdmin, self).get_actions(request)
@@ -173,7 +197,23 @@ class ContestAdmin(NoBatchDeleteMixin, SortableAdminBase, VersionAdmin):
         for action in ('reveal_scoreboard', 'hide_scoreboard'):
             actions[action] = self.get_action(action)
 
+        # NoBatchDeleteMixin retira `delete_selected`, y de todos modos el borrado
+        # normal se atasca en la aclaración de un equipo. Éste es el camino que sí
+        # desmonta las dependencias, y sólo lo ve la cuenta dueña del servidor.
+        if is_server_owner(request):
+            actions['purge_contests'] = self.get_action('purge_contests')
+
         return actions
+
+    def purge_plan(self, obj):
+        return contest_plan(obj)
+
+    def purge_object(self, obj):
+        purge_contest(obj)
+
+    @admin.action(description=_('Eliminar definitivamente, con todo lo que cuelga del concurso'))
+    def purge_contests(self, request, queryset):
+        return self.run_purge(request, queryset)
 
     @admin.display(description=_('Reveal frozen scoreboards'))
     def reveal_scoreboard(self, request, queryset):
@@ -218,7 +258,7 @@ class ContestAdmin(NoBatchDeleteMixin, SortableAdminBase, VersionAdmin):
         if not request.user.has_perm('judge.contest_access_code'):
             readonly += ['access_code']
         if not request.user.has_perm('judge.create_private_contest'):
-            readonly += ['private_contestants', 'organizations']
+            readonly += ['private_contestants', 'private_teams', 'organizations']
             if not request.user.has_perm('judge.change_contest_visibility'):
                 readonly += ['is_visible']
         if not request.user.has_perm('judge.contest_problem_label'):
@@ -228,8 +268,8 @@ class ContestAdmin(NoBatchDeleteMixin, SortableAdminBase, VersionAdmin):
     def save_model(self, request, obj, form, change):
         # `private_contestants` and `organizations` will not appear in `cleaned_data` if user cannot edit it
         if form.changed_data:
-            if 'private_contestants' in form.changed_data:
-                obj.is_private = bool(form.cleaned_data['private_contestants'])
+            if 'private_contestants' in form.changed_data or 'private_teams' in form.changed_data:
+                obj.is_private = bool(form.cleaned_data.get('private_contestants') or form.cleaned_data.get('private_teams'))
             if 'organizations' in form.changed_data or 'classes' in form.changed_data:
                 obj.is_organization_private = bool(form.cleaned_data['organizations'] or form.cleaned_data['classes'])
             if 'join_organizations' in form.cleaned_data:
@@ -394,11 +434,28 @@ class ContestParticipationForm(ModelForm):
 
 
 class ContestParticipationAdmin(admin.ModelAdmin):
-    fields = ('contest', 'user', 'real_start', 'virtual', 'is_disqualified')
+    fields = ('contest', 'user', 'team', 'team_name', 'real_start', 'virtual', 'is_disqualified')
+    readonly_fields = ('team', 'team_name')
+
+    def get_readonly_fields(self, request, obj=None):
+        return self.readonly_fields + (('contest', 'user', 'real_start', 'virtual') if obj and obj.team_id else ())
+
+    def has_delete_permission(self, request, obj=None):
+        # La participación de un equipo es historial y no se borra suelta. La cuenta
+        # dueña del servidor sí puede, porque es la que responde por esa decisión.
+        if obj and obj.team_id and not is_server_owner(request):
+            return False
+        return super().has_delete_permission(request, obj)
+
+    def delete_queryset(self, request, queryset):
+        if queryset.filter(team__isnull=False).exists() and not is_server_owner(request):
+            raise PermissionDenied(_('Las participaciones de equipos se conservan como historial.'))
+        super().delete_queryset(request, queryset)
+
     list_display = ('contest', 'username', 'show_virtual', 'real_start', 'score', 'cumtime', 'tiebreaker')
     actions = ['recalculate_results']
     actions_on_bottom = actions_on_top = True
-    search_fields = ('contest__key', 'contest__name', 'user__user__username')
+    search_fields = ('contest__key', 'contest__name', 'user__user__username', 'team_name')
     form = ContestParticipationForm
     date_hierarchy = 'real_start'
 
@@ -425,7 +482,7 @@ class ContestParticipationAdmin(admin.ModelAdmin):
 
     @admin.display(description=_('username'), ordering='user__user__username')
     def username(self, obj):
-        return obj.user.username
+        return obj.display_name
 
     @admin.display(description=_('virtual'), ordering='virtual')
     def show_virtual(self, obj):

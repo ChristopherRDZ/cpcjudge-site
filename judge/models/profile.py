@@ -177,7 +177,7 @@ class Profile(models.Model):
     rating = models.IntegerField(null=True, default=None)
     user_script = models.TextField(verbose_name=_('user script'), default='', blank=True, max_length=65536,
                                    help_text=_('User-defined JavaScript for site customization.'))
-    current_contest = models.OneToOneField('ContestParticipation', verbose_name=_('current contest'),
+    current_contest = models.ForeignKey('ContestParticipation', verbose_name=_('current contest'),
                                            null=True, blank=True, related_name='+', on_delete=models.SET_NULL)
     math_engine = models.CharField(verbose_name=_('math engine'), choices=MATH_ENGINES_CHOICES, max_length=4,
                                    default=settings.MATHOID_DEFAULT_TYPE,
@@ -224,14 +224,12 @@ class Profile(models.Model):
 
     @cached_property
     def has_any_solves(self):
-        return self.submission_set.filter(result='AC', case_points__gte=F('case_total')).exists()
+        return self.submission_set.filter(result='AC', case_points__gte=F('case_total'), contest__participation__team__isnull=True).exists()
 
     @cached_property
     def resolved_ace_theme(self):
         if self.ace_theme != 'auto':
             return self.ace_theme
-        if not self.user.has_perm('judge.test_site'):
-            return settings.DMOJ_THEME_DEFAULT_ACE_THEME.get('light')
         if self.site_theme != 'auto':
             return settings.DMOJ_THEME_DEFAULT_ACE_THEME.get(self.site_theme)
         # This must be resolved client-side using prefers-color-scheme.
@@ -243,7 +241,8 @@ class Profile(models.Model):
         from judge.models import Problem
         public_problems = Problem.get_public_problems()
         data = (
-            public_problems.filter(submission__user=self, submission__points__isnull=False)
+            public_problems.filter(submission__user=self, submission__points__isnull=False,
+                                   submission__contest__participation__team__isnull=True)
                            .annotate(max_points=Max('submission__points')).order_by('-max_points')
                            .values_list('max_points', flat=True).filter(max_points__gt=0)
         )
@@ -252,6 +251,7 @@ class Profile(models.Model):
         entries = min(len(data), len(table))
         problems = (
             public_problems.filter(submission__user=self, submission__result='AC',
+                                   submission__contest__participation__team__isnull=True,
                                    submission__case_points__gte=F('submission__case_total'))
             .values('id').distinct().count()
         )

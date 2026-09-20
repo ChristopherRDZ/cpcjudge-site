@@ -302,8 +302,30 @@ MIDDLEWARE = (
     'django.contrib.redirects.middleware.RedirectFallbackMiddleware',
 )
 
-IMPERSONATE_REQUIRE_SUPERUSER = True
-IMPERSONATE_DISABLE_LOGGING = True
+# La versión instalada de django-impersonate SÓLO lee este diccionario: su clase
+# Settings hace `getattr(django_settings, 'IMPERSONATE', {})` y nada más. Las dos
+# variables sueltas que traía DMOJ —IMPERSONATE_REQUIRE_SUPERUSER e
+# IMPERSONATE_DISABLE_LOGGING— no las miraba nadie, así que REQUIRE_SUPERUSER valía
+# el False por omisión y las doce cuentas de staff podían suplantar a cualquier
+# usuario que no fuese superusuario. Corregido el 2026-09-19.
+IMPERSONATE = {
+    # Sólo superusuarios pueden suplantar.
+    'REQUIRE_SUPERUSER': True,
+    # Y a nadie que sea superusuario: esto es lo que impide entrar como la cuenta
+    # dueña del servidor y heredar sus permisos de borrado.
+    'ALLOW_SUPERUSER': False,
+    # DMOJ quería apagar la bitácora; se deja encendida a propósito, que es lo que
+    # de hecho ha estado pasando, para conservar el rastro de quién suplantó a quién.
+    'DISABLE_LOGGING': False,
+    'URI_EXCLUSIONS': (r'^admin/',),
+}
+
+# Cuentas que pueden borrar desde el admin, y que las demás no pueden editar.
+# Vive en código y no en la base de datos: si fuese una marca, un grupo o un
+# permiso, cualquier superusuario se lo concedería a sí mismo desde el propio
+# admin. Vacío significa que nadie borra. Pon aquí, o en local_settings.py, el
+# nombre de usuario de tu cuenta dueña. Ver judge/admin_owner.py.
+CPC_SERVER_OWNERS = ()
 
 ACCOUNT_ACTIVATION_DAYS = 7
 

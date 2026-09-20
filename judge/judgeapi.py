@@ -23,7 +23,9 @@ def _post_update_submission(submission, done=False):
         event.post('submissions', {'type': 'done-submission' if done else 'update-submission',
                                    'id': submission.id,
                                    'contest': submission.contest_key,
-                                   'user': submission.user_id, 'problem': submission.problem_id,
+                                   'user': None if submission.team_participation else submission.user_id,
+                                   'participation': submission.team_participation.pk if submission.team_participation else None,
+                                   'problem': submission.problem_id,
                                    'status': submission.status, 'language': submission.language.key})
 
 

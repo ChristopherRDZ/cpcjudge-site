@@ -1,5 +1,5 @@
 <h3 style="color:red;font-weight:bold">
-    {% if request.user == submission.user.user %}
+    {% if submission.is_owned_by(request.user) %}
         {{ _('An internal error occurred while grading, and the %(site_name)s administrators have been notified.', site_name=SITE_NAME) }}
         <br>
         {{ _('In the meantime, try resubmitting in a few seconds.') }}

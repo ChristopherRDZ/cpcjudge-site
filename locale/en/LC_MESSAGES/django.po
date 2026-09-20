@@ -6460,3 +6460,737 @@ msgstr ""
 #: templates/widgets/select_all.html:8
 msgid "Check all"
 msgstr ""
+
+# --- Equipos (CPC-UAEH). Los msgid originales están en español, por eso el
+# catálogo inglés sí necesita traducirlos. Añadido a mano el 2026-09-18;
+# no regenerar con makemessages.
+
+#: judge/equipos
+msgid "Invitaciones pendientes"
+msgstr "Pending invitations"
+
+#: judge/equipos
+msgid "%(username)s te invitó a formar parte de este equipo."
+msgstr "%(username)s invited you to join this team."
+
+#: judge/equipos
+msgid "Aceptar"
+msgstr "Accept"
+
+#: judge/equipos
+msgid "Rechazar"
+msgstr "Decline"
+
+#: judge/equipos
+msgid "Tus equipos"
+msgstr "Your teams"
+
+#: judge/equipos
+msgid "Propietario"
+msgstr "Owner"
+
+#: judge/equipos
+msgid "Integrante"
+msgstr "Member"
+
+#: judge/equipos
+msgid "Integrantes"
+msgstr "Members"
+
+#: judge/equipos
+msgid "Ver equipo"
+msgstr "View team"
+
+#: judge/equipos
+msgid "Todavía no formas parte de ningún equipo."
+msgstr "You are not part of any team yet."
+
+#: judge/equipos
+msgid "Crea el tuyo en «Crear equipo», o espera a que alguien te invite."
+msgstr "Create one under “Create team”, or wait for someone to invite you."
+
+#: judge/equipos
+msgid "Crear equipo"
+msgstr "Create team"
+
+#: judge/equipos
+msgid "Nombre del equipo"
+msgstr "Team name"
+
+#: judge/equipos
+msgid "Hasta 60 caracteres. Quedarás como propietario y podrás invitar integrantes enseguida."
+msgstr "Up to 60 characters. You will be the owner and can invite members right away."
+
+#: judge/equipos
+msgid "Cómo funcionan los equipos"
+msgstr "How teams work"
+
+#: judge/equipos
+msgid "Crea un equipo y elige su nombre. Serás su propietario."
+msgstr "Create a team and choose its name. You will be its owner."
+
+#: judge/equipos
+msgid "Invita a tus compañeros por nombre de usuario. Cada quien acepta desde esta misma página."
+msgstr "Invite your teammates by username. Each of them accepts from this same page."
+
+#: judge/equipos
+msgid "Al entrar a un concurso que admita equipos, elige participar con él. La lista de integrantes queda fijada al comenzar."
+msgstr "When you enter a contest that allows teams, choose to take part with it. The member list is fixed once the attempt starts."
+
+#: judge/equipos
+msgid "Durante el concurso cada quien envía desde su cuenta, pero el puntaje, el reloj y el historial son del equipo."
+msgstr "During the contest everyone submits from their own account, but the score, the clock and the history belong to the team."
+
+#: judge/equipos
+msgid "El ranking global del sitio sigue siendo individual: las participaciones por equipo no cambian tu calificación ni tus problemas resueltos."
+msgstr "The site-wide ranking stays individual: team participations do not change your rating or your solved problems."
+
+#: judge/equipos
+msgid "Mis equipos"
+msgstr "My teams"
+
+#: judge/equipos
+msgid "¿Transferir la propiedad a este integrante? Perderás los controles de propietario."
+msgstr "Transfer ownership to this member? You will lose the owner controls."
+
+#: judge/equipos
+msgid "Hacer propietario"
+msgstr "Make owner"
+
+#: judge/equipos
+msgid "¿Expulsar a este integrante?"
+msgstr "Remove this member?"
+
+#: judge/equipos
+msgid "Expulsar"
+msgstr "Remove"
+
+#: judge/equipos
+msgid "Los cambios de integrantes se aplican a futuras participaciones. La lista inscrita y los resultados de cada concurso se conservan."
+msgstr "Member changes apply to future participations. The roster registered for each contest and its results are kept."
+
+#: judge/equipos
+msgid "Historial de concursos"
+msgstr "Contest history"
+
+#: judge/equipos
+msgid "Virtual"
+msgstr "Virtual"
+
+#: judge/equipos
+msgid "Este equipo todavía no ha participado en concursos."
+msgstr "This team has not taken part in any contest yet."
+
+#: judge/equipos
+msgid "Invitar integrante"
+msgstr "Invite member"
+
+#: judge/equipos
+msgid "Nombre de usuario"
+msgstr "Username"
+
+#: judge/equipos
+msgid "Invitar"
+msgstr "Invite"
+
+#: judge/equipos
+msgid "Escribe el nombre de usuario exacto. La invitación aparecerá en su página de Mis equipos hasta que la acepte o la rechace."
+msgstr "Type the exact username. The invitation shows on their My teams page until they accept or decline it."
+
+#: judge/equipos
+msgid "Invitaciones enviadas"
+msgstr "Sent invitations"
+
+#: judge/equipos
+msgid "Pendiente"
+msgstr "Pending"
+
+#: judge/equipos
+msgid "Cancelar"
+msgstr "Cancel"
+
+#: judge/equipos
+msgid "Zona de riesgo"
+msgstr "Danger zone"
+
+#: judge/equipos
+msgid "Como propietario no puedes salir del equipo. Pasa la propiedad a otro integrante, o elimina el equipo."
+msgstr "As the owner you cannot leave the team. Hand ownership to another member, or delete the team."
+
+#: judge/equipos
+msgid "Eliminar equipo"
+msgstr "Delete team"
+
+#: judge/equipos
+msgid "El equipo dejará de aparecer en Mis equipos. Sus participaciones y resultados se conservarán en el historial del sitio."
+msgstr "The team will stop appearing in My teams. Its participations and results are kept in the site history."
+
+#: judge/equipos
+msgid "Escribe el nombre exacto del equipo para confirmar:"
+msgstr "Type the exact team name to confirm:"
+
+#: judge/equipos
+msgid "Dejarás de aparecer en futuras participaciones de este equipo. Los concursos que ya jugaste se conservan."
+msgstr "You will stop appearing in this team’s future participations. The contests you already played are kept."
+
+#: judge/equipos
+msgid "¿Salir de este equipo?"
+msgstr "Leave this team?"
+
+#: judge/equipos
+msgid "Salir del equipo"
+msgstr "Leave team"
+
+#: judge/equipos
+msgid "Elige cómo participar"
+msgstr "Choose how to take part"
+
+#: judge/equipos
+msgid "Continuar participación"
+msgstr "Resume participation"
+
+#: judge/equipos
+msgid "Ya tienes una participación activa. Continuar conserva el equipo, los integrantes y el tiempo original."
+msgstr "You already have an active participation. Resuming keeps the team, its members and the original clock."
+
+#: judge/equipos
+msgid "Individual"
+msgstr "Individual"
+
+#: judge/equipos
+msgid "No tienes equipos activos."
+msgstr "You have no active teams."
+
+#: judge/equipos
+msgid "Crear equipo o revisar invitaciones"
+msgstr "Create a team or check invitations"
+
+#: judge/equipos
+msgid "Integrantes por equipo: %(minimum)s a %(maximum)s."
+msgstr "Members per team: %(minimum)s to %(maximum)s."
+
+#: judge/equipos
+msgid "Todos los integrantes compartirán puntaje y tiempo. La lista del equipo queda fijada al comenzar esta participación."
+msgstr "All members share score and time. The team roster is fixed when this participation starts."
+
+#: judge/equipos
+msgid "Sólo las participaciones individuales cuentan para la calificación del sitio."
+msgstr "Only individual participations count towards the site rating."
+
+#: judge/equipos
+msgid "Continuar"
+msgstr "Continue"
+
+#: judge/equipos
+msgid "Selecciona un integrante válido."
+msgstr "Select a valid member."
+
+#: judge/equipos
+msgid "Escribe el nombre exacto del equipo para confirmar su eliminación."
+msgstr "Type the exact team name to confirm its deletion."
+
+#: judge/equipos
+msgid "Acción no válida."
+msgstr "Invalid action."
+
+#: judge/equipos
+msgid "Escribe un nombre de equipo de 1 a 60 caracteres."
+msgstr "Enter a team name between 1 and 60 characters."
+
+#: judge/equipos
+msgid "Las nuevas inscripciones e invitaciones de equipos están pausadas temporalmente."
+msgstr "New team registrations and invitations are paused for now."
+
+#: judge/equipos
+msgid "No se puede cambiar la lista de integrantes ni eliminar el equipo mientras participa en un concurso o simulación activa."
+msgstr "The member list cannot be changed and the team cannot be deleted while it is taking part in an active contest or virtual attempt."
+
+#: judge/equipos
+msgid "Ya alcanzaste el límite de equipos activos que puedes crear."
+msgstr "You have reached the limit of active teams you can create."
+
+#: judge/equipos
+msgid "No se encontró un usuario activo con ese nombre."
+msgstr "No active user was found with that name."
+
+#: judge/equipos
+msgid "Ese usuario ya forma parte del equipo."
+msgstr "That user is already part of the team."
+
+#: judge/equipos
+msgid "Ya hay una invitación pendiente para ese usuario."
+msgstr "There is already a pending invitation for that user."
+
+#: judge/equipos
+msgid "Has enviado muchas invitaciones. Inténtalo más tarde."
+msgstr "You have sent too many invitations. Try again later."
+
+#: judge/equipos
+msgid "Ese usuario tiene demasiadas invitaciones pendientes."
+msgstr "That user has too many pending invitations."
+
+#: judge/equipos
+msgid "Esta invitación ya no está disponible."
+msgstr "This invitation is no longer available."
+
+#: judge/equipos
+msgid "Esta invitación ya no está pendiente."
+msgstr "This invitation is no longer pending."
+
+#: judge/equipos
+msgid "Para salir, transfiere primero la propiedad a otro integrante o elimina el equipo."
+msgstr "To leave, first hand ownership to another member or delete the team."
+
+#: judge/equipos
+msgid "Ese usuario ya no forma parte del equipo."
+msgstr "That user is no longer part of the team."
+
+#: judge/equipos
+msgid "El nuevo propietario debe formar parte del equipo."
+msgstr "The new owner must be part of the team."
+
+#: judge/equipos
+msgid "El concurso todavía no ha comenzado."
+msgstr "The contest has not started yet."
+
+#: judge/equipos
+msgid "No puedes participar en este concurso."
+msgstr "You cannot take part in this contest."
+
+#: judge/equipos
+msgid "No tienes acceso a este concurso."
+msgstr "You do not have access to this contest."
+
+#: judge/equipos
+msgid "No puedes entrar a esa participación."
+msgstr "You cannot enter that participation."
+
+#: judge/equipos
+msgid "Esta participación ya terminó o está descalificada."
+msgstr "This participation has already ended or is disqualified."
+
+#: judge/equipos
+msgid "No puedes observar este concurso."
+msgstr "You cannot spectate this contest."
+
+#: judge/equipos
+msgid "Introduce el código de acceso correcto."
+msgstr "Enter the correct access code."
+
+#: judge/equipos
+msgid "Selecciona un equipo activo del que formes parte."
+msgstr "Select an active team you belong to."
+
+#: judge/equipos
+msgid "Este concurso sólo admite participaciones individuales."
+msgstr "This contest only allows individual participations."
+
+#: judge/equipos
+msgid "Este equipo no está autorizado para participar en el concurso privado."
+msgstr "This team is not authorised to take part in the private contest."
+
+#: judge/equipos
+msgid "No formas parte de la lista inscrita en esta participación."
+msgstr "You are not part of the roster registered for this participation."
+
+#: judge/equipos
+msgid "El equipo debe tener entre %(minimum)s y %(maximum)s integrantes."
+msgstr "The team must have between %(minimum)s and %(maximum)s members."
+
+#: judge/equipos
+msgid "Este concurso sólo admite equipos."
+msgstr "This contest only allows teams."
+
+#: judge/equipos
+msgid "Ya estás inscrito en equipo en este concurso."
+msgstr "You are already registered with a team in this contest."
+
+#: judge/equipos
+msgid "Selecciona cómo quieres participar."
+msgstr "Select how you want to take part."
+
+#: judge/equipos
+msgid "Todos los integrantes deben tener permiso para participar en el concurso."
+msgstr "Every member must be allowed to take part in the contest."
+
+#: judge/equipos
+msgid "Uno de los integrantes ya está inscrito en otra participación de este concurso."
+msgstr "One of the members is already registered in another participation of this contest."
+
+#: judge/equipos
+msgid "Uno de los integrantes ya tiene una simulación en curso en este concurso."
+msgstr "One of the members already has a virtual attempt in progress in this contest."
+
+#: judge/equipos
+msgid "equipo"
+msgstr "team"
+
+#: judge/equipos
+msgid "equipos"
+msgstr "teams"
+
+#: judge/equipos
+msgid "Aceptada"
+msgstr "Accepted"
+
+#: judge/equipos
+msgid "Rechazada"
+msgstr "Declined"
+
+#: judge/equipos
+msgid "Cancelada"
+msgstr "Cancelled"
+
+# --- Equipos (CPC-UAEH). Los msgid originales están en español, por eso el
+# catálogo inglés sí necesita traducirlos. Añadido a mano el 2026-09-18;
+# no regenerar con makemessages.
+
+#: judge/equipos
+msgid "Elige una sugerencia o escribe el nombre de usuario exacto. La invitación aparecerá en su página de Mis equipos hasta que la acepte o la rechace."
+msgstr "Pick a suggestion or type the exact username. The invitation shows on their My teams page until they accept or decline it."
+
+#: judge/equipos
+msgid "Empieza a escribir un nombre de usuario"
+msgstr "Start typing a username"
+
+# --- Prueba personalizada (CPC-UAEH). Añadido a mano el 2026-09-18;
+# no regenerar con makemessages.
+
+#: judge/prueba-personalizada
+msgid "Escribe, compila y ejecuta tu código en el servidor con tus propias entradas. Nada de lo que corras aquí cuenta como envío ni aparece en tu historial."
+msgstr "Write, compile and run your code on the server with your own input. Nothing you run here counts as a submission or shows up in your history."
+
+#: judge/prueba-personalizada
+msgid "Código"
+msgstr "Code"
+
+#: judge/prueba-personalizada
+msgid "Lenguaje"
+msgstr "Language"
+
+#: judge/prueba-personalizada
+msgid "Ejecutar"
+msgstr "Run"
+
+#: judge/prueba-personalizada
+msgid "Ejecutando…"
+msgstr "Running…"
+
+#: judge/prueba-personalizada
+msgid "Ejecutado"
+msgstr "Finished"
+
+#: judge/prueba-personalizada
+msgid "Límites: %(seconds)s s · %(megabytes)s MB"
+msgstr "Limits: %(seconds)s s · %(megabytes)s MB"
+
+#: judge/prueba-personalizada
+msgid "Entrada estándar"
+msgstr "Standard input"
+
+#: judge/prueba-personalizada
+msgid "Lo que tu programa leería por teclado."
+msgstr "What your program would read from the keyboard."
+
+#: judge/prueba-personalizada
+msgid "Salida"
+msgstr "Output"
+
+#: judge/prueba-personalizada
+msgid "Tiempo"
+msgstr "Time"
+
+#: judge/prueba-personalizada
+msgid "Memoria"
+msgstr "Memory"
+
+#: judge/prueba-personalizada
+msgid "Aquí aparecerá lo que imprima tu programa."
+msgstr "Whatever your program prints will show up here."
+
+#: judge/prueba-personalizada
+msgid "Copiar salida"
+msgstr "Copy output"
+
+#: judge/prueba-personalizada
+msgid "Copiado"
+msgstr "Copied"
+
+#: judge/prueba-personalizada
+msgid "Escribe algo de código antes de ejecutar."
+msgstr "Write some code before running."
+
+#: judge/prueba-personalizada
+msgid "Enviando código al servidor…"
+msgstr "Sending your code to the server…"
+
+#: judge/prueba-personalizada
+msgid "En cola. Esperando un juez disponible…"
+msgstr "Queued. Waiting for an available judge…"
+
+#: judge/prueba-personalizada
+msgid "Ejecutando el programa…"
+msgstr "Running your program…"
+
+#: judge/prueba-personalizada
+msgid "No se pudo consultar el estado de la ejecución."
+msgstr "The run status could not be retrieved."
+
+#: judge/prueba-personalizada
+msgid "El programa terminó sin escribir nada."
+msgstr "The program finished without printing anything."
+
+#: judge/prueba-personalizada
+msgid "Error de compilación"
+msgstr "Compile error"
+
+#: judge/prueba-personalizada
+msgid "Excedió el tiempo límite de %(seconds)s s."
+msgstr "Exceeded the %(seconds)s s time limit."
+
+#: judge/prueba-personalizada
+msgid "Excedió la memoria permitida."
+msgstr "Exceeded the memory allowance."
+
+#: judge/prueba-personalizada
+msgid "El programa terminó de forma anormal."
+msgstr "The program terminated abnormally."
+
+#: judge/prueba-personalizada
+msgid "Error interno del sistema de jueceo."
+msgstr "Internal judging error."
+
+# --- Prueba personalizada (CPC-UAEH). Añadido a mano el 2026-09-18;
+# no regenerar con makemessages.
+
+#: judge/prueba-personalizada
+msgid "[La salida se cortó en %(kilobytes)s KB. El programa pudo imprimir más.]"
+msgstr "[Output was cut at %(kilobytes)s KB. The program may have printed more.]"
+
+# --- Equipos (CPC-UAEH). Los msgid originales están en español, por eso el
+# catálogo inglés sí necesita traducirlos. Añadido a mano el 2026-09-18;
+# no regenerar con makemessages.
+
+#: judge/equipos
+msgid "%(user)s no tiene una cuenta activa."
+msgstr "%(user)s does not have an active account."
+
+#: judge/equipos
+msgid "%(user)s no puede participar en este concurso."
+msgstr "%(user)s cannot take part in this contest."
+
+#: judge/equipos
+msgid "%(user)s organiza o revisa este concurso, así que no puede inscribirse como participante. Quítalo de la lista para continuar."
+msgstr "%(user)s runs or tests this contest, so they cannot register as a contestant. Remove them from the list to continue."
+
+#: judge/equipos
+msgid "%(user)s no tiene acceso a este concurso."
+msgstr "%(user)s does not have access to this contest."
+
+#: judge/equipos
+msgid "%(user)s no pertenece a ninguna de las organizaciones que pueden entrar a este concurso."
+msgstr "%(user)s does not belong to any of the organisations that may enter this contest."
+
+#: judge/equipos
+msgid "%(user)s ya está inscrito en otra participación de este concurso."
+msgstr "%(user)s is already registered in another participation of this contest."
+
+#: judge/equipos
+msgid "%(user)s ya tiene una simulación en curso en este concurso."
+msgstr "%(user)s already has a virtual attempt in progress in this contest."
+
+#: judge/equipos
+msgid "Selecciona integrantes válidos del equipo."
+msgstr "Select valid members of the team."
+
+#: judge/equipos
+msgid "Debes incluirte entre quienes participan."
+msgstr "You must include yourself among those taking part."
+
+#: judge/equipos
+msgid "¿Quiénes participan?"
+msgstr "Who is taking part?"
+
+#: judge/equipos
+msgid "Tú"
+msgstr "You"
+
+#: judge/equipos
+msgid "Quien no marques se queda fuera de esta participación. No necesita entrar por su cuenta ni escribir el código: al inscribir el equipo queda dentro."
+msgstr "Whoever you leave unchecked stays out of this participation. They do not need to enter on their own or type the code: registering the team lets them in."
+
+#: judge/equipos
+msgid "Basta con que lo escriba quien inscribe. Los demás integrantes entran con esa misma inscripción."
+msgstr "Only whoever registers needs to type it. The other members get in through that same registration."
+
+# --- Equipos (CPC-UAEH). Los msgid originales están en español, por eso el
+# catálogo inglés sí necesita traducirlos. Añadido a mano el 2026-09-18;
+# no regenerar con makemessages.
+
+#: judge/equipos
+msgid "Se unió"
+msgstr "Joined"
+
+#: judge/equipos
+msgid "Activo"
+msgstr "Active"
+
+#: judge/equipos
+msgid "Creado"
+msgstr "Created"
+
+#: judge/equipos
+msgid "Participaciones"
+msgstr "Participations"
+
+#: judge/equipos
+msgid "Sin participaciones"
+msgstr "No participations"
+
+#: judge/equipos
+msgid "Desactivar los equipos seleccionados"
+msgstr "Deactivate the selected teams"
+
+#: judge/equipos
+msgid "Activar los equipos seleccionados"
+msgstr "Activate the selected teams"
+
+#: judge/equipos
+msgid "Equipos desactivados: %d."
+msgstr "Teams deactivated: %d."
+
+#: judge/equipos
+msgid "Equipos activados: %d."
+msgstr "Teams activated: %d."
+
+#: judge/equipos
+msgid "Cancelar las invitaciones pendientes seleccionadas"
+msgstr "Cancel the selected pending invitations"
+
+#: judge/equipos
+msgid "Invitaciones canceladas: %d."
+msgstr "Invitations cancelled: %d."
+
+#: judge/equipos
+msgid "Remitente"
+msgstr "Sender"
+
+#: judge/equipos
+msgid "Destinatario"
+msgstr "Recipient"
+
+#: judge/equipos
+msgid "Estado"
+msgstr "Status"
+
+#: judge/equipos
+msgid "Enviada"
+msgstr "Sent"
+
+#: judge/equipos
+msgid "Respondida"
+msgstr "Answered"
+
+# --- Equipos (CPC-UAEH). Los msgid originales están en español, por eso el
+# catálogo inglés sí necesita traducirlos. Añadido a mano el 2026-09-18;
+# no regenerar con makemessages.
+
+#: judge/equipos
+msgid "Sólo la cuenta dueña del servidor puede borrar aquí."
+msgstr "Only the server owner account may delete here."
+
+#: judge/equipos
+msgid "Eliminar definitivamente"
+msgstr "Delete permanently"
+
+#: judge/equipos
+msgid "Esto no se puede deshacer y no queda copia."
+msgstr "This cannot be undone and no copy is kept."
+
+#: judge/equipos
+msgid "Aclaraciones preguntadas por el equipo"
+msgstr "Clarifications asked by the team"
+
+#: judge/equipos
+msgid "Movimientos de globo"
+msgstr "Balloon actions"
+
+#: judge/equipos
+msgid "Ubicaciones de globos"
+msgstr "Balloon locations"
+
+#: judge/equipos
+msgid "Envíos dentro de concursos"
+msgstr "Submissions inside contests"
+
+#: judge/equipos
+msgid "Envíos dentro del concurso"
+msgstr "Submissions inside the contest"
+
+#: judge/equipos
+msgid "Listas inscritas"
+msgstr "Registered rosters"
+
+#: judge/equipos
+msgid "Participaciones en concursos"
+msgstr "Contest participations"
+
+#: judge/equipos
+msgid "Invitaciones"
+msgstr "Invitations"
+
+#: judge/equipos
+msgid "Aclaraciones"
+msgstr "Clarifications"
+
+#: judge/equipos
+msgid "De ellas, de equipo"
+msgstr "Of those, team ones"
+
+#: judge/equipos
+msgid "Problemas del concurso"
+msgstr "Contest problems"
+
+#: judge/equipos
+msgid "Eliminado definitivamente: %s."
+msgstr "Permanently deleted: %s."
+
+#: judge/equipos
+msgid "Eliminar equipos definitivamente"
+msgstr "Delete teams permanently"
+
+#: judge/equipos
+msgid "Eliminar concursos definitivamente"
+msgstr "Delete contests permanently"
+
+#: judge/equipos
+msgid "Eliminar definitivamente, con todo su historial"
+msgstr "Delete permanently, with all its history"
+
+#: judge/equipos
+msgid "Eliminar definitivamente, con todo lo que cuelga del concurso"
+msgstr "Delete permanently, with everything that hangs off the contest"
+
+#: judge/equipos
+msgid "Sí, eliminar definitivamente"
+msgstr "Yes, delete permanently"
+
+#: judge/equipos
+msgid "Se borra también el historial de concursos del equipo. No se puede deshacer y no queda copia. Los envíos en sí se conservan en el historial personal de cada quien; lo que desaparece es su vínculo con el concurso."
+msgstr "The team contest history is deleted as well. This cannot be undone and no copy is kept. The submissions themselves are kept in each person history; what disappears is their link to the contest."
+
+#: judge/equipos
+msgid "Se borra el concurso con todo lo que cuelga de él, incluidas las aclaraciones de equipos que hoy impiden borrarlo. No se puede deshacer y no queda copia. Los envíos en sí se conservan en el historial personal de cada quien; lo que desaparece es su vínculo con el concurso."
+msgstr "The contest is deleted with everything that hangs off it, including the team clarifications that block its deletion today. This cannot be undone and no copy is kept. The submissions themselves are kept in each person history; what disappears is their link to the contest."
+
+#: judge/equipos
+msgid "Participación"
+msgstr "Participation"
+
+#: judge/equipos
+msgid "Las participaciones de equipos se conservan como historial."
+msgstr "Team participations are kept as history."
+
+#: judge/equipos
+msgid "Selecciona una modalidad"
+msgstr "Select a participation mode"

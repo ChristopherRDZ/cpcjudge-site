@@ -845,6 +845,13 @@
                 transition: none !important;
             }
         }
+        .rv-team-photos { display: flex; flex-wrap: wrap; gap: 1em; justify-content: center; margin: 0 auto 1em; }
+        .rv-team-member { display: flex; flex-direction: column; align-items: center; gap: .4em; max-width: 10em; }
+        .rv-team-member img { width: clamp(64px, 13vw, 144px); height: clamp(64px, 13vw, 144px); border-radius: 12px; object-fit: cover; background: #555; }
+        .rv-team-member span { overflow-wrap: anywhere; font-size: .9em; }
+        .rv-team-mini { display: flex; flex-shrink: 0; max-width: 90px; overflow: hidden; }
+        .rv-team-mini img { width: 24px; height: 24px; border-radius: 50%; margin-right: -7px; border: 1px solid #444; }
+        .rv-division-links { display: flex; gap: 1em; padding: .7em 1.2em; }
     </style>
 </head>
 <body>
@@ -862,6 +869,13 @@
         <span id="rv-chip-text"></span>
     </span>
 </header>
+{% if contest.participation_mode == 'mixed' %}
+<nav class="rv-division-links" aria-label="{{ _('Rankings del concurso') }}">
+    <a href="{{ url('contest_reveal', contest.key) }}?division=individual" {% if ranking_division == 'individual' %}aria-current="page"{% endif %}>{{ _('Individuales') }}</a>
+    <a href="{{ url('contest_reveal', contest.key) }}?division=team" {% if ranking_division == 'team' %}aria-current="page"{% endif %}>{{ _('Equipos') }}</a>
+    <span>{{ _('Publicar resultados descongela ambos rankings.') }}</span>
+</nav>
+{% endif %}
 
 {% if notices %}
     <div class="rv-notices">
@@ -1160,7 +1174,12 @@
         var node = el('div', 'rv-row rv-grid');
         node.rank = node.appendChild(el('div', 'rv-rank')).appendChild(el('span'));
         var name = node.appendChild(el('div', 'rv-name'));
-        name.appendChild(avatar(row.avatar, 'rv-avatar'));
+        if (row.members && row.members.length) {
+            var mini = name.appendChild(el('div', 'rv-team-mini'));
+            row.members.slice(0, 4).forEach(function (member) {
+                var picture = avatar(member.avatar, ''); picture.alt = member.name; mini.appendChild(picture);
+            });
+        } else name.appendChild(avatar(row.avatar, 'rv-avatar'));
         var nameText = name.appendChild(el('div', 'rv-name-text'));
         nameText.appendChild(el('strong', '', row.name));
         name.title = row.username;
@@ -1626,9 +1645,18 @@
         var winners = document.getElementById('rv-winners');
         winners.textContent = '';
         var block = winners.appendChild(el('div', 'rv-winner'));
-        var picture = avatar(rows[row].avatar, '');
-        picture.loading = 'eager';
-        block.appendChild(picture);
+        if (rows[row].members && rows[row].members.length) {
+            var photos = block.appendChild(el('div', 'rv-team-photos'));
+            rows[row].members.forEach(function (member) {
+                var person = photos.appendChild(el('div', 'rv-team-member'));
+                var picture = avatar(member.avatar, '');
+                picture.alt = member.name; picture.loading = 'eager';
+                person.appendChild(picture); person.appendChild(el('span', '', member.name));
+            });
+        } else {
+            var picture = avatar(rows[row].avatar, '');
+            picture.loading = 'eager'; block.appendChild(picture);
+        }
         var name = block.appendChild(el('h2', '', rows[row].name));
         name.id = 'rv-champion-title';
         var achievements = block.appendChild(el('ul', 'rv-achievements'));

@@ -24,7 +24,7 @@ def submission_layout(submission, profile_id, user, completed_problem_ids, edita
         can_edit = True
     elif user.has_perm('judge.view_all_submission'):
         can_view = True
-    elif profile_id == submission.user_id:
+    elif submission.is_owned_by(user):
         can_view = True
     elif submission_source_visibility == SubmissionSourceAccess.ALWAYS:
         can_view = True

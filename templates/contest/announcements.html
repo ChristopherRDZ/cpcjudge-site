@@ -157,7 +157,7 @@
                             {% else %}
                                 {{ _('General') }}
                             {% endif %}
-                            &middot; {{ clarification.user.user.username }}
+                            &middot; {{ clarification.participant_name }}
                             &middot; {{ relative_time(clarification.asked) }}
                             {%- if clarification.answer and not clarification.is_public %}
                                 &middot; {{ _('private answer') }}

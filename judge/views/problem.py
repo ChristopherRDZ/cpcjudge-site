@@ -713,6 +713,17 @@ class ProblemSubmit(LoginRequiredMixin, ProblemMixin, TitleMixin, SingleObjectFo
                                    _('You have exceeded the submission limit for this problem.'))
 
         with transaction.atomic():
+            participation = self.request.profile.current_contest
+            if participation is not None and participation.team_id:
+                from judge.models import ContestParticipation
+                participation = ContestParticipation.objects.select_for_update().get(pk=participation.pk)
+                if (participation.ended or participation.is_disqualified or
+                        not participation.contains_profile(self.request.profile.pk)):
+                    return generic_message(self.request, _('Cannot enter'), _('Esta participación ya no admite envíos.'), status=403)
+                if (self.contest_problem is not None and self.contest_problem.max_submissions and
+                        get_contest_submission_count(self.object, self.request.profile, participation.virtual) >= self.contest_problem.max_submissions):
+                    return generic_message(self.request, _('Too many submissions'),
+                                           _('You have exceeded the submission limit for this problem.'), status=400)
             self.new_submission = form.save(commit=False)
 
             contest_problem = self.contest_problem
@@ -769,7 +780,7 @@ class ProblemSubmit(LoginRequiredMixin, ProblemMixin, TitleMixin, SingleObjectFo
                 Submission.objects.select_related('source', 'language'),
                 id=submission_id,
             )
-            if not request.user.has_perm('judge.resubmit_other') and self.old_submission.user != request.profile:
+            if not request.user.has_perm('judge.resubmit_other') and not self.old_submission.is_owned_by(request.user):
                 raise PermissionDenied()
         else:
             self.old_submission = None
@@ -824,6 +835,13 @@ CUSTOM_TEST_TIME_LIMIT = 2.0
 CUSTOM_TEST_MEMORY_LIMIT = 524288
 CUSTOM_TEST_MARKER = 'CPC custom test v1:'
 CUSTOM_TEST_SIGNING_SALT = 'judge.custom-test.problem.v1'
+# Cuántos bytes de la salida del programa devuelve el juez. Sin esto el juez
+# aplica su valor por omisión, 64 bytes, que corta la salida a media línea y
+# vuelve la herramienta inútil para depurar. No es el límite de lo que el
+# programa puede imprimir: eso lo rige `output_limit_length` del juez (24 MiB),
+# que no se toca. Se queda en el mismo archivo de la prueba, así que se afloja
+# desde la configuración privada con CPC_CUSTOM_TEST_OUTPUT_PREFIX.
+CUSTOM_TEST_OUTPUT_PREFIX = 65536
 
 
 # Per-user limits for the custom test tool. The site tree is a read-only bind
@@ -840,6 +858,13 @@ CUSTOM_TEST_IN_FLIGHT_MAX_AGE = timedelta(minutes=10)
 def _custom_test_limit(name, fallback):
     value = getattr(settings, 'CPC_CUSTOM_TEST_' + name, fallback)
     return value if isinstance(value, int) and not isinstance(value, bool) else fallback
+
+
+def _custom_test_output_prefix():
+    # Un valor absurdo en la configuración privada rompería el init.yml del juez,
+    # así que se acota en vez de confiar en él.
+    value = _custom_test_limit('OUTPUT_PREFIX', CUSTOM_TEST_OUTPUT_PREFIX)
+    return min(max(value, 1024), 1048576)
 
 
 def _custom_test_window_refusal(profile):
@@ -966,8 +991,14 @@ class CustomTestView(LoginRequiredMixin, TitleMixin, View):
             'languages': languages,
             'default_lang': default_lang,
             'ACE_URL': settings.ACE_URL,
+            # Con el tema del sitio en «auto» esto es None y el tema del editor se
+            # resuelve en el navegador, igual que hace django_ace/widget.js.
             'ace_theme': request.profile.resolved_ace_theme,
+            'ace_light_theme': settings.ACE_DEFAULT_LIGHT_THEME,
+            'ace_dark_theme': settings.ACE_DEFAULT_DARK_THEME,
             'time_limit': CUSTOM_TEST_TIME_LIMIT,
+            'memory_limit': CUSTOM_TEST_MEMORY_LIMIT,
+            'output_prefix': _custom_test_output_prefix(),
         })
 
 
@@ -1014,7 +1045,9 @@ def custom_test_run(request):
             with open(os.path.join(problem_dir, 'output.txt'), 'x', encoding='utf-8') as stream:
                 stream.write('')
             with open(os.path.join(problem_dir, 'init.yml'), 'x', encoding='utf-8') as stream:
-                stream.write('wall_time_factor: 1\ntest_cases:\n- in: input.txt\n  out: output.txt\n  points: 0\n')
+                stream.write('wall_time_factor: 1\noutput_prefix_length: %d\n'
+                             'test_cases:\n- in: input.txt\n  out: output.txt\n  points: 0\n'
+                             % _custom_test_output_prefix())
 
             # Roll back only rows created by this request if preparation fails.
             with transaction.atomic():
@@ -1077,6 +1110,12 @@ def custom_test_run(request):
     if submission.status == 'D':
         testcases = SubmissionTestCase.objects.filter(submission=submission).order_by('case')
         if testcases.exists():
-            response_data['output'] = testcases.first().output
+            output = testcases.first().output
+            response_data['output'] = output
+            # El juez corta en bytes; comparar en bytes evita avisar de más con
+            # salidas acentuadas.
+            limit = _custom_test_output_prefix()
+            response_data['output_truncated'] = len(output.encode('utf-8')) >= limit
+            response_data['output_limit'] = limit
     # Polling is read-only, including repeated and malformed requests.
     return JsonResponse(response_data)

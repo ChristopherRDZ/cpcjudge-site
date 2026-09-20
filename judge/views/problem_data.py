@@ -28,6 +28,30 @@ from judge.views.problem import ProblemMixin
 mimetypes.init()
 mimetypes.add_type('application/x-yaml', '.yml')
 
+# Two separate ceilings stand between a big data set and a saved problem, and
+# neither one announces itself:
+#
+#  * every case row posts one field per entry of ProblemCaseForm.Meta.fields
+#    plus its id and its delete box, so DATA_UPLOAD_MAX_NUMBER_FIELDS turns a
+#    large table into a bare 400 before the formset ever runs;
+#  * the formset itself stops at absolute_max forms, and Django drops the
+#    surplus quietly rather than complaining.
+#
+# The page hands the browser whichever is lower, so that filling the table from
+# a zip can warn instead of building something that cannot be saved.
+FIELDS_PER_CASE_ROW = len(('order', 'type', 'input_file', 'output_file', 'points', 'is_pretest',
+                           'output_limit', 'output_prefix', 'checker', 'checker_args',
+                           'generator_args', 'batch_dependencies', 'id', 'DELETE'))
+FIELDS_OUTSIDE_CASES = 20  # management form, the data form above the table, CSRF and slack
+
+
+def max_case_rows(formset_class):
+    ceilings = [formset_class.absolute_max]
+    limit = settings.DATA_UPLOAD_MAX_NUMBER_FIELDS
+    if limit is not None:
+        ceilings.append(max(0, (limit - FIELDS_OUTSIDE_CASES) // FIELDS_PER_CASE_ROW))
+    return min(ceilings)
+
 
 def checker_args_cleaner(self):
     data = self.cleaned_data['checker_args']
@@ -194,6 +218,7 @@ class ProblemDataView(TitleMixin, ProblemManagerMixin):
                 pass
         context['valid_files'] = set(valid_files)
         context['valid_files_json'] = mark_safe(json.dumps(valid_files))
+        context['max_case_rows_json'] = mark_safe(json.dumps(max_case_rows(ProblemCaseFormSet)))
 
         context['cases_formset'] = self.get_case_formset(valid_files)
         context['all_case_forms'] = chain(context['cases_formset'], [context['cases_formset'].empty_form])

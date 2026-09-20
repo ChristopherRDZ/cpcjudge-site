@@ -57,6 +57,14 @@ class ContestTag(models.Model):
 
 
 class Contest(models.Model):
+    INDIVIDUAL, TEAM, MIXED = 'individual', 'team', 'mixed'
+    participation_mode = models.CharField(
+        _('Modalidad de participación'), max_length=10, default=INDIVIDUAL,
+        choices=((INDIVIDUAL, _('Individual')), (TEAM, _('Equipos')), (MIXED, _('Mixto'))))
+    team_min_size = models.PositiveSmallIntegerField(_('Mínimo de integrantes'), default=1,
+                                                     validators=[MinValueValidator(1), MaxValueValidator(100)])
+    team_max_size = models.PositiveSmallIntegerField(_('Máximo de integrantes'), default=3,
+                                                     validators=[MinValueValidator(1), MaxValueValidator(100)])
     FROZEN_WINDOWS_CACHE_KEY = 'frozen_contest_windows'
     SCOREBOARD_VISIBLE = 'V'
     SCOREBOARD_AFTER_CONTEST = 'C'
@@ -124,6 +132,9 @@ class Contest(models.Model):
     rate_exclude = models.ManyToManyField(Profile, verbose_name=_('exclude from ratings'), blank=True,
                                           related_name='rate_exclude+')
     is_private = models.BooleanField(verbose_name=_('private to specific users'), default=False)
+    private_teams = models.ManyToManyField('Team', blank=True, related_name='private_contests',
+                                          verbose_name=_('Equipos autorizados'),
+                                          help_text=_('Equipos que pueden acceder e inscribirse en este concurso privado.'))
     private_contestants = models.ManyToManyField(Profile, blank=True, verbose_name=_('private contestants'),
                                                  help_text=_('If non-empty, only these users may see the contest.'),
                                                  related_name='private_contestants+')
@@ -216,6 +227,15 @@ class Contest(models.Model):
         return lua.eval(self.problem_label_script)
 
     def clean(self):
+        if self.team_min_size and self.team_max_size and self.team_min_size > self.team_max_size:
+            raise ValidationError({'team_max_size': _('El máximo debe ser mayor o igual al mínimo.')})
+        if self.participation_mode == self.TEAM and self.is_rated:
+            raise ValidationError({'is_rated': _('Los concursos exclusivos de equipos no pueden ser calificados.')})
+        if self.pk:
+            previous = type(self).objects.filter(pk=self.pk).values('participation_mode').first()
+            if (previous and previous['participation_mode'] != self.participation_mode and
+                    self.users.filter(virtual__gte=0).exists()):
+                raise ValidationError({'participation_mode': _('No se puede cambiar la modalidad después de la primera participación.')})
         # Django will complain if you didn't fill in start_time or end_time, so we don't have to.
         if self.start_time and self.end_time and self.start_time >= self.end_time:
             raise ValidationError('What is this? A contest that ended before it starts?')
@@ -267,7 +287,7 @@ class Contest(models.Model):
 
     def has_completed_contest(self, user):
         if user.is_authenticated:
-            participation = self.users.filter(virtual=ContestParticipation.LIVE, user=user.profile).first()
+            participation = self.users.for_profile(user.profile).filter(virtual=ContestParticipation.LIVE).first()
             if participation and participation.ended:
                 return True
         return False
@@ -467,7 +487,9 @@ class Contest(models.Model):
 
         in_org = (self.organizations.filter(id__in=user.profile.organizations.all()).exists() or
                   self.classes.filter(id__in=user.profile.classes.all()).exists())
-        in_users = self.private_contestants.filter(id=user.profile.id).exists()
+        in_users = (self.private_contestants.filter(id=user.profile.id).exists() or
+                    self.private_teams.filter(is_active=True, members=user.profile).exists() or
+                    self.users.filter(team__isnull=False, team_roster__profile=user.profile).exists())
 
         if not self.is_private and self.is_organization_private:
             if in_org:
@@ -576,6 +598,10 @@ class Contest(models.Model):
             q |= Q(curators=user.profile)
             q |= Q(testers=user.profile)
             q |= Q(spectators=user.profile)
+            q |= (Q(is_visible=True, is_private=True, private_teams__is_active=True,
+                    private_teams__members=user.profile) & (Q(is_organization_private=False) | org_check))
+            q |= (Q(is_visible=True, is_private=True, users__team_roster__profile=user.profile) &
+                  (Q(is_organization_private=False) | org_check))
             queryset = queryset.filter(q)
         return queryset.distinct()
 
@@ -605,12 +631,23 @@ class Contest(models.Model):
         verbose_name_plural = _('contests')
 
 
+class ContestParticipationQuerySet(models.QuerySet):
+    def for_profile(self, profile):
+        if profile is None:
+            return self.none()
+        return self.filter(Q(team__isnull=True, user=profile) |
+                           Q(pk__in=profile.team_contest_entries.values('participation_id')))
+
+
 class ContestParticipation(models.Model):
     LIVE = 0
     SPECTATE = -1
 
     contest = models.ForeignKey(Contest, verbose_name=_('associated contest'), related_name='users', on_delete=CASCADE)
     user = models.ForeignKey(Profile, verbose_name=_('user'), related_name='contest_history', on_delete=CASCADE)
+    team = models.ForeignKey('Team', null=True, blank=True, on_delete=models.PROTECT, related_name='participations')
+    team_name = models.CharField(max_length=60, blank=True, default='')
+    objects = ContestParticipationQuerySet.as_manager()
     real_start = models.DateTimeField(verbose_name=_('start time'), default=timezone.now, db_column='start')
     score = models.FloatField(verbose_name=_('score'), default=0, db_index=True)
     cumtime = models.PositiveIntegerField(verbose_name=_('cumulative time'), default=0)
@@ -666,6 +703,11 @@ class ContestParticipation(models.Model):
 
     def recompute_results(self):
         with transaction.atomic():
+            # All team members can finish judging at once. Freeze and scoring must see one serialized state.
+            locked = type(self).objects.select_for_update().get(pk=self.pk)
+            for field in ('frozen_at', 'frozen_score', 'frozen_cumtime', 'frozen_tiebreaker', 'frozen_format_data',
+                          'score', 'cumtime', 'tiebreaker', 'format_data', 'is_disqualified'):
+                setattr(self, field, getattr(locked, field))
             self.freeze_scoreboard()
             self.contest.format.update_participation(self)
             if self.is_disqualified:
@@ -675,22 +717,53 @@ class ContestParticipation(models.Model):
                 self.save(update_fields=['score', 'cumtime', 'tiebreaker'])
     recompute_results.alters_data = True
 
+    @transaction.atomic
     def set_disqualified(self, disqualified):
+        type(self).objects.select_for_update().get(pk=self.pk)
         self.is_disqualified = disqualified
+        self.save(update_fields=['is_disqualified'])
         self.recompute_results()
         if self.contest.is_rated and self.contest.ratings.exists():
             self.contest.rate()
+        profiles = list(self.team_roster.values_list('profile_id', flat=True)) if self.team_id else [self.user_id]
         if self.is_disqualified:
-            if self.user.current_contest == self:
-                self.user.remove_contest()
-            self.contest.banned_users.add(self.user)
+            Profile.objects.filter(current_contest=self).update(current_contest=None)
+            self.contest.banned_users.add(*profiles)
         else:
-            self.contest.banned_users.remove(self.user)
+            self.contest.banned_users.remove(*profiles)
     set_disqualified.alters_data = True
 
     @property
     def live(self):
         return self.virtual == self.LIVE
+
+    def clean(self):
+        super().clean()
+        if self.contest_id and self.user_id and self.virtual == self.LIVE and not self.team_id:
+            if self.contest.participation_mode == Contest.TEAM:
+                raise ValidationError(_('Este concurso sólo admite participaciones oficiales por equipo.'))
+            if type(self).objects.for_profile(self.user).filter(contest_id=self.contest_id, virtual=0).exclude(pk=self.pk).exists():
+                raise ValidationError(_('Este usuario ya tiene una inscripción oficial en el concurso.'))
+
+    def contains_profile(self, profile_id):
+        if not self.team_id:
+            return self.user_id == profile_id
+        return any(member.profile_id == profile_id for member in self.team_roster.all())
+
+    @property
+    def display_name(self):
+        return self.team_name if self.team_id else self.user.display_name
+
+    def submissions_url(self, problem=None):
+        if self.team_id:
+            args = [self.contest.key, self.pk]
+            if problem:
+                args.append(problem.code)
+            return reverse('contest_team_problem_submissions' if problem else 'contest_team_submissions', args=args)
+        args = [self.contest.key, self.user.user.username]
+        if problem:
+            args.append(problem.code)
+        return reverse('contest_user_submissions' if problem else 'contest_all_user_submissions', args=args)
 
     @property
     def spectate(self):
@@ -731,18 +804,18 @@ class ContestParticipation(models.Model):
 
     def __str__(self):
         if self.spectate:
-            return _('%(user)s spectating in %(contest)s') % {'user': self.user.username, 'contest': self.contest.name}
+            return _('%(user)s spectating in %(contest)s') % {'user': self.display_name, 'contest': self.contest.name}
         if self.virtual:
             return _('%(user)s in %(contest)s, v%(id)d') % {
-                'user': self.user.username, 'contest': self.contest.name, 'id': self.virtual,
+                'user': self.display_name, 'contest': self.contest.name, 'id': self.virtual,
             }
-        return _('%(user)s in %(contest)s') % {'user': self.user.username, 'contest': self.contest.name}
+        return _('%(user)s in %(contest)s') % {'user': self.display_name, 'contest': self.contest.name}
 
     class Meta:
         verbose_name = _('contest participation')
         verbose_name_plural = _('contest participations')
 
-        unique_together = ('contest', 'user', 'virtual')
+        unique_together = (('contest', 'user', 'virtual'), ('contest', 'team', 'virtual'))
 
 
 class ContestProblem(models.Model):

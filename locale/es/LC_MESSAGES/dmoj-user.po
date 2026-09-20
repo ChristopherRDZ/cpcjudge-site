@@ -1,0 +1,29 @@
+# Etiquetas de la barra de navegación (dominio dmoj-user).
+# Escrito a mano el 2026-09-19; no regenerar con makemessages.
+msgid ""
+msgstr ""
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: es\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: judge/navigationbar
+msgid "Problemas"
+msgstr "Problemas"
+
+#: judge/navigationbar
+msgid "Envíos"
+msgstr "Envíos"
+
+#: judge/navigationbar
+msgid "Usuarios"
+msgstr "Usuarios"
+
+#: judge/navigationbar
+msgid "Concursos"
+msgstr "Concursos"
+
+#: judge/navigationbar
+msgid "Compilador"
+msgstr "Compilador"

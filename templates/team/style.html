@@ -1,0 +1,371 @@
+<style>
+    /* Estilos de equipos. Todo va en línea a propósito: no hay archivo bajo
+       resources/, así que no hay collectstatic, ni copia con hash, ni manifiesto
+       de compresión que regenerar. Queda fuera de todo bloque de compresión.
+
+       La paleta se declara como variables para que el bloque oscuro de más abajo
+       sólo tenga que redefinirlas. Los valores salen de vars-default.scss y
+       vars-dark.scss, incluida la inversión de la barra de panel: en tema oscuro
+       el sitio pinta `.sidebox h3` claro con texto oscuro, no al revés. */
+    :root {
+        --team-fg: #000;
+        --team-muted: #555;
+        --team-bg: #fff;
+        --team-soft-bg: #f8f8f8;
+        --team-border: #ccc;
+        --team-soft-border: #e3e3e3;
+        --team-head-bg: #3b3b3b;
+        --team-head-fg: #fff;
+        --team-count-bg: rgba(255, 255, 255, .18);
+        --team-chip-bg: #f3f3f3;
+        --team-chip-border: #ddd;
+        --team-link: #5b80b9;
+        --team-link-hover: #0645ad;
+        --team-hover-border: #5b80b9;
+        --team-btn-fg: #3b3b3b;
+        --team-btn-bg: #fff;
+        --team-btn-hover-bg: #eee;
+        --team-btn-hover-border: #aaa;
+        --team-danger-fg: #944;
+        --team-danger-bg: #edd;
+        --team-danger-border: #d0b4b4;
+        --team-danger-soft: #fbf3f3;
+        --team-danger-head-bg: #944;
+        --team-danger-head-fg: #fff;
+        --team-error-fg: #533;
+        --team-warn-head-bg: #863;
+        --team-warn-head-fg: #fff;
+        --team-warn-bg: #fffdf0;
+        --team-warn-border: #e2cf8f;
+        --team-warn-line: #ebdfb4;
+        --team-empty-icon: #ccc;
+    }
+
+    .teams-layout { max-width: 64em; margin: 0 auto; color: var(--team-fg); }
+
+    /* ---- Paneles: mismo lenguaje visual que .sidebox del sitio ---- */
+    .team-panel { margin: 0 0 1.2em; }
+    .team-panel:last-child { margin-bottom: 0; }
+    .team-panel-head {
+        background: var(--team-head-bg);
+        color: var(--team-head-fg);
+        border-radius: 4px 4px 0 0;
+        padding: 6px 10px;
+        font-size: 1.15em;
+        font-weight: 400;
+        display: flex;
+        align-items: center;
+        gap: .5em;
+    }
+    .team-panel-head .fa { opacity: .8; }
+    .team-panel-body {
+        border: 1px solid var(--team-border);
+        border-top: none;
+        border-radius: 0 0 4px 4px;
+        background: var(--team-bg);
+        color: var(--team-fg);
+        padding: 1em;
+    }
+    .team-count {
+        margin-left: auto;
+        background: var(--team-count-bg);
+        border-radius: 4px;
+        padding: 0 .5em;
+        font-size: .78em;
+        line-height: 1.8;
+    }
+
+    /* ---- Dos columnas: equipos + barra lateral ---- */
+    .team-columns {
+        display: grid;
+        grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+        gap: 1.2em;
+        align-items: start;
+    }
+
+    /* ---- Invitaciones pendientes ---- */
+    .team-panel-invite .team-panel-head {
+        background: var(--team-warn-head-bg);
+        color: var(--team-warn-head-fg);
+    }
+    .team-panel-invite .team-panel-body {
+        border-color: var(--team-warn-border);
+        background: var(--team-warn-bg);
+    }
+    .team-invite {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .8em;
+        align-items: center;
+        justify-content: space-between;
+        padding: .7em 0;
+        border-bottom: 1px solid var(--team-warn-line);
+    }
+    .team-invite:first-child { padding-top: 0; }
+    .team-invite:last-child { padding-bottom: 0; border-bottom: none; }
+    .team-invite-text { flex: 1 1 18em; min-width: 12em; line-height: 1.5; }
+    .team-invite-team { font-weight: 600; font-size: 1.1em; overflow-wrap: anywhere; }
+
+    /* ---- Rejilla de equipos ---- */
+    .team-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, 17em), 1fr));
+        gap: .9em;
+    }
+    .team-item {
+        border: 1px solid var(--team-border);
+        border-radius: 4px;
+        background: var(--team-bg);
+        color: var(--team-fg);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    .team-item:hover { border-color: var(--team-hover-border); }
+    .team-item-head {
+        display: flex;
+        align-items: baseline;
+        gap: .5em;
+        flex-wrap: wrap;
+        padding: .6em .8em;
+        background: var(--team-soft-bg);
+        border-bottom: 1px solid var(--team-soft-border);
+    }
+    .team-item-name { font-size: 1.15em; font-weight: 600; overflow-wrap: anywhere; color: var(--team-link); }
+    .team-item-name:hover { color: var(--team-link-hover); }
+    .team-item-body { padding: .7em .8em; flex: 1 1 auto; }
+    .team-item-foot {
+        padding: .5em .8em;
+        background: var(--team-soft-bg);
+        border-top: 1px solid var(--team-soft-border);
+    }
+
+    /* ---- Distintivos y fichas de integrante ---- */
+    .team-badge {
+        font-size: .8em;
+        border: 1px solid var(--team-border);
+        border-radius: 4px;
+        padding: .1em .5em;
+        color: var(--team-muted);
+        background: var(--team-bg);
+        white-space: nowrap;
+    }
+    .team-badge-owner {
+        border-color: var(--team-danger-border);
+        color: var(--team-danger-fg);
+        background: var(--team-danger-soft);
+    }
+    .team-chips { list-style: none; margin: .45em 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: .35em; }
+    .team-chip {
+        border: 1px solid var(--team-chip-border);
+        border-radius: 4px;
+        background: var(--team-chip-bg);
+        color: var(--team-fg);
+        padding: .15em .5em;
+        overflow-wrap: anywhere;
+    }
+    .team-chip-owner {
+        border-color: var(--team-danger-border);
+        background: var(--team-danger-soft);
+        color: var(--team-danger-fg);
+        font-weight: 600;
+    }
+    .team-label { font-size: .9em; color: var(--team-muted); }
+
+    /* ---- Botones secundarios y destructivos ----
+       El sitio pinta todo <button> de azul con `color: white !important`, así que
+       estas variantes necesitan la misma fuerza para distinguir una acción
+       reversible de una que no lo es. */
+    .team-actions { display: flex; gap: .5em; flex-wrap: wrap; align-items: center; margin: 0; }
+    .team-actions form { display: flex; gap: .5em; flex-wrap: wrap; margin: 0; }
+    .team-btn-secondary, .team-btn-danger {
+        color: var(--team-btn-fg) !important;
+        background: var(--team-btn-bg) !important;
+        border: 1px solid var(--team-border);
+        border-radius: 4px;
+        padding: 6px 12px;
+        font-size: 14px;
+        line-height: 1.4;
+        text-align: center;
+        white-space: nowrap;
+        cursor: pointer;
+    }
+    .team-btn-secondary:hover {
+        background: var(--team-btn-hover-bg) !important;
+        border-color: var(--team-btn-hover-border);
+    }
+    .team-btn-danger { color: var(--team-danger-fg) !important; border-color: var(--team-danger-border); }
+    .team-btn-danger:hover {
+        background: var(--team-danger-bg) !important;
+        border-color: var(--team-danger-fg);
+    }
+    .team-btn-small { padding: 3px 9px; font-size: .9em; }
+
+    /* ---- Lista de integrantes ---- */
+    .team-roster { list-style: none; margin: 0; padding: 0; }
+    .team-roster > li {
+        display: flex;
+        align-items: center;
+        gap: .6em;
+        flex-wrap: wrap;
+        padding: .65em .1em;
+        border-bottom: 1px solid var(--team-soft-border);
+        overflow-wrap: anywhere;
+    }
+    .team-roster > li:first-child { padding-top: 0; }
+    .team-roster > li:last-child { border-bottom: none; }
+    .team-roster-name { flex: 1 1 12em; }
+
+    /* ---- Historial de concursos ---- */
+    .team-history-list { list-style: none; margin: 0; padding: 0; }
+    .team-history-list > li {
+        padding: .55em .1em;
+        border-bottom: 1px solid var(--team-soft-border);
+        line-height: 1.5;
+    }
+    .team-history-list > li:first-child { padding-top: 0; }
+    .team-history-list > li:last-child { border-bottom: none; }
+
+    /* ---- Textos auxiliares, errores y estados vacíos ---- */
+    .team-note { color: var(--team-muted); font-size: .95em; line-height: 1.5; }
+    .team-help { color: var(--team-muted); font-size: .9em; line-height: 1.5; margin: .4em 0 .8em; }
+    .team-error {
+        border: 1px solid var(--team-danger-fg);
+        border-left-width: 4px;
+        border-radius: 4px;
+        background: var(--team-danger-bg);
+        color: var(--team-error-fg);
+        padding: .8em 1em;
+        margin: 0 0 1.2em;
+        line-height: 1.5;
+    }
+    .team-field-error { color: var(--team-danger-fg); font-size: .9em; margin: .35em 0 0; }
+    .team-field-error ul { margin: 0; padding-left: 1.2em; }
+    .team-empty { text-align: center; padding: 1.6em 1em; color: var(--team-muted); line-height: 1.6; }
+    .team-empty strong { color: var(--team-fg); }
+    .team-empty .fa { display: block; font-size: 2.2em; color: var(--team-empty-icon); margin-bottom: .35em; }
+
+    /* ---- Explicación de cómo funcionan los equipos ---- */
+    .team-steps { margin: 0; padding-left: 1.3em; }
+    .team-steps > li { margin-bottom: .6em; line-height: 1.5; }
+    .team-steps > li:last-child { margin-bottom: 0; }
+
+    /* ---- Formularios ---- */
+    .team-field-label { display: block; font-weight: 600; margin-bottom: .35em; color: var(--team-fg); }
+    .team-create input[type=text] { width: 100%; box-sizing: border-box; }
+    .team-create button[type=submit] { width: 100%; }
+
+    /* ---- Zona destructiva ---- */
+    .team-danger .team-panel-head {
+        background: var(--team-danger-head-bg);
+        color: var(--team-danger-head-fg);
+    }
+    .team-danger .team-panel-body { border-color: var(--team-danger-border); }
+    .team-danger summary { cursor: pointer; color: var(--team-fg); padding: .3em 0; }
+    .team-danger label { display: block; font-weight: 600; margin: .8em 0 .35em; color: var(--team-fg); }
+    .team-danger input[type=text] { max-width: 22em; width: 100%; box-sizing: border-box; }
+
+    .team-back { display: inline-block; margin-bottom: .9em; color: var(--team-link); }
+    .team-back:hover { color: var(--team-link-hover); }
+    .team-inline { display: flex; align-items: center; gap: .5em; flex-wrap: wrap; }
+    .team-inline input[type=text] { flex: 1 1 12em; min-width: 0; }
+    .team-inline .select2, .team-inline .select2-container { flex: 1 1 12em; min-width: 0; }
+
+    /* ---- Caja simple heredada: la sigue usando contest/join.html ---- */
+    .team-card {
+        border: 1px solid var(--team-border);
+        border-radius: 4px;
+        background: var(--team-bg);
+        color: var(--team-fg);
+        padding: 1.2em;
+        margin: 1em 0;
+    }
+    .team-card h3 { margin-top: 0; overflow-wrap: anywhere; }
+    .team-card p { line-height: 1.6; }
+    .team-card label { display: block; margin: .6em 0; }
+    /* ---- Selector de quiénes participan (contest/join.html) ---- */
+    .team-pick {
+        margin: 0 0 1em 1.7em;
+        padding: .6em .8em;
+        border: 1px solid var(--team-soft-border);
+        border-radius: 4px;
+        background: var(--team-soft-bg);
+    }
+    .team-pick .team-label { margin: 0 0 .3em; }
+    .team-pick .team-roster > li { padding: .35em .1em; }
+    .team-card .team-pick label { display: flex; align-items: center; gap: .5em; margin: 0; }
+    .team-pick .team-roster-name { flex: 0 1 auto; }
+    .team-pick input[type=checkbox] { flex: none; margin: 0; }
+    .team-pick .team-note { margin: .5em 0 0; }
+    .team-pick input[disabled] + .team-roster-name { color: var(--team-muted); }
+    .team-card input { max-width: 100%; box-sizing: border-box; }
+    .team-card button { min-height: 36px; cursor: pointer; }
+
+    @media (max-width: 800px) {
+        .team-columns { grid-template-columns: minmax(0, 1fr); }
+    }
+    /* En pantallas táctiles los controles crecen: 3px de alto no se aciertan con
+       el pulgar, y las dos acciones por integrante quedan una junto a otra. */
+    @media (max-width: 600px) {
+        .team-panel-body, .team-card { padding: .8em; }
+        .team-actions { align-items: stretch; }
+        .team-btn-small { padding: 8px 12px; font-size: .95em; }
+        .team-roster > li { align-items: flex-start; }
+        .team-roster-name { flex: 1 1 100%; }
+        .team-roster .team-actions { flex: 1 1 100%; }
+        /* `nowrap` es correcto en escritorio, pero «Hacer propietario» desborda un
+           teléfono angosto: aquí el texto envuelve dentro del botón en vez de
+           salirse de la tarjeta. */
+        .team-roster .team-actions button { flex: 1 1 8em; white-space: normal; }
+        .team-invite .team-actions, .team-invite .team-actions form { flex: 1 1 100%; }
+        .team-invite .team-actions button { flex: 1 1 8em; }
+        .team-inline button { flex: 1 1 100%; }
+        .team-pick { margin-left: .6em; padding: .5em .6em; }
+    }
+</style>
+{# El tema oscuro ya está abierto a todas las cuentas; la hoja oscura se sirve
+   fija o por prefers-color-scheme según la preferencia del perfil, y aquí se
+   repite esa misma condición de base.html. Con «light» no se emite nada, porque
+   aplicar el oscuro a quien pidió el claro dejaría la página a medio pintar. #}
+{% if SITE_THEME_NAME != 'light' %}
+    {% set team_dark_palette %}
+        --team-fg: #f8f8f8;
+        --team-muted: #aaa;
+        --team-bg: #181818;
+        --team-soft-bg: #202020;
+        --team-border: #3b3b3b;
+        --team-soft-border: #2e2e2e;
+        --team-head-bg: #ccc;
+        --team-head-fg: #0f0f0f;
+        --team-count-bg: rgba(0, 0, 0, .16);
+        --team-chip-bg: #242424;
+        --team-chip-border: #3b3b3b;
+        --team-link: #6bf;
+        --team-link-hover: #49e;
+        --team-hover-border: #6bf;
+        --team-btn-fg: #ccc;
+        --team-btn-bg: #1f1f1f;
+        --team-btn-hover-bg: #2c2c2c;
+        --team-btn-hover-border: #555;
+        --team-danger-fg: #f99;
+        --team-danger-bg: #311;
+        --team-danger-border: #822;
+        --team-danger-soft: #241616;
+        --team-danger-head-bg: #f99;
+        --team-danger-head-fg: #2a0b0b;
+        --team-error-fg: #f99;
+        --team-warn-head-bg: #fd6;
+        --team-warn-head-fg: #241a00;
+        --team-warn-bg: #241c06;
+        --team-warn-border: #6a4d12;
+        --team-warn-line: #46340d;
+        --team-empty-icon: #3b3b3b;
+    {% endset %}
+    <style>
+        {% if SITE_THEME_NAME == 'dark' %}
+        :root { {{ team_dark_palette }} }
+        {% else %}
+        @media (prefers-color-scheme: dark) { :root { {{ team_dark_palette }} } }
+        {% endif %}
+    </style>
+{% endif %}

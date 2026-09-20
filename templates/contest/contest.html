@@ -25,6 +25,8 @@
 {% endblock %}
 
 {% block body %}
+    <p><strong>{{ _('Modalidad de participación') }}:</strong> {{ contest.get_participation_mode_display() }}
+    {% if contest.participation_mode != 'individual' %} · {{ _('Integrantes por equipo: %(minimum)s a %(maximum)s.', minimum=contest.team_min_size, maximum=contest.team_max_size) }}{% endif %}</p>
     <div id="banner">
         <a href="https://www.timeanddate.com/worldclock/fixedtime.html?msg={{ contest.name|urlquote('') }}&amp;iso=
                 {{- (contest.start_time if contest.start_time >= now else contest.end_time)|utc|date('Y-m-d\TH:i:s') }}" class="date">

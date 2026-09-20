@@ -219,9 +219,10 @@ class RevealEntry:
 
     def __init__(self, id, name, username, organization, score, cumtime, tiebreaker, format_data,
                  frozen_at=None, frozen_score=None, frozen_cumtime=None, frozen_tiebreaker=None,
-                 frozen_format_data=None, avatar=''):
+                 frozen_format_data=None, avatar='', members=None):
         self.id = id
         self.avatar = avatar
+        self.members = members or []
         self.name = name
         self.username = username
         self.organization = organization
@@ -285,6 +286,7 @@ def assemble_reveal(format_name, config, precision, problems, entries, pending, 
             'username': entry.username,
             'organization': entry.organization or '',
             'avatar': entry.avatar or '',
+            'members': entry.members,
             'score': score_text(frozen_totals[0]),
             'time': time_text(frozen_totals[1]),
             'finalScore': score_text(final_totals[0]),
@@ -365,8 +367,10 @@ def first_to_solve(contest, participations):
             if participant is not None}
 
 
-def build_reveal(contest):
+def build_reveal(contest, division=None):
     """Everything the reveal page needs, read from the database. Reads only."""
+    from judge.contest_teams import in_division
+    division = division or ('team' if contest.participation_mode == Contest.TEAM else 'individual')
     config = getattr(contest.format, 'config', None) or {}
 
     contest_problems = list(contest.contest_problems.select_related('problem').defer('problem__description')
@@ -375,8 +379,8 @@ def build_reveal(contest):
                 for i, problem in enumerate(contest_problems)]
 
     participations = list(
-        contest.users.filter(virtual=ContestParticipation.LIVE, is_disqualified=False)
-        .select_related('user__user').prefetch_related('user__organizations')
+        in_division(contest.users.filter(virtual=ContestParticipation.LIVE, is_disqualified=False), division)
+        .select_related('user__user').prefetch_related('user__organizations', 'team_roster__profile__user')
         .defer('user__about', 'user__organizations__about').order_by('id'),
     )
 
@@ -389,9 +393,9 @@ def build_reveal(contest):
         if start is not None:
             starts[participation.id] = start
         profile = participation.user
-        organization = profile.organization
+        organization = None if participation.team_id else profile.organization
         entries.append(RevealEntry(
-            id=participation.id, name=profile.display_name, username=profile.username,
+            id=participation.id, name=participation.display_name, username=('team-%s' % participation.id) if participation.team_id else profile.username,
             organization=organization.short_name if organization else '',
             score=participation.score, cumtime=participation.cumtime, tiebreaker=participation.tiebreaker,
             format_data=participation.format_data, frozen_at=participation.frozen_at,
@@ -399,7 +403,9 @@ def build_reveal(contest):
             frozen_tiebreaker=participation.frozen_tiebreaker,
             frozen_format_data=participation.frozen_format_data,
             # The same picture the site shows on the profile and in the navigation bar.
-            avatar=gravatar(profile, 256),
+            avatar='' if participation.team_id else gravatar(profile, 256),
+            members=[{'name': member.username, 'avatar': gravatar(member.profile, 256)}
+                     for member in participation.team_roster.all()] if participation.team_id else [],
         ))
 
     pending = {}
@@ -444,7 +450,8 @@ def build_reveal(contest):
         notices.append(('info', _('Nobody took part in this contest.')))
 
     data.update({
-        'contest': contest.key,
+        'contest': contest.key + (':team' if division == 'team' else ''),
+        'division': division,
         'published': bool(freeze_configured and contest.scoreboard_revealed),
         'canPublish': freeze_configured,
         'publishUrl': reverse('contest_reveal_publish', args=[contest.key]),
@@ -491,6 +498,7 @@ def reveal_context(contest, data, notices):
         'reveal_data': json_script(data, 'reveal-data'),
         'show_time': data['showTime'],
         'problem_count': len(data['problems']),
+        'ranking_division': data.get('division', 'individual'),
     }
 
 
@@ -501,7 +509,8 @@ def contest_reveal(request, contest):
     if not contest.is_editable_by(request.user):
         raise Http404()
 
-    data, notices, _inexact = build_reveal(contest)
+    from judge.contest_teams import ranking_division
+    data, notices, _inexact = build_reveal(contest, ranking_division(request, contest))
     return render(request, 'contest/reveal.html', reveal_context(contest, data, notices))
 
 

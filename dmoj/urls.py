@@ -13,7 +13,7 @@ from judge.feed import AtomBlogFeed, AtomCommentFeed, AtomProblemFeed, BlogFeed,
 from judge.sitemap import sitemaps
 from judge.views import TitledTemplateView, announcement, api, blog, comment, contest_balloons, contest_reveal, \
     contests, language, license, mailgun, organization, preview, problem, problem_manage, ranked_submission, \
-    register, stats, status, submission, tasks, ticket, two_factor, user, widgets
+    register, stats, status, submission, tasks, team, ticket, two_factor, user, widgets
 from judge.views.problem_data import ProblemDataView, ProblemSubmissionDiff, \
     problem_data_file, problem_init_view
 from judge.views.register import ActivationView, RegistrationView
@@ -92,6 +92,10 @@ def paged_list_view(view, name):
 
 
 urlpatterns = [
+    path('teams/', team.my_teams, name='my_teams'),
+    path('teams/invitations/count/', team.invitation_count, name='team_invitation_count'),
+    path('teams/invitations/<int:pk>/', team.invitation_action, name='team_invitation_action'),
+    path('teams/<int:pk>/', team.team_detail, name='team_detail'),
     path('', blog.PostList.as_view(template_name='home.html', title=_('Home')), kwargs={'page': 1}, name='home'),
     path('500/', exception),
     path('admin/', admin.site.urls),
@@ -210,6 +214,11 @@ urlpatterns = [
         path('/clarifications/ask', announcement.ask_clarification, name='contest_clarification_ask'),
         path('/clarifications/<int:pk>/answer', announcement.answer_clarification,
              name='contest_clarification_answer'),
+        path('/team/<int:participation>/submissions/',
+             paged_list_view(submission.TeamContestSubmissions, 'contest_team_submissions')),
+        path('/team/<int:participation>/', contests.ContestTeamParticipation.as_view(), name='contest_team_participation'),
+        path('/team/<int:participation>/problem/<str:problem>/submissions/',
+             paged_list_view(submission.TeamContestSubmissions, 'contest_team_problem_submissions')),
         path('/join', contests.ContestJoin.as_view(), name='contest_join'),
         path('/leave', contests.ContestLeave.as_view(), name='contest_leave'),
         path('/stats', contests.ContestStats.as_view(), name='contest_stats'),

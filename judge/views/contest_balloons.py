@@ -24,7 +24,7 @@ from django.views.decorators.http import require_POST
 
 from judge import event_poster as event
 from judge.models import Contest, ContestBalloonAction, ContestLocation, ContestParticipation, ContestProblem, \
-    ContestSubmission, Profile
+    ContestSubmission, Profile, Team, ContestTeamLocation
 from judge.models.balloon import MAX_LOCATION
 
 __all__ = ['contest_balloons', 'contest_balloons_ajax', 'contest_balloon_mark', 'contest_balloon_locations']
@@ -118,7 +118,7 @@ def build_balloon_sheet(contest):
 
     participations = {}
     for participation in (contest.users.filter(virtual=ContestParticipation.LIVE, is_disqualified=False)
-                          .select_related('user__user').only('id', 'real_start', 'virtual', 'contest_id',
+                          .select_related('user__user').only('id', 'real_start', 'virtual', 'contest_id', 'team_id', 'team_name',
                                                               'user__id', 'user__username_display_override',
                                                               'user__user__username')):
         # Reusing the contest already in hand; `participation.contest` would be one query per row.
@@ -141,8 +141,9 @@ def build_balloon_sheet(contest):
         balloon = Balloon(participation, problem_by_id[problem_id], labels[problem_id])
         balloon.solved_at = date
         balloon.contest_time = _contest_time(participation, date)
-        if problem_id not in first_blood_taken:
-            first_blood_taken.add(problem_id)
+        division_key = (problem_id, bool(participation.team_id))
+        if division_key not in first_blood_taken:
+            first_blood_taken.add(division_key)
             balloon.first_blood = True
         balloons[participation_id, problem_id] = balloon
 
@@ -193,6 +194,7 @@ def build_balloon_sheet(contest):
     profile_ids.update(balloon.participation.user_id for balloon in sheet.delivered)
     sheet.locations = dict(ContestLocation.objects.filter(contest=contest, user_id__in=profile_ids)
                            .values_list('user_id', 'location'))
+    sheet.team_locations = dict(ContestTeamLocation.objects.filter(contest=contest).values_list('team_id', 'location'))
     return sheet
 
 
@@ -230,10 +232,28 @@ def contest_balloons(request, contest):
 
 def location_profiles(contest):
     """Official entrants, preassigned private contestants and previously saved locations."""
-    ids = set(contest.users.filter(virtual=ContestParticipation.LIVE).values_list('user_id', flat=True))
+    ids = set(contest.users.filter(virtual=ContestParticipation.LIVE, team__isnull=True).values_list('user_id', flat=True))
     ids.update(contest.private_contestants.values_list('id', flat=True))
     ids.update(ContestLocation.objects.filter(contest=contest).values_list('user_id', flat=True))
     return Profile.objects.filter(id__in=ids).select_related('user').order_by('user__username')
+
+
+def location_entries(contest, query=''):
+    profiles = location_profiles(contest)
+    if query:
+        profiles = profiles.filter(Q(user__username__icontains=query) | Q(username_display_override__icontains=query))
+    locations = dict(ContestLocation.objects.filter(contest=contest).values_list('user_id', 'location'))
+    rows = [{'profile': profile, 'team': None, 'key': str(profile.pk), 'name': profile.display_name,
+             'location': locations.get(profile.pk, '')} for profile in profiles]
+    ids = set(contest.users.filter(virtual=0, team__isnull=False).values_list('team_id', flat=True))
+    ids.update(contest.private_teams.values_list('pk', flat=True))
+    ids.update(contest.team_locations.values_list('team_id', flat=True))
+    team_rows = Team.objects.filter(pk__in=ids)
+    if query: team_rows = team_rows.filter(name__icontains=query)
+    team_locations = dict(contest.team_locations.values_list('team_id', 'location'))
+    rows += [{'profile': None, 'team': team, 'key': 't%s' % team.pk, 'name': team.name,
+              'location': team_locations.get(team.pk, '')} for team in team_rows]
+    return sorted(rows, key=lambda row: (row['name'].casefold(), row['key']))
 
 
 def _render_balloons(request, contest, location_errors=None, submitted=None, status=200):
@@ -246,7 +266,7 @@ def _render_balloons(request, contest, location_errors=None, submitted=None, sta
         'now': timezone.now(),
         'is_editor': profile.id in contest.editor_ids,
         'is_tester': profile.id in contest.tester_ids,
-        'has_joined': contest.users.filter(user=profile, virtual=ContestParticipation.LIVE).exists(),
+        'has_joined': contest.users.for_profile(profile).filter(virtual=ContestParticipation.LIVE).exists(),
         'last_msg': event.last(),
         'event_daemon': getattr(event, 'real', False),
         'balloon_errors': request.session.pop('balloon_errors', []),
@@ -254,16 +274,12 @@ def _render_balloons(request, contest, location_errors=None, submitted=None, sta
     })
     if context['can_edit']:
         query = request.GET.get('q', '').strip()[:150]
-        profiles = location_profiles(contest)
-        if query:
-            profiles = profiles.filter(Q(user__username__icontains=query) | Q(username_display_override__icontains=query))
-        page = Paginator(profiles, LOCATION_PAGE_SIZE).get_page(request.GET.get('page'))
-        locations = dict(ContestLocation.objects.filter(contest=contest).values_list('user_id', 'location'))
-        rows = [{'profile': profile, 'location': locations.get(profile.id, '')} for profile in page]
-        snapshot = {str(row['profile'].id): row['location'] for row in rows}
+        page = Paginator(location_entries(contest, query), LOCATION_PAGE_SIZE).get_page(request.GET.get('page'))
+        rows = list(page)
+        snapshot = {row['key']: row['location'] for row in rows}
         if submitted is not None:
             for row in rows:
-                row['location'] = submitted.get(str(row['profile'].id), row['location'])
+                row['location'] = submitted.get(row['key'], row['location'])
         context.update(location_rows=rows, location_page=page, location_query=query, max_location=MAX_LOCATION,
                        location_snapshot=signing.dumps({'contest': contest.id, 'rows': snapshot}, salt=LOCATION_SALT))
         if location_errors:
@@ -354,18 +370,21 @@ def contest_balloon_locations(request, contest):
     with transaction.atomic():
         # Serialise editors and compare only edited fields, so an old tab cannot overwrite someone else's work.
         Contest.objects.select_for_update().get(pk=contest.pk)
-        allowed = {str(pk) for pk in location_profiles(contest).values_list('id', flat=True)}
-        current = {str(pk): value for pk, value in
-                   ContestLocation.objects.filter(contest=contest, user_id__in=changes).values_list('user_id', 'location')}
+        entries = location_entries(contest)
+        allowed = {row['key'] for row in entries}
+        current = {row['key']: row['location'] for row in entries}
         if any(key not in allowed or current.get(key, '') != initial[key] for key in changes):
             return _render_balloons(request, contest,
                                    [_('Another editor changed these locations. Review your entries and save again.')],
                                    submitted=submitted, status=409)
-        for profile_id, value in changes.items():
+        for key, value in changes.items():
+            model = ContestTeamLocation if key.startswith('t') else ContestLocation
+            lookup = {'contest': contest, 'team_id' if key.startswith('t') else 'user_id':
+                      int(key[1:] if key.startswith('t') else key)}
             if value:
-                ContestLocation.objects.update_or_create(contest=contest, user_id=profile_id, defaults={'location': value})
+                model.objects.update_or_create(**lookup, defaults={'location': value})
             else:
-                ContestLocation.objects.filter(contest=contest, user_id=profile_id).delete()
+                model.objects.filter(**lookup).delete()
         if changes:
             transaction.on_commit(lambda: event.post('balloons_%d' % contest.id, {'type': 'update'}))
     request.session['balloon_notices'] = [_('Locations saved: %(count)d.') % {'count': len(changes)}]

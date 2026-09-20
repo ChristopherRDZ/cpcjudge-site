@@ -58,3 +58,27 @@ EVENT_DAEMON_POLL = 'http://127.0.0.1:15102/'
 
 DMOJ_SSL = 1
 DMOJ_HTTPS = True
+
+# Username(s) allowed to delete from the admin and protected from other
+# superusers. Empty means nobody can delete. See judge/admin_owner.py.
+CPC_SERVER_OWNERS = ('your-owner-username',)
+
+# django-impersonate reads only this dictionary; the loose IMPERSONATE_*
+# variables shipped by DMOJ are ignored by the installed version.
+IMPERSONATE = {
+    'REQUIRE_SUPERUSER': True,
+    'ALLOW_SUPERUSER': False,
+    'DISABLE_LOGGING': False,
+    'URI_EXCLUSIONS': (r'^admin/',),
+}
+
+# Each test-case row of the problem data form posts 14 fields. The default of
+# 1000 caps the form at about 70 rows; 10240 allows about 730.
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 10240
+
+# Custom-test ceilings per user. Zero or less disables one.
+CPC_CUSTOM_TEST_MAX_IN_FLIGHT = 2
+CPC_CUSTOM_TEST_MAX_PER_MINUTE = 12
+CPC_CUSTOM_TEST_MAX_PER_HOUR = 200
+# Bytes of program output kept for display, before the judge truncates it.
+CPC_CUSTOM_TEST_OUTPUT_PREFIX = 65536

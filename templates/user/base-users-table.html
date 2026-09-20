@@ -3,7 +3,7 @@
     <tr>
         <th class="header rank">{{ rank_header or _("Rank") }}</th>
         {% block after_rank_head %}{% endblock %}
-        <th class="header username">{{ _('Username') }}</th>
+        <th class="header username">{% block username_heading %}{{ _('Username') }}{% endblock %}</th>
         {% block before_point_head %}{% endblock %}
 
         <th class="header points">
@@ -17,10 +17,10 @@
 
     <tbody>
     {% for rank, user in users %}
-        <tr id="user-{{ user.user.username }}" {% block row_extra scoped %}{% endblock %}>
+        <tr id="{% block row_id scoped %}user-{{ user.user.username }}{% endblock %}" {% block row_extra scoped %}{% endblock %}>
             <td>{{ rank }}</td>
             {% block after_rank scoped %}{% endblock %}
-            <td class="user-name">{{ link_user(user) }} {% block user_data scoped %}{% endblock %}</td>
+            <td class="user-name">{% block participant_name scoped %}{{ link_user(user) }}{% endblock %} {% block user_data scoped %}{% endblock %}</td>
             {% block before_point scoped %}{% endblock %}
             {% block point scoped %}
                 <td title="{{ user.performance_points|floatformat(2) }}" class="user-points">

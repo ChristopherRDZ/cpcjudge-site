@@ -1,4 +1,5 @@
 from django.urls import reverse
+from django.db.models import OuterRef, Subquery
 from django.utils.html import escape, format_html
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext as _
@@ -16,6 +17,13 @@ class RankedSubmissions(ProblemSubmissions):
     dynamic_update = False
 
     def get_queryset(self):
+        if self.in_contest:
+            from judge.contest_teams import ranking_division
+            division = ranking_division(self.request, self.contest)
+            queryset = super().get_queryset().filter(contest__participation__team__isnull=division == 'individual')
+            best = queryset.filter(contest__participation_id=OuterRef('contest__participation_id'),
+                                   contest__points__gt=0).order_by('-contest__points', 'time', 'id').values('pk')[:1]
+            return queryset.filter(pk=Subquery(best)).order_by('-contest__points', 'time', 'id')
         params = [self.problem.id]
         if self.in_contest:
             contest_join = 'INNER JOIN judge_contestsubmission AS cs ON (sub.id = cs.submission_id)'
@@ -25,7 +33,9 @@ class RankedSubmissions(ProblemSubmissions):
         else:
             contest_join = ''
             points = 'sub.points'
-            constraint = ''
+            constraint = (' AND NOT EXISTS (SELECT 1 FROM judge_contestsubmission team_cs '
+                          'INNER JOIN judge_contestparticipation team_cp ON team_cp.id = team_cs.participation_id '
+                          'WHERE team_cs.submission_id = sub.id AND team_cp.team_id IS NOT NULL)')
 
         if self.selected_languages:
             lang_ids = Language.objects.filter(key__in=self.selected_languages).values_list('id', flat=True)
@@ -34,7 +44,8 @@ class RankedSubmissions(ProblemSubmissions):
                 params.extend(lang_ids)
             self.selected_languages = set()
 
-        queryset = super(RankedSubmissions, self).get_queryset().filter(user__is_unlisted=False)
+        queryset = super(RankedSubmissions, self).get_queryset().filter(user__is_unlisted=False,
+                                                                     contest__participation__team__isnull=True)
         join_sql_subquery(
             queryset,
             subquery="""

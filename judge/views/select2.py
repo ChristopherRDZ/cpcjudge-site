@@ -113,7 +113,8 @@ class ContestUserSearchSelect2View(UserSearchSelect2View):
         if not contest.is_accessible_by(self.request.user) or not contest.can_see_full_scoreboard(self.request.user):
             raise Http404()
 
-        return Profile.objects.filter(contest_history__contest=contest,
+        return Profile.objects.filter(Q(contest_history__contest=contest, contest_history__team__isnull=True) |
+                                      Q(team_contest_entries__participation__contest=contest),
                                       user__username__icontains=self.term).distinct()
 
 

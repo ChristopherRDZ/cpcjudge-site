@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block body %}
+{% include 'team/style.html' %}
+<div class="teams-layout">
+    <a class="team-back" href="{{ url('my_teams') }}">← {{ _('Mis equipos') }}</a>
+    {% if error %}<div class="team-error" role="alert">{{ error }}</div>{% endif %}
+
+    <div class="team-columns">
+        <div>
+            <section class="team-panel" aria-labelledby="members-title">
+                <h3 class="team-panel-head" id="members-title">
+                    <i class="fa fa-users" aria-hidden="true"></i>
+                    {{ _('Integrantes') }}
+                    <span class="team-count">{{ members|length }}</span>
+                </h3>
+                <div class="team-panel-body">
+                    <ul class="team-roster">
+                        {% for membership in members %}
+                            {% set member = membership.profile %}
+                            <li>
+                                <span class="team-roster-name">
+                                    {{ link_user(member) }}
+                                    {% if member.id == team.owner_id %}
+                                        <span class="team-badge team-badge-owner">{{ _('Propietario') }}</span>
+                                    {% endif %}
+                                </span>
+                                {% if is_owner and member.id != team.owner_id %}
+                                    <form class="team-actions" method="post">{% csrf_token %}
+                                        <input type="hidden" name="member" value="{{ member.id }}">
+                                        <button name="action" value="transfer" class="team-btn-secondary team-btn-small"
+                                                data-team-confirm="{{ _('¿Transferir la propiedad a este integrante? Perderás los controles de propietario.') }}">{{ _('Hacer propietario') }}</button>
+                                        <button name="action" value="kick" class="team-btn-danger team-btn-small"
+                                                data-team-confirm="{{ _('¿Expulsar a este integrante?') }}">{{ _('Expulsar') }}</button>
+                                    </form>
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                    <p class="team-help" style="margin-bottom: 0">{{ _('Los cambios de integrantes se aplican a futuras participaciones. La lista inscrita y los resultados de cada concurso se conservan.') }}</p>
+                </div>
+            </section>
+
+            <section class="team-panel" aria-labelledby="history-title">
+                <h3 class="team-panel-head" id="history-title">
+                    <i class="fa fa-trophy" aria-hidden="true"></i>
+                    {{ _('Historial de concursos') }}
+                </h3>
+                <div class="team-panel-body">
+                    {% if history %}
+                        <ul class="team-history-list">
+                            {% for participation in history %}
+                                <li>
+                                    <a href="{{ url('contest_team_participation', participation.contest.key, participation.id) }}">{{ participation.contest.name }}</a>
+                                    {% if participation.virtual > 0 %}<span class="team-badge">{{ _('Virtual') }} #{{ participation.virtual }}</span>{% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="team-note" style="margin: 0">{{ _('Este equipo todavía no ha participado en concursos.') }}</p>
+                    {% endif %}
+                </div>
+            </section>
+        </div>
+
+        <aside>
+            {% if is_owner %}
+                <section class="team-panel" aria-labelledby="invite-title">
+                    <h3 class="team-panel-head" id="invite-title">
+                        <i class="fa fa-user-plus" aria-hidden="true"></i>
+                        {{ _('Invitar integrante') }}
+                    </h3>
+                    <div class="team-panel-body">
+                        <form method="post">{% csrf_token %}
+                            <label class="team-field-label" for="invite-username">{{ _('Nombre de usuario') }}</label>
+                            <div class="team-inline">
+                                <input type="text" id="invite-username" name="username" maxlength="150" required
+                                       autocomplete="off" autocapitalize="none" spellcheck="false"
+                                       placeholder="{{ _('Empieza a escribir un nombre de usuario') }}">
+                                <button name="action" value="invite">{{ _('Invitar') }}</button>
+                            </div>
+                            <p class="team-help" style="margin-bottom: 0">{{ _('Elige una sugerencia o escribe el nombre de usuario exacto. La invitación aparecerá en su página de Mis equipos hasta que la acepte o la rechace.') }}</p>
+                        </form>
+
+                        {% if pending %}
+                            <h4 style="margin: 1em 0 .4em">{{ _('Invitaciones enviadas') }}</h4>
+                            <ul class="team-roster">
+                                {% for invitation in pending %}
+                                    <li>
+                                        <span class="team-roster-name">
+                                            {{ invitation.recipient.username }}
+                                            <span class="team-badge">{{ _('Pendiente') }}</span>
+                                        </span>
+                                        <form action="{{ url('team_invitation_action', invitation.pk) }}" method="post" class="team-actions">{% csrf_token %}
+                                            <button name="action" value="cancel" class="team-btn-secondary team-btn-small">{{ _('Cancelar') }}</button>
+                                        </form>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                    </div>
+                </section>
+            {% endif %}
+
+            <section class="team-panel team-danger" aria-labelledby="danger-title">
+                <h3 class="team-panel-head" id="danger-title">
+                    <i class="fa fa-exclamation-triangle" aria-hidden="true"></i>
+                    {{ _('Zona de riesgo') }}
+                </h3>
+                <div class="team-panel-body">
+                    {% if is_owner %}
+                        <p class="team-note" style="margin-top: 0">{{ _('Como propietario no puedes salir del equipo. Pasa la propiedad a otro integrante, o elimina el equipo.') }}</p>
+                        <details>
+                            <summary style="cursor: pointer">{{ _('Eliminar equipo') }}</summary>
+                            <p class="team-note">{{ _('El equipo dejará de aparecer en Mis equipos. Sus participaciones y resultados se conservarán en el historial del sitio.') }}</p>
+                            <form method="post">{% csrf_token %}
+                                <label for="confirm-team-name">{{ _('Escribe el nombre exacto del equipo para confirmar:') }}</label>
+                                <input type="text" id="confirm-team-name" name="confirm_name" maxlength="60" required
+                                       autocomplete="off">
+                                <div class="team-actions" style="margin-top: .6em">
+                                    <button name="action" value="delete" class="team-btn-danger">{{ _('Eliminar equipo') }}</button>
+                                </div>
+                            </form>
+                        </details>
+                    {% else %}
+                        <p class="team-note" style="margin-top: 0">{{ _('Dejarás de aparecer en futuras participaciones de este equipo. Los concursos que ya jugaste se conservan.') }}</p>
+                        <form method="post" class="team-actions">{% csrf_token %}
+                            <button name="action" value="leave" class="team-btn-danger"
+                                    data-team-confirm="{{ _('¿Salir de este equipo?') }}">{{ _('Salir del equipo') }}</button>
+                        </form>
+                    {% endif %}
+                </div>
+            </section>
+        </aside>
+    </div>
+</div>
+<script>
+document.addEventListener('click', function (event) {
+    var button = event.target.closest('[data-team-confirm]');
+    if (button && !window.confirm(button.dataset.teamConfirm)) event.preventDefault();
+});
+</script>
+{% if is_owner %}
+<script>
+// Mejora progresiva: sin JS (o si select2 no cargó) queda el campo de texto, que
+// es lo que el backend espera. El valor enviado sigue siendo `username`.
+$(function () {
+    var $input = $('#invite-username');
+    if (!$input.length || !$.fn.select2) return;
+    var placeholder = $input.attr('placeholder');
+    $input.replaceWith($('<select>').attr({id: 'invite-username', name: 'username', required: 'required'}));
+    $('#invite-username').select2({
+        theme: '{{ DMOJ_SELECT2_THEME }}',
+        placeholder: placeholder,
+        width: '100%',
+        minimumInputLength: 1,
+        ajax: {url: {{ url('user_search_select2_ajax')|tojson }}},
+        // Permite invitar a alguien que la búsqueda no lista, igual que antes.
+        tags: true,
+        createTag: function (params) {
+            var term = $.trim(params.term);
+            return term ? {id: term, text: term} : null;
+        },
+        templateResult: function (data) {
+            if (data.loading) return data.text;
+            var $row = $('<span>');
+            if (data.gravatar_url) {
+                $row.append($('<img>', {
+                    class: 'user-search-image', src: data.gravatar_url, width: 24, height: 24,
+                }));
+            }
+            return $row.append($('<span>', {
+                class: (data.display_rank || '') + ' user-search-name',
+            }).text(data.text));
+        },
+    });
+});
+</script>
+{% endif %}
+{% endblock %}
