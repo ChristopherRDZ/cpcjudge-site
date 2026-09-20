@@ -31,8 +31,13 @@ problems. The lifecycle implementation was subsequently extended by the
 admission controls below. The lifecycle checks are historical deployment
 evidence, not a new test run during source publication.
 
-Legacy unverified tests are retained. The most recent test can remain stored if
-its owner never submits another one. Background retention is still not implemented.
+Legacy unverified tests are retained. Request-triggered cleanup alone can leave
+the most recent test stored if its owner never submits another one. Since
+2026-09-19, the fork provides a [scheduled cleanup service](../../deploy/examples/README.md)
+that checks finished tests across accounts, reuses the ownership checks and
+preserves active jobs and tests within a configurable grace period (20 minutes
+by default). Install and enable the timer using the
+[setup guide](../setup-guide.md#9-custom-test-cleanup).
 The proxy body-size limit is a separate deployment control.
 
 ## Per-user admission controls — 2026-09-14

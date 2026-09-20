@@ -19,11 +19,17 @@ Editors can open **Reveal scoreboard** to present the final standings. The
 ceremony steps through hidden results, animates position changes and supports
 manual control, reduced motion and a speed slider from 0.25× to 4×.
 
+The ceremony supports **individual and team contests**. For mixed contests,
+choose the individual or team division to reveal that ranking. Individual
+award cards show the contestant; team award cards include the registered
+members and their profile pictures.
+
 Awards can use finishing places or medal ranges, respecting tied ranks.
-First-to-solve achievements are independent of medals. Individual award cards
+First-to-solve achievements are independent of medals. Participant award cards
 pause the presentation for acknowledgement. Presentation preferences are stored
 per contest in the browser. **Publish** is a separate explicit action that makes
 the final scoreboard public; merely opening or playing the ceremony does not.
+In a mixed contest, publishing the results unfreezes both divisions.
 
 ## Balloon desk
 

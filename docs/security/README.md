@@ -1,11 +1,12 @@
 # Security maintenance record
 
 These documents describe application changes and deployment controls applied
-through 2026-09-14. Examples use generic paths and hostnames; production settings,
+through 2026-09-19. Examples use generic paths and hostnames; production settings,
 credentials, data, logs and detailed recovery inventories remain private.
 
 - [Custom test lifecycle](custom-tests.md): read-only polling, signed ownership
-  and bounded cleanup, per-user admission limits and remaining race/retention limits.
+  and bounded cleanup, per-user admission limits, scheduled retention and remaining
+  concurrency limits.
 - [Personal test privacy](custom-test-privacy.md): histories, API, statistics and
   direct source access.
 - [Service isolation](service-isolation.md): dedicated identities, systemd,
@@ -18,6 +19,12 @@ credentials, data, logs and detailed recovery inventories remain private.
 - [HTTPS](https.md): secure cookies and HSTS at the edge.
 - [Offline compression](offline-compression.md): deterministic builds for a
   read-only static tree and required template-context coverage.
+- [Owner accounts and impersonation](../setup-guide.md#6-the-owner-account):
+  protected administrative privileges and owner-only deletion; the
+  [private settings section](../setup-guide.md#2-private-settings) configures
+  restricted impersonation with audit logging.
+- [Scheduled cleanup](../setup-guide.md#9-custom-test-cleanup): maintenance timer
+  for finished custom tests, with ownership checks and a grace period.
 
 Documented checks are scoped observations, not a claim that the system has no
 vulnerabilities. Code publication does not install dependencies, change host

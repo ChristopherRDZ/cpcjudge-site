@@ -8,6 +8,8 @@
   <a href="LICENSE"><img alt="License: AGPL v3" src="https://img.shields.io/badge/license-AGPL--3.0-blue"></a>
   <a href="docs/setup-guide.md">Installation</a> ·
   <a href="docs/fork-overview.md">Features</a> ·
+  <a href="#django-52">Django 5.2</a> ·
+  <a href="#security">Security</a> ·
   <a href="docs/contest-tools.md">Contest guide</a> ·
   <a href="MODIFICATIONS.md">Changelog</a>
 </p>
@@ -23,10 +25,55 @@ submission results, multiple contest formats, virtual participation and support
 for many programming languages through the
 [judge server](https://github.com/DMOJ/judge-server).
 
-*The screenshots below show this fork's interface with fictional demo accounts,
-teams, contests and results. They do not represent a real competition.*
+## Django 5.2
+
+This fork includes the upgrade to **Django 5.2.17**, pinned in
+[`requirements.txt`](requirements.txt), with compatibility changes for timezone
+handling, storage configuration, static-file compression and contest
+administration. The upgrade also updates the tested django-mptt and
+django-compressor dependencies.
+
+The [upgrade guide](docs/django52/README.md) covers the adaptations, settings,
+recorded compatibility tests and deployment checks. The
+[setup guide](docs/setup-guide.md) explains how to configure a new instance.
+
+## Security
+
+### Application protections
+
+- **Protected owner accounts:** owner-only deletion and sensitive account
+  administration, including protection from changes by other superusers.
+- **Restricted impersonation:** superuser-only access, protected superuser
+  accounts and audit logging.
+- **Private custom tests:** signed ownership checks, read-only result polling
+  and exclusion from public histories, APIs and statistics.
+- **Abuse controls:** configurable admission and rate checks for custom tests,
+  plus rate and length limits for contestant clarification requests.
+- **Controlled deletion:** explicit confirmations list the records affected by
+  permanent team or contest deletion; submission records are preserved.
+
+### Deployment controls
+
+The [deployment examples](deploy/examples/README.md) and
+[security guides](docs/security/README.md) provide configuration for:
+
+- separate unprivileged service accounts, systemd isolation and read-only code;
+- authenticated Redis and private service listeners;
+- secure session and CSRF cookies, edge HSTS, a structural Content Security
+  Policy and referrer policy;
+- request-size limits, disabled directory listings and a private event-publishing
+  endpoint;
+- protected configuration and backups, and scheduled cleanup of finished custom
+  tests.
+
+Application protections are included in the source; deployment controls must be
+configured for each installation. The [security maintenance record](docs/security/README.md)
+documents verification scope and known limitations.
 
 ## Contests
+
+*The screenshots below show this fork's interface with fictional demo accounts,
+teams, contests and results. They do not represent a real competition.*
 
 ### Frozen scoreboards
 
@@ -38,8 +85,11 @@ explicitly release the final results.
 
 ### Reveal ceremony
 
+The reveal ceremony works with **both individual contestants and teams**.
 Reveal results in order with adjustable playback speed, medal ranges,
-tie handling, first-to-solve awards and individual or team award cards.
+tie handling and first-to-solve awards. Award cards show the individual
+contestant or the team and its registered members. In mixed contests, select
+the individual or team division to present its standings.
 
 ![Reveal ceremony with a team award card](docs/screenshots/reveal-ceremony.png)
 
@@ -133,15 +183,11 @@ translations, static assets, service configuration and scheduled cleanup.
 | --- | --- |
 | [Setup guide](docs/setup-guide.md) | Installation, configuration and verification |
 | [Fork overview](docs/fork-overview.md) | Features and changes relative to upstream |
+| [Django 5.2 upgrade](docs/django52/README.md) | Compatibility changes, tested dependencies and upgrade guidance |
 | [Contest tools](docs/contest-tools.md) | Freeze, reveal and balloon workflows |
 | [Deployment examples](deploy/examples/README.md) | Example service units, Nginx settings and maintenance tasks |
 | [Security maintenance](docs/security/README.md) | Controls, verification scope and known limitations |
 | [Screenshot gallery](docs/screenshots/README.md) | Full-size demonstration images |
-
-Deployment examples include separate service accounts, systemd restrictions,
-Redis authentication, private listeners, request limits and HTTPS headers.
-Custom tests include signed ownership checks and configurable per-user limits.
-Review the deployment guidance for your environment before exposing an instance.
 
 ## Upstream and license
 
