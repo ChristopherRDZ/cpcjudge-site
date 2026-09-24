@@ -1,8 +1,8 @@
 """Pruebas sintéticas de la congelación del marcador. No tocan la base ni producción.
 
-Se ejecutan sobre el árbol del laboratorio, que es una copia del código con los archivos candidatos
-puestos en su sitio. Todo son objetos construidos a mano: ninguna prueba guarda nada, y la única
-base configurada es un sqlite en memoria que se queda vacío.
+Se ejecutan sobre la copia temporal del código que prepara `run.py`. Todo son objetos construidos a
+mano: ninguna prueba guarda nada, y la única base configurada es un sqlite en memoria que se queda
+vacío.
 
     python tests/contest_features/run.py
 """
@@ -325,6 +325,9 @@ class ConsultaLista:
         self.filas = filas
 
     def select_related(self, *a, **k):
+        return self
+
+    def prefetch_related(self, *a, **k):
         return self
 
     def defer(self, *a, **k):
