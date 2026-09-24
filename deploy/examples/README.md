@@ -1,10 +1,10 @@
-# Sanitized deployment examples
+# Deployment examples
 
-These files describe the shape of the deployment this fork runs on. Every path,
-host name, port and account in them is invented. They are examples to adapt, not
-drop-in production configuration.
+Configuration examples for running this fork. Every path, host name, port and
+account in them is invented. Adapt them to your server; they are not drop-in
+configuration.
 
-All of them assume the layout used throughout [the setup guide](../../docs/setup-guide.md):
+They all assume the layout used in [the setup guide](../../docs/setup-guide.md):
 
 | Path | Contents |
 | --- | --- |
@@ -18,9 +18,9 @@ All of them assume the layout used throughout [the setup guide](../../docs/setup
 
 | File | Purpose |
 | --- | --- |
-| [`nginx.conf`](nginx.conf) | Front end, request body ceilings and the upload exception |
+| [`nginx.conf`](nginx.conf) | Front end: body limits, the upload check, static files, events |
 | [`uwsgi.ini`](uwsgi.ini) | Application socket and request timeout |
-| [`runtime-hardening.settings.py`](runtime-hardening.settings.py) | Offline compression and custom-test ceilings |
+| [`runtime-hardening.settings.py`](runtime-hardening.settings.py) | Offline compression, custom-test limits, error logging |
 | [`judge.example.yml`](judge.example.yml) | Judge configuration skeleton |
 | [`cleanup_custom_tests.py`](cleanup_custom_tests.py) | Scheduled custom-test cleanup |
 | [`systemd/`](systemd) | One unit per service, each under its own account |
@@ -29,35 +29,31 @@ All of them assume the layout used throughout [the setup guide](../../docs/setup
 
 Each service runs as its own unprivileged user, so that a flaw in one of them
 does not reach the others: `dmoj-uwsgi`, `dmoj-celery`, `dmoj-bridge`,
-`dmoj-events`, `dmoj-proxy` and `dmoj-judge`. The units apply the same set of
-namespace restrictions, collected in
+`dmoj-events`, `dmoj-proxy` and `dmoj-judge`. The units share the restrictions in
 [`systemd/common-hardening.conf`](systemd/common-hardening.conf).
 
-`/srv/dmoj/problems` is group-writable by the accounts that need it
-(`root:dmoj-uwsgi 2775` in this fork's deployment); everything else under
-`/srv/dmoj` is read-only to the services.
+Make `/srv/dmoj/problems` group-writable by the accounts that need it (for
+example `root:dmoj-uwsgi 2775`); keep everything else under `/srv/dmoj`
+read-only to the services. The examples do not create accounts, directories or
+ACLs: create them yourself, then check what each service can actually read and
+write.
 
 ## Things that are easy to get wrong
 
-- **Keep secrets out of Git.** `dmoj/local_settings.py`, `websocket/config.js`,
+- **Keep secrets out of Git:** `dmoj/local_settings.py`, `websocket/config.js`,
   judge keys, database and Redis passwords, tunnel credentials.
-- **Offline compression.** If `COMPRESS_OFFLINE` is on, regenerate the manifest
-  and restart the web service after touching any template, stylesheet, script or
-  translation catalog. A stale manifest answers HTTP 500 on the affected pages.
-  See [offline compression](../../docs/security/offline-compression.md).
-- **Request body ceilings.** The 500M exception on the problem data route exists
-  because real archives reach ~100 MB. Nginx buffers the body before Django
-  checks the session, so that route accepts large anonymous uploads too, and the
-  buffer lands wherever `client_body_temp_path` points. On a host where that
-  path is a RAM-backed tmpfs, size it deliberately.
-- **Reload, do not restart, the front end** when only `nginx.conf` changed. A
-  restart recreates the temporary directories, and getting their ownership wrong
-  produces a silent HTTP 500 on every large POST that never reaches the
-  application log.
-- **The cleanup tool speaks Spanish.** Its flags are `--ejecutar` and
-  `--minutos`, and it prints in Spanish, because it is published exactly as it
-  runs in production except for the paths. Without `--ejecutar` it only reports.
-
-The uWSGI and systemd examples illustrate the restrictions this fork applies;
-they do not create the accounts, directories or ACLs a deployment needs. Verify
-the effective access of every runtime role before trusting them.
+- **Offline compression.** With `COMPRESS_OFFLINE` on, regenerate the manifest and
+  restart the web service after changing any template, stylesheet, script or
+  translation catalog, or the affected pages answer 500. See
+  [offline compression](../../docs/security/offline-compression.md).
+- **The upload route.** Keep the `auth_request` check and its internal location
+  exactly as in the example, with `client_max_body_size 0` there; buffer bodies on
+  disk (`/var/lib/dmoj-nginx`, from `StateDirectory=` in the unit), not in RAM. See
+  [Nginx](../../docs/security/nginx.md).
+- **`location /static/` keeps its trailing slash.** Without it, `/static../X`
+  serves files from the checkout.
+- **Reload the front end** when only `nginx.conf` changed. Unit changes and
+  `listen` changes need `daemon-reload` and a restart.
+- **The cleanup tool speaks Spanish.** Its flags are `--ejecutar` (actually
+  delete) and `--minutos` (grace period, 20 by default), and its messages are in
+  Spanish. Without `--ejecutar` it only reports.

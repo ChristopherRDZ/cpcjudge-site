@@ -15,14 +15,13 @@ su rastro para siempre.
 ## Por qué esto no llama a aquella función
 
 Aquella fija el plazo en cinco minutos, en duro, dentro del cuerpo de la función. Aquí
-el plazo es configurable —20 minutos por omisión, a petición del propietario— así que
+el plazo es configurable —20 minutos por omisión, con `--minutos`— así que
 el recorrido se reescribe. Lo que **sí** se reutiliza es la parte delicada:
 `_is_owned_custom_test()`, que comprueba la firma que la vista dejó en `summary`, y las
 dos funciones que resuelven y retiran el directorio.
 
 **Si algún día cambian las salvaguardas de `_cleanup_owned_custom_tests()`, hay que
-revisar las de aquí.** Son las mismas, a propósito, y las pruebas del expediente las
-comprueban una por una:
+revisar las de aquí.** Son las mismas, a propósito:
 
 * nunca se toca un envío en cola, en proceso o calificándose (`QU`, `P`, `G`);
 * nunca se toca nada más reciente que el plazo, para no borrarle a alguien el
@@ -124,7 +123,7 @@ def purge_profile(profile, cutoff):
 
 def main(argv=None):
     """Django ya debe estar en marcha. Lo arranca el bloque `__main__`, no esto, para
-    que las pruebas puedan llamar a `main()` dentro de su propio laboratorio."""
+    que una prueba pueda llamar a `main()` con su propia configuración."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--ejecutar', action='store_true',
                         help='borra de verdad; sin esto sólo informa')

@@ -1,40 +1,39 @@
-# Offline compression — deployed 2026-09-14
+# Offline compression
 
-The web service has a read-only source/static tree. Runtime compressor output
-generation was therefore failing for uncached combinations of language and
-template context. Before correction, 52 of 114 anonymous page/language probes
-returned HTTP 500. After publishing generated output and enabling
-`COMPRESS_OFFLINE = True`, all 114 returned 200.
+If the checkout is read-only for the web service, as the
+[isolation guide](service-isolation.md) recommends, django-compressor cannot
+write its output while serving pages. Pages whose compressed blocks were not
+generated yet then answer **500**, and only in some languages or for some users.
+The fix is to generate everything in advance:
 
-Generated cache files and manifests are deployment artifacts, excluded from
-this source repository. Preserve matching source and build outputs in the
-private release backup. Do not make the static tree writable by the web user
-to hide a missing-build error.
+```python
+COMPRESS_OFFLINE = True
+```
 
-## Build and rollout contract
+```sh
+/srv/dmoj/venv/bin/python manage.py collectstatic --noinput
+/srv/dmoj/venv/bin/python manage.py compress --force
+```
 
-1. Build in an isolated copy with the release's pinned compressor/minifier
-   dependencies, templates, resources and compiled translations. Keep its
-   database, cache and external integrations isolated from production.
-2. Collect static assets and generate the offline compressor manifest. Cover
-   both template engines and every relevant context: configured languages,
-   anonymous/authenticated users, permissions, themes, event URL schemes and
-   statistics intervals. A build using only the default context is insufficient.
-3. Verify that every rendered compress-block key resolves, all referenced files
-   exist, and reproduced outputs match known-good output where available.
-4. Publish the validated outputs and matching manifest with read-only service
-   permissions, enable offline mode in private settings, and restart the web
-   service in the authorized rollout window.
-5. Probe affected pages across languages and authenticated states, inspect the
-   journal for `OfflineGenerationError`, and verify requests write no static
-   assets. Check actual NTFS/Linux metadata on WSL: replacing a file may lose
-   extended ownership attributes even when `chmod` reports success.
+Run the build as an account that can write `static/`, then restart the web
+service. Do not make the static tree writable by the web service to avoid it.
 
-Rebuild whenever compressed templates, CSS/JS, translations, configured
-languages or compressor/minifier versions change. Missing variants cause HTTP
-500. Rollback must keep configuration, source and generated output consistent.
+## When to rebuild
 
-Historical validation covered 9,120 manifest-key checks with no missing keys,
-63 outputs identical to runtime-generated counterparts with none differing,
-and 64 later requests without static writes. Authenticated context coverage was
-analytical; no complete authenticated browser or host-recovery test is claimed.
+Regenerate the manifest and restart the web service whenever you change:
+
+- a template that contains a `{% compress %}` block;
+- CSS, SCSS or JavaScript in `resources/`;
+- a translation catalog or the `LANGUAGES` setting;
+- django-compressor or the minifiers (`rcssmin`, `rjsmin`).
+
+A missing variant answers `OfflineGenerationError` (HTTP 500) on the affected
+page. After a rebuild, load the home page, `/problems/`, `/submissions/` and
+`/stats/language/` in each language (`Accept-Language`), signed out and signed
+in.
+
+The compressed blocks depend on the template context, so make sure the build
+covers every language you serve and both anonymous and signed-in users.
+
+On WSL, files written into a Windows drive from Linux may lose their ownership
+attributes; check the result after publishing a build.

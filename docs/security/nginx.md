@@ -1,73 +1,110 @@
-# Private origin and request boundaries
+# Nginx: origin, request sizes and uploads
 
-Directory listings were disabled on 2026-09-07. Further Nginx restrictions were
-applied on 2026-09-11. The following are generic fragments to merge into the
-appropriate contexts of a deployment's existing configuration. They are not a
-complete configuration or a copy of the production server's routing.
+The [example configuration](../../deploy/examples/nginx.conf) is the reference.
+This page explains the parts that are easy to get wrong.
 
-On 2026-09-13 the proxy also removed obsolete `X-XSS-Protection` and added these
-headers in the applicable server context (check Nginx header inheritance):
+## Private origin
 
-```nginx
-add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-add_header Content-Security-Policy "frame-ancestors 'self'; object-src 'none'; base-uri 'self'" always;
-```
-
-This structural CSP restricts framing, plugin objects and base URLs. It does
-not restrict JavaScript execution; a `script-src` policy requires a separate
-review of inline scripts, event handlers and third-party resources. Preserve
-existing HTTPS, content-type and frame protections when merging fragments.
-
-At main configuration scope:
-
-```nginx
-worker_shutdown_timeout 10s;
-```
-
-In the server reached by a local HTTPS tunnel:
+If a tunnel or reverse proxy on the same host is the only way in, listen on
+loopback only:
 
 ```nginx
 listen 127.0.0.1:8082;
 listen [::1]:8082;
-server_name judge.example.org;
 ```
 
-Use loopback listeners only when the trusted proxy/tunnel runs locally. Keep
-the existing application, static/media, websocket and long-poll routes. Disable
-`autoindex` in the public static and media locations. The example socket below
-must match the application and proxy permissions:
+Changing a `listen` directive needs a **restart**; a reload keeps the old socket
+and does not report an error.
+
+## Headers
 
 ```nginx
-location = /custom-test/run/ {
-    client_max_body_size 2M;
-    include uwsgi_params;
-    uwsgi_pass unix:/run/dmoj/site.sock;
+add_header X-Content-Type-Options nosniff;
+add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+add_header Content-Security-Policy "frame-ancestors 'self'; object-src 'none'; base-uri 'self'" always;
+```
+
+This Content Security Policy blocks framing, plugins and `<base>` changes. It
+does **not** restrict JavaScript: DMOJ renders HTML from problem statements,
+contest descriptions, blog posts and the site announcement, so anyone who can
+edit those can run scripts in other users' browsers, administrators included.
+Only give those permissions to people you trust.
+
+## Request body limits
+
+| Route | Limit | Why |
+| --- | --- | --- |
+| everything | `16M` | nothing else needs more |
+| `/custom-test/run/` | `2M` | a custom test is source code and input |
+| `/problem/<code>/test_data` | `500M` | problem data archives can be large |
+
+A request over its limit gets **413** before it reaches the application.
+
+### The upload route asks first
+
+Nginx reads the whole request body before handing it to the application, so a
+large limit would normally let anyone make the server receive half a gigabyte.
+The example prevents that with `auth_request`: before reading the body, Nginx
+asks the application at `/internal/problem-data-upload-gate` whether the caller
+could upload problem data at all. That view answers **204** for signed-in
+accounts with the problem-editing permission and **403** for everybody else, and
+Nginx then refuses the upload without buffering it. Which problems an account may
+actually edit is still checked by the application on the real request.
+
+Two details in that internal location are required:
+
+- `uwsgi_pass_request_body off` and an empty `CONTENT_LENGTH`: the question is
+  asked without the body.
+- `client_max_body_size 0`: the subrequest inherits the upload's
+  `Content-Length`, and with the general 16M limit every real upload would fail
+  with **500**. If uploads fail with 500, look for `auth request unexpected
+  status` in the Nginx log.
+
+The location is marked `internal`, so requesting it from outside returns 404.
+
+### Where bodies are buffered
+
+Bodies larger than Nginx's memory buffer are written to `client_body_temp_path`.
+Put it on disk, not on a tmpfs such as `/run`, which is RAM. The example uses
+`/var/lib/dmoj-nginx/client`, created by `StateDirectory=` in the
+[service unit](../../deploy/examples/systemd/dmoj-nginx.service). Adding that
+line needs `systemctl daemon-reload` and a restart of the service, once.
+
+If every large POST fails with 500 and the application log is empty, check the
+ownership of the temporary directories: Nginx must be able to write there.
+
+### Limits outside Nginx
+
+A CDN or tunnel in front of the site may have its own limit. Cloudflare, for
+example, accepts request bodies of at most 100 MB on its Free and Pro plans and
+answers 413 itself above that. It also receives the complete upload before
+forwarding it.
+
+## Static files
+
+```nginx
+location /static/ {
+    alias /srv/dmoj/site/static/;
 }
 ```
 
-The deployed configuration retains its existing application-routing mechanism
-inside this exact location. The important boundary is a 2 MiB body limit only
-for the custom test endpoint; it does not lower upload limits on unrelated
-administrative routes. Bodies exceeding the limit return 413 before Django.
+Keep the trailing slash in **both** the location and the alias. With
+`location /static` and an alias ending in `/`, a request for `/static../X` is
+served from `/srv/dmoj/site/X`, which exposes every file in the checkout,
+settings included. After a change, `/static../robots.txt` must return 404.
 
-Remove any public proxy route to `/post_event/`. Django publishes events directly
-to the private event daemon. Keep its publishing listener on loopback and keep
-the public `/event/` and `/channels/` consumers working. A request to the removed
-publishing route should return 404.
+Disable `autoindex` for static and media locations.
 
-## Applying and verifying an equivalent change
+## Event daemon
 
-Validate the full candidate configuration before changing a live proxy. Nginx
-reload is asynchronous: old workers may retain long-lived websocket connections.
-The shutdown timeout bounds that overlap and can close those connections.
+Browsers connect to `/event/` (WebSocket) and `/channels/` (long polling).
+Django publishes events straight to the daemon's publishing port, which must stay
+on loopback. Do not proxy a public `/post_event/` route: anybody could publish
+messages to every connected browser.
 
-Changing a wildcard listener to a loopback listener conflicted with the old
-bound socket during the tested reload. The listener transition was therefore
-performed as a separate controlled restart. Inspect actual bound addresses and
-connection acceptance rather than assuming a successful reload changed them.
+## Applying changes
 
-Verification covered application/login/static responses, websocket and polling
-routes, 404 for the removed publishing route, 413 above the size limit, and
-connection refusal through the host's non-loopback interface. These checks do
-not establish per-user rate limits or job-concurrency limits; the
-[application admission controls](custom-tests.md) were added on 2026-09-14.
+Validate with `nginx -t`, then **reload**. A reload is gradual: old workers keep
+serving their open connections until `worker_shutdown_timeout` (10 seconds in the
+example), which also closes long-lived WebSockets; the browser client reconnects
+by itself. Check the specific route you changed, not only the home page.

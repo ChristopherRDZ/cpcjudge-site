@@ -305,9 +305,9 @@ MIDDLEWARE = (
 # La versión instalada de django-impersonate SÓLO lee este diccionario: su clase
 # Settings hace `getattr(django_settings, 'IMPERSONATE', {})` y nada más. Las dos
 # variables sueltas que traía DMOJ —IMPERSONATE_REQUIRE_SUPERUSER e
-# IMPERSONATE_DISABLE_LOGGING— no las miraba nadie, así que REQUIRE_SUPERUSER valía
-# el False por omisión y las doce cuentas de staff podían suplantar a cualquier
-# usuario que no fuese superusuario. Corregido el 2026-09-19.
+# IMPERSONATE_DISABLE_LOGGING— no las mira nadie: con ellas, REQUIRE_SUPERUSER vale
+# el False por omisión y cualquier cuenta de staff puede suplantar a cualquier
+# usuario que no sea superusuario.
 IMPERSONATE = {
     # Sólo superusuarios pueden suplantar.
     'REQUIRE_SUPERUSER': True,

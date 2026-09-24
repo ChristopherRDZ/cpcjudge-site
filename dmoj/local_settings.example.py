@@ -82,3 +82,10 @@ CPC_CUSTOM_TEST_MAX_PER_MINUTE = 12
 CPC_CUSTOM_TEST_MAX_PER_HOUR = 200
 # Bytes of program output kept for display, before the judge truncates it.
 CPC_CUSTOM_TEST_OUTPUT_PREFIX = 65536
+
+# Teams. False pauses creating teams, sending or accepting invitations and new team
+# registrations; existing teams, running attempts and contest history are kept.
+CPC_TEAMS_ENABLED = True
+# Active teams one account may own, and invitations one account may send per hour.
+CPC_MAX_OWNED_TEAMS = 20
+CPC_TEAM_INVITES_PER_HOUR = 20

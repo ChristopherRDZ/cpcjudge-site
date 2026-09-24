@@ -1,26 +1,19 @@
-# Opt-in synthetic compatibility tests
+# Optional Django 5.2 compatibility tests
 
-`compat_tests.py` is the unchanged additional test module from the isolated
-Django 5.2 laboratory. Its users, passwords, judge key and event data are
-fictitious fixtures. It is stored outside Django application's normal test
-discovery paths because it relies on a specially provisioned environment.
+`compat_tests.py` exercises registration, login, password reset, two-factor
+authentication, encrypted fields, time zones, the calendar, ICPC participation,
+custom test privacy, static and media handling, SQL listings and the API. Its
+users, passwords, judge key and events are made up.
 
-The module is not a standalone test runner. Before loading it through Django's
-test runner, provide all of the following in a disposable environment:
+It is kept outside the normal test discovery because it needs a prepared
+environment. Only load it through Django's test runner in a disposable setup:
 
-- An independent application copy and the recorded candidate dependencies.
-- Synthetic settings, a disposable MariaDB database and a process-local
-  `LocMemCache`. The test setup calls `cache.clear()`.
-- Private writable problem, media, static and user-cache directories containing
-  no user data, with generated static assets already available.
-- A local-memory mail backend, disabled external integrations, the tested
-  application URLs/templates and appropriate fixture timezone/settings.
-- No access to production settings, data, database/Redis sockets, judges or
-  external network destinations. The original harness enforced separate mount
-  and network namespaces and an unprivileged identity.
+- a separate copy of the code with the pinned dependencies;
+- test settings with a throwaway MariaDB database and a local-memory cache (the
+  tests clear the cache);
+- empty, writable problem, media and static directories, with static files
+  already built;
+- the local-memory email backend and no external integrations.
 
-Never load this module with production settings. Database transactions do not
-protect external files, cache contents or outbound effects. In the original
-harness the module was importable as `compat_tests` and passed explicitly to
-Django's test runner. Reconstruct and validate an equivalent isolated harness
-before reusing it; the host-specific launcher is deliberately kept private.
+Never load it with production settings: database transactions do not undo files,
+cache contents or anything sent outside.

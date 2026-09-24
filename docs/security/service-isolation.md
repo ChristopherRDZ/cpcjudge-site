@@ -1,85 +1,61 @@
 # Service isolation
 
-The deployment moved judges to systemd on 2026-09-09 and the web application,
-Celery, judge bridge, event daemon and dedicated Nginx instance on 2026-09-10.
-Each role uses a dedicated non-login account. The web and proxy no longer run
-as root. Judges start automatically with the host service manager.
+Run each part of the site under its own unprivileged, non-login account, so that
+a flaw in one of them does not reach the others. The
+[systemd examples](../../deploy/examples/systemd) do this with one unit per
+service and a shared set of restrictions in
+[`common-hardening.conf`](../../deploy/examples/systemd/common-hardening.conf).
 
-This document describes the controls to reproduce. Actual unit files, numeric
-account IDs, host mount layouts and recovery inventories remain private.
+| Service | Account | Reads | Writes |
+| --- | --- | --- | --- |
+| Web (uWSGI) | `dmoj-uwsgi` | code, virtualenv, its settings | problem data, media, its logs and socket |
+| Celery | `dmoj-celery` | code, virtualenv, its settings, problem data | its logs |
+| Bridge | `dmoj-bridge` | code, virtualenv, its settings, problem data | its logs |
+| Events | `dmoj-events` | event daemon and its configuration | nothing |
+| Nginx | `dmoj-proxy` | static files, media, the web socket | its temporary directories |
+| Judges | `dmoj-judge` | judge environment, its key, problem data | private runtime state |
 
-| Role | Read access | Required writable state |
-| --- | --- | --- |
-| Web | Application, virtual environment, its private settings | Problem data, uploaded media, application logs and socket |
-| Celery | Application, virtual environment, its private settings and required problem data | Its own logs/runtime |
-| Bridge | Application, virtual environment, its private settings and problem data | Its own logs/runtime |
-| Events | Event daemon code, Node dependencies and its configuration | Private temporary/runtime state |
-| Proxy | Public static/media files and application socket | Its own runtime/cache |
-| Judges | Judge environment, assigned configuration and problem data | Private execution/runtime state |
+The units use no capabilities, `NoNewPrivileges`, private `/tmp` and devices,
+read-only code and virtualenv, and hide everything a service does not need:
+home directories, other services' credentials and, on WSL, Windows files and
+interoperability.
 
-The application roles use empty capability sets, `NoNewPrivileges`, read-only
-code and virtual environments, private temporary directories and devices, and
-mount restrictions around the required paths. Unneeded home directories,
-Windows files, WSL interoperability, service-manager sockets and other roles'
-credentials are hidden. Judge units have their own tested restrictions; do not
-assume every web hardening directive can be applied unchanged to a judge sandbox.
+The web socket is group-restricted (mode 660); Nginx needs to be in its group,
+without access to the application's settings.
 
-On WSL, clearing `WSL_INTEROP` alone is insufficient. The native interoperability
-entry point and host-mounted paths must also be inaccessible to the service.
-Filesystem protection and namespace restrictions complement one another.
+## Only one process manager
 
-Uploaded media is outside the Python source package. Service-specific log
-directories keep the source tree read-only. The web socket is group-restricted
-with mode 660, and its directory is recreated at boot. The proxy must belong to
-the socket's permitted group without gaining access to application secrets.
+Start each service from exactly one place. If an old Supervisor or init script
+can still start the web application, a second copy will fight over the socket
+and, when it exits, delete it, leaving Nginx with 502 errors.
 
-## Startup and recovery
+## Stopping the bridge and judges
 
-One process manager must own each service. On 2026-09-14 obsolete Supervisor
-definitions were removed after preserving private recovery material, and its
-daemon was stopped and disabled. Starting an old web definition can contend
-for, and later remove, the active Unix socket. Use the current systemd units.
+Stop new work first, then wait for the queue, the judges and Celery to go idle.
+The bridge can take a while to stop while judges are connected.
 
-Before stopping the bridge or judges, pause incoming evaluation work and wait
-for submission queues, active judge workers and Celery work to finish. A bridge
-can take time to stop while judges remain connected. Recovery must preserve
-uploads created since migration and reject conflicting or unknown file changes.
+## Judges
 
-Validation covered role identities, access boundaries, normal HTTP/resources,
-event endpoints and judge connectivity. Later host-startup checks confirmed
-automatic startup; restarting the web service recovered a socket removed by an
-obsolete Supervisor launch. These observations do not certify every sandbox
-boundary or every supported language against hostile programs.
+Judges accept their own restrictions (`PrivateDevices`, `ProtectKernelTunables`,
+`ProtectKernelModules`, `ProtectControlGroups`, `RestrictSUIDSGID`,
+`RestrictAddressFamilies`). Do **not** add `LockPersonality`: the executors call
+`personality(ADDR_NO_RANDOMIZE)` for consistent memory accounting, and blocking
+it changes results silently. Do not assume every web restriction fits a judge.
 
-## Additional judge restrictions — 2026-09-13
+## WSL notes
 
-The judge unit now also uses `PrivateDevices`, `ProtectKernelTunables`,
-`ProtectKernelModules`, `ProtectControlGroups`, `RestrictSUIDSGID` and
-`RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6`. Language self-tests,
-isolated evaluations and later user-reported submissions passed.
+- Clearing `WSL_INTEROP` is not enough: also make `/init` and the Windows mounts
+  inaccessible to the services.
+- `/etc/resolv.conf` usually points into `/mnt/wsl`. Hiding `/mnt/wsl` leaves the
+  service without DNS, with no error at startup; registration emails then fail.
+  If you hide it, expose the resolver file again, and test name resolution as the
+  service user inside its namespace.
+- Keep `django.request` errors logged to the journal, not only by email: if email
+  is what broke, the email report is lost too. See the
+  [settings fragment](../../deploy/examples/runtime-hardening.settings.py).
 
-Do not add `LockPersonality` to this judge configuration. Its executors use
-`personality(ADDR_NO_RANDOMIZE)` for consistent memory accounting; blocking the
-call silently changes that behavior even when ordinary verdict tests pass.
-`SystemCallFilter` and `MemoryDenyWriteExecute` were not added.
+## Temporary directories
 
-## DNS and temporary storage — 2026-09-13/14
-
-On WSL, `/etc/resolv.conf` can point into `/mnt/wsl`. Masking that directory
-breaks DNS inside a service without preventing its startup or ordinary GETs.
-The web/Celery namespaces now expose only the resolver file within a private
-temporary mount. Other host and interoperability restrictions remain in place.
-Adapt the mapping to the actual resolver target; do not copy a host-specific
-drop-in blindly. Verify DNS and TLS connectivity as the service user inside its
-namespace after every mount change, including after WSL restarts.
-
-Keep request-error logging available locally as well as through email. If DNS
-breaks both activation email and email-only error reporting, registration may
-return 500 without an accessible diagnostic. See the
-[configuration fragment](../../deploy/examples/runtime-hardening.settings.py).
-
-Validate ownership of the proxy's writable body/response temporary paths after
-isolating its service. The deployment corrected paths owned by a different UID,
-which prevented larger POST requests from being buffered to disk. A successful
-small login-form GET does not validate POST body buffering, email delivery or
-an actual registration.
+Check that Nginx can write its temporary directories after isolating it. If it
+cannot, large POST requests fail with 500 and never reach the application log.
+A GET that works proves nothing about POST buffering.

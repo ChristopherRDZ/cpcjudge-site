@@ -1,35 +1,26 @@
 # Redis authentication
 
-Redis authentication was enabled on 2026-09-11 using a dedicated ACL user and
-disabling the anonymous/default user after application clients were migrated.
-It was subsequently confirmed to survive a host/service restart.
+DMOJ keeps sessions in the cache (`cached_db`). A Redis without a password on
+loopback still lets any local process read those sessions and take over
+accounts, administrators included. Binding to loopback is not enough on a shared
+host.
 
-The deployment uses Django's `cached_db` session engine. A local Redis listener
-without authentication lets other local processes inspect cached sessions;
-loopback binding alone does not isolate applications sharing a host.
+## Configuration
 
-The public settings example therefore requires explicit private environment
-values for cache, Celery broker and result-backend URLs. It has no fallback to
-an unauthenticated Redis connection. Provision the ACL user and password outside
-Git. Supply credentials through a protected mechanism, not a command argument,
-terminal transcript or copied production URL. Encode URL-special characters
-when assembling a connection URL.
+1. Create a dedicated ACL user for the site, with a strong password.
+2. Put the cache, Celery broker and Celery result URLs with that user in
+   `local_settings.py`. The [example](../../dmoj/local_settings.example.py) has
+   no fallback to an anonymous connection on purpose.
+3. Check that the site, Celery and the bridge work with the new credentials.
+4. Disable the `default` user, and persist the ACL configuration so it survives
+   a Redis restart.
 
-## Migration order used
+URL-encode special characters in the password when building a connection URL.
+Do not pass the password on a command line, where other processes can read it;
+for `redis-cli`, use the `REDISCLI_AUTH` environment variable.
 
-1. Identify all Redis clients and prepare a private configuration/ACL backup.
-2. Create the dedicated user while the previous client identity still works.
-3. Verify cache and broker operations under the actual application identities.
-4. Update private connection settings while preserving file ACLs, then reload
-   only the affected application clients in a controlled sequence.
-5. Disable anonymous/default access once authenticated clients are healthy.
-6. Persist the ACL configuration and test persistence in a disposable instance.
+## Rolling back
 
-The verification covered anonymous denial, authenticated connections, cache and
-Celery health, preserved sessions, application responses and judge connections.
-Do not flush the live cache or queues as an authentication check.
-
-Restoring old application settings without coordinating Redis authentication
-can break the application. Recovery must account for both sides of the change.
-The deployed ACL user still has broad command permissions; per-role or
-per-command restrictions require a separate compatibility review.
+If you restore an older `local_settings.py` without the credentials, the site
+loses its cache. Re-enable the `default` user at the same time, or restore both
+sides together.

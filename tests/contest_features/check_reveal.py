@@ -1,8 +1,7 @@
 """Pruebas sintéticas del revelador. No tocan la base ni producción.
 
-Se ejecutan sobre el árbol del laboratorio: una copia del código con los candidatos del punto 4 y de este
-expediente puestos en su sitio. Todo son objetos construidos a mano; la única base configurada es un sqlite en
-memoria que se queda vacío.
+Se ejecutan sobre la copia temporal del código que prepara `run.py`. Todo son objetos construidos a mano;
+la única base configurada es un sqlite en memoria que se queda vacío.
 
     python tests/contest_features/run.py
 """
@@ -303,7 +302,7 @@ comprobar(modelo_admin.reveal_link(Contest(key='a', freeze_minutes=None)) == '',
 enlace = str(modelo_admin.reveal_link(Contest(key='final', freeze_minutes=60)))
 comprobar('href="/contest/final/reveal"' in enlace and 'target="_blank"' in enlace, 'con congelación: enlace')
 comprobar(hasattr(modelo_admin, 'reveal_scoreboard') and 'freeze_minutes' in str(modelo_admin.fieldsets),
-          'lo del punto 4 sigue en la administración')
+          'la congelación sigue en la administración')
 try:
     get_template('admin/judge/contest/change_form.html')
     comprobar(True, 'la plantilla del formulario de administración compila')
@@ -318,7 +317,7 @@ comprobar(R.reveal_labels()['frozen'] == 'Marcador congelado', 'catálogo: texto
 comprobar(translation.gettext('Reveal scoreboard') == 'Revelar marcador', 'catálogo: botón de administración')
 comprobar(translation.gettext('Rankings') == 'Valoraciones' and
           translation.gettext('scoreboard freeze') == 'congelación del marcador',
-          'catálogo: traducciones previas y del punto 4 intactas')
+          'catálogo: traducciones previas y de la congelación intactas')
 comprobar('juzgando' in translation.ngettext('%d submission is still being judged. Wait for it before revealing.',
                                              '%d submissions are still being judged. Wait for them before revealing.',
                                              2), 'catálogo: plural')

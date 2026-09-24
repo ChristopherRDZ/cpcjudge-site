@@ -1,13 +1,14 @@
 # CPC-UAEH modifications to DMOJ
 
-As of 2026-09-19, this source includes team support and team contests, an owner
+As of 2026-09-22, this source includes team support and team contests, an owner
 account that restricts deletion in the administration interface, a dark theme
 available to every account, test cases filled in from a problem data archive,
 frozen scoreboards, a reveal ceremony, balloon operations, contest announcements
 and clarifications, self-refreshing rankings, resilient live updates, custom-test
-admission controls and the deployed Django 5.2.17 upgrade.
+admission controls, a pre-upload check for problem data and the Django 5.2.17
+upgrade.
 Timezone, storage/dependency and contest administration adaptations are
-documented in the [upgrade record](docs/django52/README.md). A grouped list of
+documented in the [upgrade guide](docs/django52/README.md). A grouped list of
 every change is in the [fork overview](docs/fork-overview.md).
 
 This repository contains a modified version of
@@ -28,6 +29,39 @@ GNU Affero General Public License version 3.
 - Authentication using either a username or an email address.
 - A signed-in custom code testing workflow and its judge bridge support.
 - Minor registration and presentation adjustments.
+
+## Fixes and hardening — 2026-09-20 to 2026-09-22
+
+- Clarifications: the visibility of an answer and its announcement change
+  together, from the contest tab and from the admin. Making a public answer
+  private withdraws its announcement, answering again reuses it, moving the
+  question to another contest moves its announcement, and deleting the question
+  (directly or with the problem it refers to) withdraws it. Announcements with
+  neither text nor a question are never shown.
+- The clarification admin only offers, and only accepts, contests the account can
+  edit, and rejects a problem from another contest. The contest of an
+  announcement that carries a clarification is read-only in the announcement
+  admin.
+- Frozen scoreboards also freeze the contest history of `/api/v2/user/<name>` and
+  the AC rate and Users counters of the contest's problem lists. On your own row,
+  the frozen board marks results it is not showing, including a submission sent
+  before the freeze whose verdict arrived after it started.
+- Cloning a revealed contest no longer copies the revealed state, which silently
+  disabled the new contest's freeze.
+- Assigning a team owner in the admin adds that account to the members; the team
+  page was otherwise unreachable for its own owner.
+- Registering for a contest before it starts shows its message instead of an
+  error page.
+- Login by email no longer fails when several accounts share an address: the
+  password decides which account signs in.
+- The bottom action bar of admin change lists works with Django 5.2 and stays in
+  sync with the top one (`templates/admin/change_list.html`).
+- The custom test page has its title again.
+- `problem_data_upload_gate`: an internal view that Nginx asks, through
+  `auth_request`, before buffering a problem data upload. The example Nginx
+  configuration now uses it, buffers request bodies on disk and closes an
+  off-by-slash path traversal in its `/static` location.
+- No migration and no schema or data change.
 
 ## Administration and deletion control — 2026-09-19
 
@@ -133,10 +167,10 @@ See the [organiser guide](docs/contest-tools.md) and
   isolation controls, Supervisor retirement, DNS/error-reporting repairs and
   offline-compression build requirements.
 
-See the [security maintenance record](docs/security/README.md) for implementation
-dates, verification scope and remaining limitations. Infrastructure changes are
-represented by documentation and generic examples; their actual host settings,
-credentials, user data and recovery records remain private.
+See the [security guides](docs/security/README.md) for how to configure each
+control and its known limitations. Infrastructure changes are represented by
+documentation and generic examples; no host settings, credentials or user data
+are included.
 
 ## Django 5.2 upgrade — 2026-09-12
 
@@ -145,8 +179,8 @@ credentials, user data and recovery records remain private.
   and one CompressorFinder in the base settings.
 - Contest participant bans applied after a valid saved form, preserving
   participation when an administrative form is rejected.
-- Published historical synthetic compatibility tests and tested dependency
-  constraints. See the upgrade record for postdeployment checks and limits.
+- Optional compatibility tests and the versions of a working environment. See
+  the [upgrade guide](docs/django52/README.md).
 
 Git history and file-level diffs are the authoritative record of the exact
 changes. The complete corresponding source is available without charge at

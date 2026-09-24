@@ -33,8 +33,8 @@ handling, storage configuration, static-file compression and contest
 administration. The upgrade also updates the tested django-mptt and
 django-compressor dependencies.
 
-The [upgrade guide](docs/django52/README.md) covers the adaptations, settings,
-recorded compatibility tests and deployment checks. The
+The [upgrade guide](docs/django52/README.md) covers the code changes, the
+settings and how to upgrade an existing installation. The
 [setup guide](docs/setup-guide.md) explains how to configure a new instance.
 
 ## Security
@@ -51,6 +51,11 @@ recorded compatibility tests and deployment checks. The
   plus rate and length limits for contestant clarification requests.
 - **Controlled deletion:** explicit confirmations list the records affected by
   permanent team or contest deletion; submission records are preserved.
+- **Scoped jury tools:** jury members can only file or move clarifications into
+  contests they can edit, and answers change visibility together with their
+  announcements.
+- **Upload check:** Nginx asks the application whether a caller may upload
+  problem data before accepting a large request body.
 
 ### Deployment controls
 
@@ -61,14 +66,14 @@ The [deployment examples](deploy/examples/README.md) and
 - authenticated Redis and private service listeners;
 - secure session and CSRF cookies, edge HSTS, a structural Content Security
   Policy and referrer policy;
-- request-size limits, disabled directory listings and a private event-publishing
-  endpoint;
+- request-size limits, a permission check before large uploads, on-disk request
+  buffering, disabled directory listings and a private event-publishing endpoint;
 - protected configuration and backups, and scheduled cleanup of finished custom
   tests.
 
 Application protections are included in the source; deployment controls must be
-configured for each installation. The [security maintenance record](docs/security/README.md)
-documents verification scope and known limitations.
+configured for each installation. The [security guides](docs/security/README.md)
+explain each control and its known limitations.
 
 ## Contests
 
@@ -78,8 +83,10 @@ teams, contests and results. They do not represent a real competition.*
 ### Frozen scoreboards
 
 Configure a freeze window and keep results hidden across the scoreboard,
-participation pages, submissions, statistics, API and live updates. Organizers
-explicitly release the final results.
+participation pages, submissions, statistics, problem counters, API and live
+updates. Contestants still see their own submissions, and their row marks the
+results the frozen board is not showing. Organizers explicitly release the final
+results.
 
 ![Team scoreboard during the freeze window](docs/screenshots/scoreboard-freeze.png)
 
@@ -177,16 +184,17 @@ lists the affected records; submission records are preserved.
 
 Start with a working [DMOJ installation](https://docs.dmoj.ca/#/site/installation),
 then follow [Setting up this fork](docs/setup-guide.md) for settings, migrations,
-translations, static assets, service configuration and scheduled cleanup.
+translations, static assets, service configuration, scheduled cleanup and your
+own branding.
 
 | Guide | Contents |
 | --- | --- |
 | [Setup guide](docs/setup-guide.md) | Installation, configuration and verification |
 | [Fork overview](docs/fork-overview.md) | Features and changes relative to upstream |
 | [Django 5.2 upgrade](docs/django52/README.md) | Compatibility changes, tested dependencies and upgrade guidance |
-| [Contest tools](docs/contest-tools.md) | Freeze, reveal and balloon workflows |
+| [Contest tools](docs/contest-tools.md) | Freeze, reveal, balloons, announcements and clarifications |
 | [Deployment examples](deploy/examples/README.md) | Example service units, Nginx settings and maintenance tasks |
-| [Security maintenance](docs/security/README.md) | Controls, verification scope and known limitations |
+| [Security guides](docs/security/README.md) | How to configure each control, and known limitations |
 | [Screenshot gallery](docs/screenshots/README.md) | Full-size demonstration images |
 
 ## Upstream and license

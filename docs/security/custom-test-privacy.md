@@ -1,29 +1,18 @@
-# Privacy of personal test submissions
+# Privacy of custom tests
 
-Implemented in the deployed application on 2026-09-08, after the
-[custom test lifecycle correction](custom-tests.md).
+Custom tests are personal. They are excluded from:
 
-Personal tests are excluded from normal submission histories, per-user and
-per-problem listings, AJAX rows, public API lists and global submission result
-statistics. This exclusion also applies to their owner and administrators in
-the ordinary histories; results remain available through the custom test tool.
-The statistics cache uses a new key so an older aggregate is not reused.
+- the global, per-user and per-problem submission lists and their live updates;
+- the submissions API;
+- submission statistics.
 
-Direct access to a personal test's source is restricted to its owner or the
-explicit `judge.view_all_submission` permission. Normal problem solution-sharing
-rules do not grant access to personal tests. The existing detail views and API
-reuse this access check.
+This also applies to their owner and to administrators in those lists; results
+are seen through the custom test page.
 
-The reserved `ct_` prefix is used for exclusion/access policy here. It is not
-authorization to delete a problem. Deletion requires the signed identity and
-additional checks described in the lifecycle document.
+The source of a custom test can only be opened by its owner or by an account
+with the `judge.view_all_submission` permission. The problem's normal
+solution-sharing rules never make a custom test public.
 
-## Validation and limits
-
-Eight groups of checks passed with a disposable MariaDB database, real models,
-templates and synthetic accounts with different permissions. A separate
-read-only comparison checked normal application listings. The three source
-files published here match the final deployment candidates byte for byte.
-
-This policy does not conceal data from an administrator holding the explicit
-permission, and hiding a test from listings does not remove its stored data.
+The `ct_` prefix decides what is hidden. It is never enough to delete anything:
+deletion also requires the signed ownership check described in
+[custom tests](custom-tests.md).

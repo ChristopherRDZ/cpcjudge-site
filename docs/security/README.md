@@ -1,36 +1,31 @@
-# Security maintenance record
+# Security guides
 
-These documents describe application changes and deployment controls applied
-through 2026-09-19. Examples use generic paths and hostnames; production settings,
-credentials, data, logs and detailed recovery inventories remain private.
+Application protections are part of the code. Deployment controls have to be set
+up on each server; the [examples](../../deploy/examples/README.md) show one way.
 
-- [Custom test lifecycle](custom-tests.md): read-only polling, signed ownership
-  and bounded cleanup, per-user admission limits, scheduled retention and remaining
-  concurrency limits.
-- [Personal test privacy](custom-test-privacy.md): histories, API, statistics and
-  direct source access.
-- [Service isolation](service-isolation.md): dedicated identities, systemd,
-  read-only code, judge startup and WSL boundaries.
-- [Private files and backups](private-files-and-backups.md): permissions,
-  configuration copies, backup coverage and publication boundaries.
-- [Redis](redis.md): authenticated application clients and persisted ACLs.
-- [Nginx](nginx.md): no directory indexes or public event-publishing route,
-  private origin listener and custom test request-size limit.
-- [HTTPS](https.md): secure cookies and HSTS at the edge.
-- [Offline compression](offline-compression.md): deterministic builds for a
-  read-only static tree and required template-context coverage.
-- [Owner accounts and impersonation](../setup-guide.md#6-the-owner-account):
-  protected administrative privileges and owner-only deletion; the
-  [private settings section](../setup-guide.md#2-private-settings) configures
-  restricted impersonation with audit logging.
-- [Scheduled cleanup](../setup-guide.md#9-custom-test-cleanup): maintenance timer
-  for finished custom tests, with ownership checks and a grace period.
+| Guide | What it covers |
+| --- | --- |
+| [Nginx](nginx.md) | private origin, headers, body limits, the upload check, static files, the event daemon |
+| [HTTPS](https.md) | secure cookies, HSTS, how the HTTPS scheme reaches Django |
+| [Redis](redis.md) | password-protected Redis for sessions, cache and Celery |
+| [Service isolation](service-isolation.md) | one account per service, systemd restrictions, judges, WSL |
+| [Private files and backups](private-files-and-backups.md) | settings, permissions, backups |
+| [Offline compression](offline-compression.md) | read-only static files and when to rebuild |
+| [Custom tests](custom-tests.md) | ownership, per-user limits, cleanup |
+| [Custom test privacy](custom-test-privacy.md) | what custom tests are hidden from |
+| [Owner accounts](../setup-guide.md#6-the-owner-account) | who can delete from the admin, impersonation |
 
-Documented checks are scoped observations, not a claim that the system has no
-vulnerabilities. Code publication does not install dependencies, change host
-configuration, migrate data or restart services. Deployment examples require
-adaptation and validation in a separate environment.
+## Known limitations
 
-The [Django 5.2 upgrade](../django52/README.md) is deployed and included in
-`cpc-production`. Its record distinguishes historical laboratory tests from
-postdeployment read-only checks and documents configuration/build boundaries.
+- The Content Security Policy does not restrict JavaScript. Problem statements,
+  contest descriptions, blog posts and the site announcement accept HTML, so
+  anyone allowed to edit them can run scripts in other users' browsers. The owner
+  lock stops accidental deletions by other administrators; it does not protect
+  against an administrator acting in bad faith.
+- The custom-test in-flight limit is not atomic under simultaneous requests.
+- Email addresses are not unique in the database. Registration and the email
+  change form check them, but the admin does not. Login by email tries the
+  password against each account with that address (up to five).
+
+These guides describe recommended settings. They are not a guarantee that a
+deployment has no vulnerabilities.

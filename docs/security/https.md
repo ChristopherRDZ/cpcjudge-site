@@ -1,36 +1,46 @@
-# HTTPS cookies and edge HSTS
+# HTTPS, cookies and HSTS
 
-Secure cookies and edge HSTS were enabled on 2026-09-11 after checking that the
-site's intended public hostnames serve HTTPS and redirect HTTP to HTTPS.
+## Cookies
 
-The public settings example includes:
+In `local_settings.py`:
 
 ```python
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 ```
 
-The settings affect cookies when they are issued again; this change does not
-invalidate sessions already stored on the server. Verification observed the
-`Secure` attribute on a new CSRF cookie. A complete session-cookie check requires
-a controlled login; the latest read-only check did not create a new login.
+Browsers then send the session and CSRF cookies only over HTTPS. Existing
+sessions are not invalidated; the flag applies when a cookie is issued again.
 
-HSTS is served by the HTTPS edge with:
+## HSTS
+
+Serve HSTS from the HTTPS edge (the proxy or CDN that terminates TLS), for
+example:
 
 ```http
 Strict-Transport-Security: max-age=15552000; includeSubDomains
 ```
 
-`preload` is not enabled. Check all affected subdomains before opting into
-`includeSubDomains`. Browsers remember HSTS independently of server state;
-removing a header does not immediately undo an already cached policy.
+Check every subdomain before using `includeSubDomains`, and add `preload` only
+when you are sure. Browsers remember HSTS: removing the header later does not
+undo it for visitors who already received it.
 
-The deployment does not turn on Django's `SECURE_SSL_REDIRECT` or originate HSTS
-from Django. TLS terminates at the trusted edge and the current origin does not
-report the original HTTPS scheme to Django. Introducing redirects there without
-coordinating proxy-scheme handling can cause a redirect loop.
+## Knowing the request came over HTTPS
 
-For a different proxy topology, explicitly design trusted scheme forwarding and
-its access boundary before enabling additional Django HTTPS behavior. Do not
-trust an arbitrary client-supplied forwarding header. The snippets above record
-the implemented cookie/edge changes, not a complete HTTPS configuration.
+When TLS ends at a proxy and the origin speaks plain HTTP, Django needs to know
+the original scheme: it uses it for CSRF origin checks and for absolute links
+such as password-reset emails.
+
+In the example layout (tunnel → Nginx on loopback → uWSGI), the tunnel sends
+`X-Forwarded-Proto: https`, Nginx passes it on, and uWSGI sets the request scheme
+from it. Django then treats those requests as HTTPS without
+`SECURE_PROXY_SSL_HEADER`. Requests made directly to the origin without that
+header are treated as HTTP, which is why a local test POST can fail the CSRF
+origin check while real browser traffic works.
+
+Only trust a forwarded scheme header when the origin is reachable exclusively
+through your proxy. That is another reason to keep the origin on loopback.
+
+Leave `SECURE_SSL_REDIRECT` off unless you have confirmed how your proxy reports
+the scheme; a mismatch causes a redirect loop. The HTTP-to-HTTPS redirect is
+best done at the edge.

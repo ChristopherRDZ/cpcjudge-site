@@ -57,6 +57,10 @@ CPC_CUSTOM_TEST_MAX_PER_MINUTE = 12
 CPC_CUSTOM_TEST_MAX_PER_HOUR = 200
 ```
 
+Also set `SITE_NAME`, `SITE_LONG_NAME` and `SITE_ADMIN_EMAIL`, and review the team
+settings at the end of the example (`CPC_TEAMS_ENABLED` pauses new teams and team
+registrations without touching existing ones).
+
 Never commit `dmoj/local_settings.py`. It is already in `.gitignore`.
 
 ## 3. Database
@@ -148,21 +152,30 @@ in the admin to get its key.
 
 ## 8. Front end
 
-Use [`nginx.conf`](../deploy/examples/nginx.conf) as the starting point. Two
-details in it are deliberate and easy to lose:
+Use [`nginx.conf`](../deploy/examples/nginx.conf) and its
+[service unit](../deploy/examples/systemd/dmoj-nginx.service) as the starting
+point. These details are deliberate and easy to lose:
 
 - **`client_max_body_size 16M` globally, 500M only on the problem data route.**
-  Real problem archives reach about 100 MB, so the upload route needs the
-  exception; nothing else does. Be aware that Nginx buffers the request body
-  before Django checks the session, so that route accepts large uploads from
-  anonymous clients too. Point `client_body_temp_path` somewhere with room, and
-  think twice if it is a RAM-backed tmpfs.
+  Problem archives can be large; nothing else needs more.
+- **The problem data route asks the application before reading the upload**
+  (`auth_request` to `/internal/problem-data-upload-gate`). Anonymous users and
+  accounts that cannot edit problems get 403 without the server receiving the
+  file. Keep `client_max_body_size 0` and `uwsgi_pass_request_body off` in that
+  internal location, or every real upload fails with 500.
+- **`client_body_temp_path` on disk** (`/var/lib/dmoj-nginx/client`, created by
+  `StateDirectory=` in the unit), not on a RAM-backed tmpfs.
 - **`client_max_body_size 2M` on `/custom-test/run/`**, which is all a custom
-  test ever needs.
+  test needs.
+- **`location /static/` with the trailing slash.** Without it, `/static../X`
+  serves any file of the checkout.
 
-After editing, `nginx -t` and then **reload**, not restart. A restart recreates
-the temporary directories, and if their ownership comes out wrong every large
-POST answers HTTP 500 without leaving a trace in the application log.
+If a CDN sits in front of the site, its own upload limit also applies:
+Cloudflare's Free and Pro plans refuse requests over 100 MB.
+
+After editing, `nginx -t` and then **reload**. Changes to the unit or to a
+`listen` line need `systemctl daemon-reload` and a restart instead. See
+[Nginx](security/nginx.md) for the reasons behind each setting.
 
 ## 9. Custom-test cleanup
 
@@ -193,7 +206,26 @@ sudo -u dmoj-uwsgi env PYTHONDONTWRITEBYTECODE=1 HOME=/nonexistent \
 It never touches a test that is still being judged, nor one newer than the grace
 period (20 minutes by default, `--minutos`).
 
-## 10. Check it works
+## 10. Your own name and branding
+
+The fork ships with the CPC-UAEH name and artwork. To use your own:
+
+| What | Where |
+| --- | --- |
+| Site name and admin email | `SITE_NAME`, `SITE_LONG_NAME`, `SITE_ADMIN_EMAIL` in `local_settings.py` |
+| Logo in the navigation bar | `resources/icons/logo.png` and `resources/icons/logo_dark.png` (dark theme) |
+| Favicons and app icons | the other images in `resources/icons/` |
+| Logo on the error page and in the README | `logo.png` in the repository root |
+| Footer text | the `Hecho por CPC-UAEH.` line in `templates/base.html` |
+| Link preview description | the `og:description` default in `templates/base.html` |
+| Welcome text of the activation email | `templates/registration/activation_email.html` |
+| Home page text | a blog post or flat page created from the admin |
+
+The footer and email texts are translatable strings. If you change them, add the
+new text to both catalogs (`locale/es` and `locale/en`) as described in section
+4, and rebuild the offline manifest if you use it.
+
+## 11. Check it works
 
 Start the services and verify these workflows:
 
@@ -203,9 +235,11 @@ Start the services and verify these workflows:
    exactly where a stale offline manifest shows up.
 3. Sign in, run a custom test, and check the output is not truncated.
 4. Create a team, invite somebody, and register the team for a contest.
-5. Upload a problem data zip whose files are named `case1.in` / `case1.out` and
-   confirm the cases fill in by themselves.
-6. Sign in as a second superuser and confirm the delete actions are **not**
+5. As a problem editor, open a problem's data page and upload a zip whose files
+   are named `case1.in` / `case1.out`; confirm the cases fill in by themselves.
+   Signed out, the same page must answer 403.
+6. `/static../robots.txt` must answer 404.
+7. Sign in as a second superuser and confirm the delete actions are **not**
    there, and that it cannot edit the owner account.
 
 ---
@@ -217,8 +251,9 @@ Start the services and verify these workflows:
 | a template, stylesheet or script | regenerate the offline manifest, restart the web service |
 | a translation catalog | `compilemessages -l es -l en`, restart the web service |
 | a `.scss` file | `./make_style.sh`, then `collectstatic`, then the manifest |
-| `nginx.conf` | `nginx -t`, then reload (not restart) |
+| `nginx.conf` | `nginx -t`, then reload (restart only for a `listen` change) |
 | a systemd unit | `daemon-reload`, then restart that service |
+| Python code | reload the web service; restart Celery and the bridge if their code changed |
 
 ## Troubleshooting
 
@@ -236,6 +271,15 @@ fields is about 730 rows. There is a second ceiling in the formset itself, at
 **Every large POST answers 500 and the application log is empty.** The request
 never reached the application. Look at the front-end journal for permission
 errors on the temporary directories.
+
+**Problem data uploads, or just opening a problem's data page, answer 500.** Look
+for `auth request unexpected status` in the Nginx journal: the internal
+`/internal/problem-data-upload-gate` location is missing `client_max_body_size 0`,
+or the application does not have that URL.
+
+**Local test POSTs fail the CSRF check but browsers work.** Direct requests to the
+origin lack the `X-Forwarded-Proto: https` header that the tunnel adds. See
+[HTTPS](security/https.md).
 
 **A standalone script that starts Django dies in `logging/config.py`.** Its log
 handlers depend on the environment the service units provide. Set
