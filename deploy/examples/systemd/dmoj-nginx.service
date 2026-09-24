@@ -13,6 +13,11 @@ Restart=on-failure
 RestartSec=5
 RuntimeDirectory=dmoj-nginx
 RuntimeDirectoryMode=0700
+# Request bodies are buffered to /var/lib/dmoj-nginx/client, on disk instead of
+# the tmpfs under /run. StateDirectory= creates it for this account and makes it
+# writable despite ProtectSystem=strict.
+StateDirectory=dmoj-nginx
+StateDirectoryMode=0700
 NoNewPrivileges=yes
 CapabilityBoundingSet=
 ProtectSystem=strict
