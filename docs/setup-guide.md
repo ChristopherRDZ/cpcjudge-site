@@ -15,7 +15,7 @@ the host name. Substitute your own.
 ## 1. Get the code
 
 ```sh
-git clone --recursive https://github.com/ChristopherRDZ/online-judge.git /srv/dmoj/site
+git clone --recursive https://github.com/ChristopherRDZ/cpcjudge-site.git /srv/dmoj/site
 cd /srv/dmoj/site
 git checkout cpc-production
 ```

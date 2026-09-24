@@ -184,7 +184,7 @@ are included.
 
 Git history and file-level diffs are the authoritative record of the exact
 changes. The complete corresponding source is available without charge at
-<https://github.com/ChristopherRDZ/online-judge/tree/cpc-production>.
+<https://github.com/ChristopherRDZ/cpcjudge-site/tree/cpc-production>.
 
 ## License
 
