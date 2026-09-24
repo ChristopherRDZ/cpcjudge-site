@@ -10,12 +10,14 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError
 from django.forms import BaseModelFormSet, HiddenInput, ModelForm, NumberInput, Select, formset_factory
-from django.http import Http404, HttpResponse, HttpResponseRedirect
+from django.http import Http404, HttpResponse, HttpResponseForbidden, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 from django.utils.html import escape, format_html
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext as _
+from django.views.decorators.cache import never_cache
+from django.views.decorators.http import require_GET
 from django.views.generic import DetailView
 
 from judge.highlight_code import highlight_code
@@ -295,3 +297,30 @@ def problem_init_view(request, problem):
             format_html('<a href="{1}">{0}</a>', problem.name,
                         reverse('problem_detail', args=[problem.code])))),
     })
+
+
+@require_GET
+@never_cache
+def problem_data_upload_gate(request):
+    """Answers Nginx, before it starts buffering, whether this caller could upload at all.
+
+    The upload route carries a 500M body limit because problem data archives
+    reach about 100 MB, and Nginx buffers the whole body before handing it to
+    uWSGI. Django's own check runs afterwards, so until this existed *anybody*,
+    signed in or not, could make the server absorb half a gigabyte on that one
+    path. The temporary file also used to live on a tmpfs, which made it RAM.
+
+    `auth_request` runs in Nginx's access phase, before the content handler reads
+    the body, so a 403 here costs nothing. The test is deliberately coarse —
+    signed in, and holding the permission without which `Problem.is_editable_by`
+    can never return true — because it only has to reject people who could never
+    upload anything. Which problems this account may actually manage is still
+    decided by `ProblemManagerMixin` on the real request; this never widens that.
+
+    It reveals nothing: an empty 204 or an empty 403, and no problem is named.
+    """
+    if not request.user.is_authenticated:
+        return HttpResponseForbidden()
+    if request.user.is_superuser or request.user.has_perm('judge.edit_own_problem'):
+        return HttpResponse(status=204)
+    return HttpResponseForbidden()

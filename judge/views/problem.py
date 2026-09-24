@@ -22,7 +22,7 @@ from django.utils.functional import cached_property
 from django.utils.html import escape, format_html
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext as _, gettext_lazy
-from django.views.generic import DetailView, ListView, View
+from django.views.generic import DetailView, ListView, TemplateView, View
 from django.views.generic.detail import SingleObjectMixin
 from reversion import revisions
 
@@ -408,9 +408,22 @@ class ProblemList(QueryStringSortMixin, TitleMixin, SolvedProblemMixin, ListView
         return self.request.profile
 
     def get_contest_queryset(self):
-        queryset = self.profile.current_contest.contest.contest_problems.select_related('problem__group') \
+        contest = self.profile.current_contest.contest
+        attempts = Count('submission__participation', distinct=True)
+        if contest.is_frozen_for(self.request.user):
+            # «Users» counts the participations that tried each problem. Left alone during a freeze, it kept
+            # climbing and told everyone that somebody had just tried a problem, which the frozen scoreboard
+            # itself never says. Same cut and same exception as the submission lists: attempts from inside the
+            # freeze only count when they are your own.
+            from judge.models import ContestParticipation
+            own = list(ContestParticipation.objects.for_profile(self.profile).filter(contest=contest)
+                       .values_list('id', flat=True))
+            attempts = Count('submission__participation', distinct=True,
+                             filter=Q(submission__submission__date__lt=contest.submission_freeze_cutoff) |
+                             Q(submission__participation_id__in=own))
+        queryset = contest.contest_problems.select_related('problem__group') \
             .defer('problem__description').order_by('problem__code') \
-            .annotate(user_count=Count('submission__participation', distinct=True)) \
+            .annotate(user_count=attempts) \
             .annotate(i18n_translation=FilteredRelation(
                 'problem__translations', condition=Q(problem__translations__language=self.request.LANGUAGE_CODE),
             )).annotate(i18n_name=Coalesce(
@@ -826,7 +839,6 @@ import stat
 import uuid
 from django.core import signing
 from django.core.cache import cache
-from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods
 from judge.models import SubmissionTestCase
@@ -977,29 +989,34 @@ def _cleanup_owned_custom_tests(profile):
             logging.getLogger(__name__).warning('Custom test cleanup skipped; data may be retained.')
 
 
-class CustomTestView(LoginRequiredMixin, TitleMixin, View):
+# A TemplateView rather than a bare View so `TitleMixin` actually runs: rendering
+# by hand skipped it, and the page went out with an empty <title>.
+class CustomTestView(LoginRequiredMixin, TitleMixin, TemplateView):
+    template_name = 'problem/custom_test.html'
+
     def get_title(self):
         return _('Custom Test')
 
-    def get(self, request, *args, **kwargs):
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
         languages = Language.objects.filter(runtimeversion__judge__online=True).distinct().order_by('name', 'key')
         if not languages.exists():
             languages = Language.objects.all().order_by('name', 'key')
 
-        default_lang = request.profile.language or languages.first()
-        return render(request, 'problem/custom_test.html', {
+        context.update({
             'languages': languages,
-            'default_lang': default_lang,
+            'default_lang': self.request.profile.language or languages.first(),
             'ACE_URL': settings.ACE_URL,
             # Con el tema del sitio en «auto» esto es None y el tema del editor se
             # resuelve en el navegador, igual que hace django_ace/widget.js.
-            'ace_theme': request.profile.resolved_ace_theme,
+            'ace_theme': self.request.profile.resolved_ace_theme,
             'ace_light_theme': settings.ACE_DEFAULT_LIGHT_THEME,
             'ace_dark_theme': settings.ACE_DEFAULT_DARK_THEME,
             'time_limit': CUSTOM_TEST_TIME_LIMIT,
             'memory_limit': CUSTOM_TEST_MEMORY_LIMIT,
             'output_prefix': _custom_test_output_prefix(),
         })
+        return context
 
 
 @login_required

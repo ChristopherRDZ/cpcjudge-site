@@ -71,6 +71,33 @@ class TeamAdmin(PurgeMixin, admin.ModelAdmin):
             participation_count=Count('participations', distinct=True),
         )
 
+    def save_related(self, request, form, formsets, change):
+        """Keep the owner among the members, whatever the form and inline said.
+
+        `team_detail` turns anyone outside `members` away with a 404 — the owner
+        included — so assigning ownership to somebody who is not a member left the
+        team unreachable by the account meant to run it, and only an administrator
+        could put it right. The normal transfer route already insists on a member.
+
+        Runs after the inline, so it sees the final roster, and inside the
+        transaction the admin already wraps the whole save in. It only ever adds
+        the owner: nobody is removed from a team here. Contest history is not
+        affected either way, because each attempt freezes its own roster in
+        `ContestTeamMember` when it is registered.
+        """
+        super().save_related(request, form, formsets, change)
+        team = form.instance
+        if team.owner_id is None:
+            return
+        _, created = TeamMembership.objects.get_or_create(team=team, profile_id=team.owner_id)
+        if created:
+            # Not silent: an administrator who mistyped the owner should see that
+            # the roster grew, rather than discover it later.
+            self.message_user(request, gettext('%(owner)s no era integrante de «%(team)s» y se añadió, '
+                                               'porque un equipo cuyo propietario no es integrante queda '
+                                               'inaccesible para esa cuenta.')
+                              % {'owner': team.owner.user.username, 'team': team.name})
+
     @admin.display(description=_('Propietario'), ordering='owner__user__username')
     def show_owner(self, obj):
         return obj.owner.user.username

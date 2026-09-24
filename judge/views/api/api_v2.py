@@ -588,9 +588,24 @@ class APIUserDetail(APIDetailView):
             )
             .order_by('contest__end_time')
         )
-        for contest_key, score, cumtime, rating, mean, performance, team_id, team_name in participations.values_list(
-            'contest__key', 'score', 'cumtime', 'rating__rating', 'rating__mean', 'rating__performance', 'team_id', 'team_name',
-        ):
+        rows = list(participations.values_list(
+            'contest_id', 'contest__key', 'score', 'cumtime', 'rating__rating', 'rating__mean', 'rating__performance',
+            'team_id', 'team_name', 'frozen_at', 'frozen_score', 'frozen_cumtime',
+        ))
+        # A contest that has ended can still be frozen, waiting for its ceremony. Reporting the live score here
+        # handed out the final scoreboard one participant at a time, so this answers with what the frozen
+        # scoreboard shows, the same as the participations and contest endpoints. Only contests with a freeze
+        # still pending are loaded, which is normally none of them.
+        frozen_contests = {
+            contest.id for contest in Contest.objects.filter(
+                id__in={row[0] for row in rows}, freeze_minutes__isnull=False, scoreboard_revealed=False,
+            ) if contest.is_frozen_for(self.request.user)
+        }
+        for (contest_id, contest_key, score, cumtime, rating, mean, performance, team_id, team_name,
+             frozen_at, frozen_score, frozen_cumtime) in rows:
+            # No copy means nothing changed after the freeze, so the live fields are the frozen ones.
+            if contest_id in frozen_contests and frozen_at is not None:
+                score, cumtime = frozen_score, frozen_cumtime
             contest_history.append({
                 'team': {'id': team_id, 'name': team_name} if team_id else None,
                 'key': contest_key,

@@ -90,7 +90,10 @@ def join_attempt(contest_id, actor, selection, access_code='', member_ids=None):
     they neither type the access code again nor need their own access to the contest.
     """
     contest = Contest.objects.select_for_update().get(pk=contest_id)
-    if not contest.started and actor.pk not in contest.editor_ids | contest.tester_ids:
+    # Asked separately on purpose: `editor_ids` is built with `union()`, and Django
+    # refuses to combine a combined queryset with `|`, which turned an early join
+    # into a 500 instead of the message below.
+    if not contest.started and actor.pk not in contest.editor_ids and actor.pk not in contest.tester_ids:
         raise ValidationError(_('El concurso todavía no ha comenzado.'))
     if contest.banned_users.filter(pk=actor.pk).exists() and not actor.user.is_superuser:
         raise ValidationError(_('No puedes participar en este concurso.'))

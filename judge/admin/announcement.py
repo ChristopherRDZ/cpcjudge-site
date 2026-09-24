@@ -37,7 +37,8 @@ class AnnouncementForm(forms.ModelForm):
         if minutes:
             cleaned_data['expires'] = timezone.now() + timedelta(minutes=minutes)
         elif not cleaned_data.get('expires'):
-            contest = cleaned_data.get('contest')
+            # The contest of a clarification's announcement is read-only, so it is not in the form at all.
+            contest = cleaned_data['contest'] if 'contest' in cleaned_data else self.instance.contest
             if contest is not None:
                 # The usual case for a clarification: it matters while the
                 # contest runs, and a two-hour contest should not leave a box
@@ -64,6 +65,15 @@ class AnnouncementAdmin(admin.ModelAdmin):
     def summary(self, obj):
         return obj.body if len(obj.body) <= 80 else obj.body[:77] + '...'
     summary.short_description = _('announcement')
+
+    def get_readonly_fields(self, request, obj=None):
+        fields = tuple(super().get_readonly_fields(request, obj))
+        # An announcement that carries a clarification belongs to the question's contest. Moving it here made
+        # the answer vanish from its contest; to move the question and its answer, change the clarification,
+        # and `sync_announcement` brings the announcement along.
+        if obj is not None and obj.clarification_id:
+            fields += ('contest',)
+        return fields
 
     def get_queryset(self, request):
         queryset = super().get_queryset(request).select_related('contest', 'author__user')

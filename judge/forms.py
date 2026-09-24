@@ -196,12 +196,14 @@ class CustomAuthenticationForm(AuthenticationForm):
             user = authenticate(self.request, username=username, password=password)
 
             if user is None:
-                try:
-                    # Buscar por email y reintentar con el username real
-                    user_obj = User.objects.get(email=username)
-                    user = authenticate(self.request, username=user_obj.username, password=password)
-                except User.DoesNotExist:
-                    pass
+                # Buscar por email y reintentar con el username real. No se usa get(): el correo no es único
+                # en la base —el registro y el cambio de correo lo comprueban, pero el admin no, y dos altas
+                # simultáneas pueden colarse—, y con dos cuentas get() lanzaba MultipleObjectsReturned y la
+                # página daba 500. La contraseña decide cuál de ellas es; el tope acota el coste de hash.
+                for candidate in User.objects.filter(email=username).exclude(email='').order_by('id')[:5]:
+                    user = authenticate(self.request, username=candidate.username, password=password)
+                    if user is not None:
+                        break
 
             if user is None:
                 raise forms.ValidationError(

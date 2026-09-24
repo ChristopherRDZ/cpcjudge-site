@@ -4,7 +4,7 @@ from django import forms
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Exists, OuterRef, Q
 from django.http import Http404, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
@@ -21,6 +21,37 @@ from judge.views.contests import ContestMixin, _find_contest
 __all__ = ['active_announcements', 'ContestAnnouncements', 'ask_clarification', 'answer_clarification']
 
 MAX_ACTIVE = 20
+
+
+def _carries_a_public_answer(announcement):
+    """Whether an announcement that points at a question may still show it.
+
+    `ContestClarification.sync_announcement` keeps the announcement in step with
+    the answer, so this only ever fires on a row that got past it. It is cheap
+    and it is the difference between a stale announcement and somebody else's
+    answer on everybody's screen.
+
+    Both halves matter. Public means public *to the participants of the question's
+    own contest*: an announcement sitting in a different contest than the question
+    it points at must not print it, whatever its visibility says.
+    """
+    clarification = announcement.clarification
+    return (clarification is not None and clarification.is_public and bool(clarification.answer) and
+            clarification.contest_id == announcement.contest_id)
+
+
+def _has_something_to_say(announcement):
+    """Whether an announcement has any text to put on screen.
+
+    A clarification's announcement stores no text of its own: it prints the question and the answer. If the
+    clarification is deleted —directly, or along with the contest problem it was about— the foreign key is set
+    to null and what is left looks like a hand-written announcement with an empty body. That used to pop up as
+    an empty box for every participant until the contest ended. Deleting a clarification now withdraws its
+    announcement as well; this is the check that also covers rows left behind before that existed.
+    """
+    if announcement.clarification_id:
+        return _carries_a_public_answer(announcement)
+    return bool(announcement.body.strip())
 
 
 def active_announcements(request):
@@ -40,8 +71,11 @@ def active_announcements(request):
 
     # How long each announcement keeps popping up is decided when it is written:
     # thirty minutes for a notice, or the end of the contest for a clarification.
+    # An announcement with neither text nor clarification has nothing to show, and would take one of the
+    # MAX_ACTIVE places below.
     queryset = Announcement.objects.filter(is_visible=True) \
-                                   .filter(Q(expires__isnull=True) | Q(expires__gt=now))
+                                   .filter(Q(expires__isnull=True) | Q(expires__gt=now)) \
+                                   .exclude(clarification__isnull=True, body='')
     if contest_id is None:
         queryset = queryset.filter(contest__isnull=True)
     else:
@@ -49,11 +83,18 @@ def active_announcements(request):
 
     for announcement in queryset.select_related('contest', 'clarification').order_by('-created')[:MAX_ACTIVE]:
         if announcement.clarification_id:
+            # Withdrawing the announcement is what an answer turned private does,
+            # but the check is repeated here: this is the only place the text of
+            # somebody else's question ever leaves the server.
+            if not _carries_a_public_answer(announcement):
+                continue
             # Laid out here rather than stored, so each reader gets the labels in
             # their own language.
             body = '%s: %s\n\n%s: %s' % (_('Question'), announcement.clarification.question,
                                          _('Answer'), announcement.clarification.answer)
         else:
+            if not _has_something_to_say(announcement):
+                continue
             body = announcement.body
         items.append({
             'key': 'announcement:%d' % announcement.id,
@@ -130,8 +171,16 @@ def _visible_clarifications(contest, profile, can_edit):
                                                      'team_participation')
     # An answer made public is shown in the announcements above, laid out as
     # question and answer. Leaving it here too put the same text on the page
-    # twice, which is what the list is kept clear of.
-    queryset = queryset.exclude(is_public=True, answered__isnull=False)
+    # twice, which is what the list is kept clear of. Only the ones that really
+    # reached the announcements are dropped: a public answer saved without its
+    # announcement used to disappear from both halves of the page.
+    # «Really reached» means an announcement of this same contest: one moved elsewhere is not shown here —the
+    # check in `_carries_a_public_answer` hides it— and excluding the question anyway made the answer vanish
+    # from both halves of the page.
+    announced = Announcement.objects.filter(clarification=OuterRef('pk'), is_visible=True,
+                                            contest_id=OuterRef('contest_id'))
+    queryset = queryset.annotate(is_announced=Exists(announced)) \
+                       .exclude(is_public=True, answered__isnull=False, is_announced=True)
     if can_edit:
         return queryset
     if profile is None:
@@ -159,9 +208,13 @@ class ContestAnnouncements(ContestMixin, TitleMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         profile = self.request.profile if self.request.user.is_authenticated else None
-        context['announcements'] = (self.object.announcements.filter(is_visible=True)
-                                        .select_related('author__user', 'clarification')
-                                        .order_by('-created'))
+        # Same defence as the pop-up box: the tab prints the question and the
+        # answer straight out of the clarification the announcement points at.
+        announcements = (self.object.announcements.filter(is_visible=True)
+                             .select_related('author__user', 'clarification')
+                             .order_by('-created'))
+        context['announcements'] = [announcement for announcement in announcements
+                                    if _has_something_to_say(announcement)]
         context['clarifications'] = _visible_clarifications(self.object, profile, self.can_edit).order_by('-asked')
         context['can_ask'] = self.can_ask()
         context['ask_form'] = ClarificationForm(contest=self.object) if context['can_ask'] else None
@@ -229,6 +282,7 @@ def ask_clarification(request, contest):
 
 @login_required
 @require_POST
+@transaction.atomic
 def answer_clarification(request, contest, pk):
     contest = _contest_or_404(request, contest)
     if not contest.is_editable_by(request.user):
@@ -246,14 +300,10 @@ def answer_clarification(request, contest, pk):
     clarification.save()
 
     # A public answer is exactly what the announcement box is for, so it reuses
-    # it instead of growing a second delivery path.
-    if clarification.is_public:
-        Announcement.objects.create(
-            contest=contest,
-            clarification=clarification,
-            body='',
-            author=request.profile,
-            expires=contest.end_time,
-        )
+    # it instead of growing a second delivery path. Answer and announcement move
+    # together, in the same transaction and through the same helper the admin
+    # uses: editing an answer down to private has to take the announcement with
+    # it, or the new text keeps going out to everybody.
+    clarification.sync_announcement(author=request.profile)
 
     return HttpResponseRedirect(reverse('contest_announcements', args=[contest.key]))

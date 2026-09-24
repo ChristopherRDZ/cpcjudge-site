@@ -1,0 +1,103 @@
+{% extends "admin/change_list.html" %}
+{% comment %}
+Overrides wpadmin's change list, which is where the two action bars come from.
+Extending a template by its own name is the documented way to override one the
+site does not own; admin/base_site.html next door already does it.
+
+Two things are fixed here:
+
+* wpadmin initialised the selection with $(...).actions(), the jQuery plugin
+  Django dropped. Since Django 4 there is window.Actions instead, and the plugin
+  call only raised "TypeError: $(...).actions is not a function", so that block
+  is deliberately not carried over from block.super. Django's own actions.js
+  already wires the selection up by itself when the page loads.
+
+* wpadmin prints the actions bar above and below the table and repeats the table
+  head in a tfoot. Django looks the "select all" box up with getElementById and
+  the counter with querySelector, so only the first of each is ever touched: the
+  lower box selected nothing and the lower counter stayed at zero. The script
+  below drives the lower bar from the upper one.
+
+Nothing inside the venv is patched, and a page with no actions is left alone.
+{% endcomment %}
+
+{% block extrahead %}
+{{ media.js }}
+<script>
+(function() {
+    'use strict';
+
+    function ready(fn) {
+        if (document.readyState !== 'loading') {
+            fn();
+        } else {
+            document.addEventListener('DOMContentLoaded', fn);
+        }
+    }
+
+    // Runs after Django's own actions.js handler, which registers first because
+    // its script tag is written out above this one, so the upper bar is already
+    // wired by the time anything here happens.
+    ready(function() {
+        var form = document.getElementById('changelist-form');
+        if (!form) {
+            return;
+        }
+        if (!form.querySelectorAll('tr input.action-select').length) {
+            return;
+        }
+
+        // Duplicated id, courtesy of the repeated table head: getElementById sees
+        // the one in the thead, querySelectorAll sees both.
+        var toggles = form.querySelectorAll('input#action-toggle');
+        var bars = form.querySelectorAll('div.actions');
+        if (toggles.length < 2 && bars.length < 2) {
+            return;
+        }
+
+        var primaryToggle = toggles[0];
+        var primaryBar = bars[0];
+
+        function mirror(target, selector, copyText) {
+            var source = primaryBar.querySelector(selector);
+            var clone = target.querySelector(selector);
+            if (!source || !clone) {
+                return;
+            }
+            clone.classList.toggle('hidden', source.classList.contains('hidden'));
+            if (copyText) {
+                clone.textContent = source.textContent;
+            }
+        }
+
+        function sync() {
+            for (var i = 1; i < toggles.length; i++) {
+                toggles[i].checked = primaryToggle.checked;
+            }
+            for (var j = 1; j < bars.length; j++) {
+                mirror(bars[j], 'span.action-counter', true);
+                mirror(bars[j], 'span.all', false);
+                bars[j].classList.toggle('selected', primaryBar.classList.contains('selected'));
+            }
+        }
+
+        for (var k = 1; k < toggles.length; k++) {
+            toggles[k].addEventListener('click', function() {
+                // Let Django's handler do the work: it ticks every row, updates the
+                // counter and offers "select all across pages".
+                if (primaryToggle.checked !== this.checked) {
+                    primaryToggle.click();
+                }
+                sync();
+            });
+        }
+
+        // Bubbles up after the per-row handler Django puts on the table body, so
+        // by then the counter it maintains holds the new number.
+        form.addEventListener('change', sync);
+        form.addEventListener('click', sync);
+        sync();
+    });
+})();
+</script>
+{% endblock %}

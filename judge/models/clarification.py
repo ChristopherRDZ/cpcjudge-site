@@ -1,4 +1,6 @@
 from django.db import models
+from django.db.models.signals import pre_delete
+from django.dispatch import receiver
 from django.utils.translation import gettext_lazy as _
 
 from judge.models.contest import Contest, ContestProblem
@@ -51,6 +53,57 @@ class ContestClarification(models.Model):
     def is_answered(self):
         return bool(self.answer)
 
+    def sync_announcement(self, author=None):
+        """Make the announcements match this answer's visibility.
+
+        Visibility and delivery are one decision, so both places that edit an
+        answer —the contest tab and the admin— end up here and cannot drift.
+        A public answer travels as an announcement; a private one leaves none
+        behind. Answering publicly twice updates the announcement already sent
+        instead of adding a second one.
+
+        Nothing is deleted: an announcement that no longer applies is withdrawn
+        with `is_visible`, which is what that field is for, so the record that
+        it was sent survives.
+        """
+        from judge.models.announcement import Announcement
+
+        announcements = Announcement.objects.filter(clarification=self)
+        if not (self.is_public and self.answer):
+            announcements.filter(is_visible=True).update(is_visible=False)
+            return None
+
+        current = announcements.order_by('created', 'pk').first()
+        if current is None:
+            return Announcement.objects.create(
+                contest=self.contest,
+                clarification=self,
+                body='',
+                author=author,
+                expires=self.contest.end_time,
+            )
+
+        # Re-publishing an answer that was withdrawn, or correcting one: the same
+        # announcement is reused so nobody gets the question twice.
+        updated = []
+        if not current.is_visible:
+            current.is_visible = True
+            updated.append('is_visible')
+        # The question can be moved to another contest from the admin. Reusing the
+        # announcement without bringing it along left the new answer on show to the
+        # old contest, labelled as theirs: "public" means public to the participants
+        # of its own contest, and says nothing about anybody else's.
+        if current.contest_id != self.contest_id:
+            current.contest = self.contest
+            updated.append('contest')
+        if current.expires != self.contest.end_time:
+            current.expires = self.contest.end_time
+            updated.append('expires')
+        if updated:
+            current.save(update_fields=updated)
+        announcements.exclude(pk=current.pk).filter(is_visible=True).update(is_visible=False)
+        return current
+
     def __str__(self):
         question = self.question if len(self.question) <= 60 else self.question[:57] + '...'
         return '%s: %s' % (self.contest.key, question)
@@ -66,3 +119,17 @@ class ContestClarification(models.Model):
         ]
         verbose_name = _('contest clarification')
         verbose_name_plural = _('contest clarifications')
+
+
+@receiver(pre_delete, sender=ContestClarification, dispatch_uid='withdraw_deleted_clarification_announcement')
+def withdraw_deleted_clarification_announcement(sender, instance, **kwargs):
+    """Withdraw the announcement of a clarification that is being deleted.
+
+    `Announcement.clarification` is SET_NULL, so without this the announcement outlived its question as an
+    empty hand-written one. A signal rather than `delete()`, because most of these deletions are cascades —
+    removing the contest problem the question was about, purging a team— and those never call `delete()`.
+    Withdrawn, not deleted, as `sync_announcement` does: the record that it was sent survives.
+    """
+    from judge.models.announcement import Announcement
+
+    Announcement.objects.filter(clarification=instance, is_visible=True).update(is_visible=False)

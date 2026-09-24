@@ -15,7 +15,7 @@ from judge.views import TitledTemplateView, announcement, api, blog, comment, co
     contests, language, license, mailgun, organization, preview, problem, problem_manage, ranked_submission, \
     register, stats, status, submission, tasks, team, ticket, two_factor, user, widgets
 from judge.views.problem_data import ProblemDataView, ProblemSubmissionDiff, \
-    problem_data_file, problem_init_view
+    problem_data_file, problem_data_upload_gate, problem_init_view
 from judge.views.register import ActivationView, RegistrationView
 from judge.views.select2 import AssigneeSelect2View, ClassSelect2View, CommentSelect2View, ContestSelect2View, \
     ContestUserSearchSelect2View, OrganizationSelect2View, ProblemSelect2View, TicketUserSelect2View, \
@@ -280,6 +280,12 @@ urlpatterns = [
     path('status/', status.status_all, name='status_all'),
 
     path('announcements/active', announcement.active_announcements, name='announcements_active'),
+
+    # Asked by Nginx through `auth_request` before it buffers a problem data
+    # upload, so a 500M body is never absorbed on behalf of someone who could
+    # not upload anything anyway. Marked `internal` in the Nginx configuration,
+    # so it is not reachable from outside; it answers 204 or 403 and nothing else.
+    path('internal/problem-data-upload-gate', problem_data_upload_gate, name='problem_data_upload_gate'),
 
     path('api/v2/', include([
         path('contests', api.api_v2.APIContestList.as_view()),

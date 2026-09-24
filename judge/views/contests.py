@@ -265,6 +265,30 @@ class ContestMixin(object):
             }, status=403)
 
 
+def frozen_problem_stats(contest, problems):
+    """Recount «AC rate» and «Users» of these problems as they stood when the freeze began.
+
+    The problem table of the contest page shows the problems' own stored statistics, and those keep counting
+    every AC. Once the contest ends, everybody sees that table, so before the ceremony it told how many people
+    had solved each problem, freeze included. Same rules as `Problem.update_stats`, limited to submissions sent
+    before the cut, in one query for the whole table.
+    """
+    cutoff = contest.submission_freeze_cutoff
+    solved = Q(result='AC', points__gte=F('problem__points'))
+    rows = (Submission.objects.filter(problem_id__in=[problem.id for problem in problems], user__is_unlisted=False,
+                                      date__lt=cutoff)
+            .values('problem_id')
+            .annotate(total=Count('id'), accepted=Count('id', filter=solved),
+                      users=Count('user', distinct=True,
+                                  filter=solved & Q(contest__participation__team__isnull=True))))
+    stats = {row['problem_id']: row for row in rows}
+    for problem in problems:
+        row = stats.get(problem.id)
+        problem.user_count = row['users'] if row else 0
+        problem.ac_rate = 100.0 * row['accepted'] / row['total'] if row and row['total'] else 0
+    return problems
+
+
 class ContestDetail(ContestMixin, TitleMixin, CommentedDetailView):
     template_name = 'contest/contest.html'
 
@@ -284,6 +308,8 @@ class ContestDetail(ContestMixin, TitleMixin, CommentedDetailView):
                 output_field=BooleanField(),
             )) \
             .add_i18n_name(self.request.LANGUAGE_CODE)
+        if self.object.is_frozen_for(self.request.user):
+            context['contest_problems'] = frozen_problem_stats(self.object, list(context['contest_problems']))
         context['metadata'] = {
             'has_public_editorials': any(
                 problem.is_public and problem.has_public_editorial for problem in context['contest_problems']
@@ -336,6 +362,11 @@ class ContestClone(ContestMixin, PermissionRequiredMixin, TitleMixin, SingleObje
         contest.is_visible = False
         contest.user_count = 0
         contest.locked_after = None
+        # `freeze_minutes` is configuration and is meant to be inherited; being
+        # already revealed is the state of a *finished* contest, and `freeze_active`
+        # returns false while it is set. Cloning last year's edition after its
+        # ceremony used to hand the new one a freeze that silently never applied.
+        contest.scoreboard_revealed = False
         contest.key = form.cleaned_data['key']
         with revisions.create_revision(atomic=True):
             contest.save()
@@ -662,6 +693,11 @@ def frozen_pending_map(contest, participations):
     One query for the whole board. A submission counts as pending if it arrived inside that participation's own
     freeze window, or if it is still being judged: the second case catches one sent just before the freeze whose
     verdict lands after it, which is exactly the case a contestant watches for.
+
+    That second case only lasts while the judge works. Once the verdict is in, the submission is neither recent
+    nor in progress, yet the frozen copy was taken before it landed and still does not show it. So a cell whose
+    frozen copy differs from the live one is marked as well, with at least one: whatever changed it is a result
+    of this participation's that the board is not showing. Only the reader's own rows ever reach this function.
     """
     starts = {}
     for participation in participations:
@@ -682,6 +718,22 @@ def frozen_pending_map(contest, participations):
     for participation_id, problem_id, date, status in rows:
         if date >= starts[participation_id] or status in Submission.IN_PROGRESS_GRADING_STATUS:
             pending[participation_id, problem_id] += 1
+
+    for participation in participations:
+        # No copy means nothing changed after the freeze, so there is nothing the board is holding back.
+        if participation.id not in starts or participation.frozen_at is None:
+            continue
+        frozen_cells = participation.frozen_format_data or {}
+        live_cells = participation.format_data or {}
+        for key in set(frozen_cells) | set(live_cells):
+            if frozen_cells.get(key) == live_cells.get(key):
+                continue
+            try:
+                problem_id = int(key)
+            except (TypeError, ValueError):
+                continue
+            if not pending.get((participation.id, problem_id)):
+                pending[participation.id, problem_id] = 1
     return pending
 
 
