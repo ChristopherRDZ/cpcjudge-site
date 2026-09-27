@@ -701,6 +701,18 @@
             padding-right: 0.5em;
         }
 
+        #interactive-info {
+            margin: 0.5em 0 1em;
+        }
+
+        #interactive-info a {
+            margin-left: 0.5em;
+        }
+
+        .interactive-missing {
+            color: red;
+        }
+
         body.dragging, body.dragging * {
             cursor: move !important;
         }
@@ -814,6 +826,20 @@
         {% csrf_token %}
         {{ cases_formset.management_form }}
         <table class="table">{{ data_form.as_table() }}</table>
+        <div id="interactive-info">
+            {% if interactor_mode == 'testlib' %}
+                <i class="fa fa-exchange"></i>
+                {{ _('This problem is interactive, with a testlib interactor; testlib.h is added automatically. The checker is not used.') }}
+            {% elif interactor_mode == 'simple' %}
+                <i class="fa fa-exchange"></i>
+                {{ _('This problem is interactive. The checker is not used.') }}
+            {% elif interactor_mode == 'missing' %}
+                <span class="interactive-missing">{{ _('The interactor file is missing; please upload it again.') }}</span>
+            {% endif %}
+            <a href="{{ url('problem_interactive_guide', problem.code) }}">
+                <i class="fa fa-question-circle"></i> {{ _('How to make an interactive problem') }}
+            </a>
+        </div>
         <div id="column-visible" data-problem="{{ problem.code }}">
             <strong>{{ _('Show columns:') }}</strong>
             <label>

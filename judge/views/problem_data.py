@@ -1,14 +1,16 @@
+import io
 import json
 import mimetypes
 import os
 from itertools import chain
 from typing import List
-from zipfile import BadZipfile, ZipFile
+from zipfile import BadZipfile, ZIP_DEFLATED, ZipFile
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import UploadedFile
 from django.forms import BaseModelFormSet, HiddenInput, ModelForm, NumberInput, Select, formset_factory
 from django.http import Http404, HttpResponse, HttpResponseForbidden, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render
@@ -22,7 +24,8 @@ from django.views.generic import DetailView
 
 from judge.highlight_code import highlight_code
 from judge.models import Problem, ProblemData, ProblemTestCase, Submission, problem_data_storage
-from judge.utils.problem_data import ProblemDataCompiler
+from judge.utils.problem_data import INTERACTIVE_EXAMPLE_DIR, INTERACTOR_LANGUAGES, ProblemDataCompiler, \
+    interactor_uses_testlib
 from judge.utils.unicode import utf8text
 from judge.utils.views import TitleMixin, add_file_response
 from judge.views.problem import ProblemMixin
@@ -67,7 +70,32 @@ def checker_args_cleaner(self):
     return data
 
 
+INTERACTOR_MAX_SIZE = 1 << 20
+
+
 class ProblemDataForm(ModelForm):
+    def clean_interactor(self):
+        interactor = self.cleaned_data['interactor']
+        # Only a fresh upload needs checking; a kept file is a FieldFile and a
+        # cleared one is False.
+        if not isinstance(interactor, UploadedFile):
+            return interactor
+        extension = os.path.splitext(interactor.name)[1].lower()
+        if extension not in INTERACTOR_LANGUAGES:
+            raise ValidationError(_('The interactor must be a source file ending in %s.') %
+                                  ', '.join(sorted(INTERACTOR_LANGUAGES)))
+        if interactor.size > INTERACTOR_MAX_SIZE:
+            raise ValidationError(_('The interactor must not be larger than 1 MB.'))
+        return interactor
+
+    def clean(self):
+        cleaned_data = super().clean()
+        interactor, generator = cleaned_data.get('interactor'), cleaned_data.get('generator')
+        if interactor and generator and \
+                os.path.basename(interactor.name) == os.path.basename(generator.name):
+            self.add_error('interactor', _('The generator and the interactor need different file names.'))
+        return cleaned_data
+
     def clean_zipfile(self):
         if hasattr(self, 'zip_valid') and not self.zip_valid:
             raise ValidationError(_('Your zip file is invalid!'))
@@ -90,7 +118,7 @@ class ProblemDataForm(ModelForm):
     class Meta:
         model = ProblemData
         fields = ['zipfile', 'generator', 'unicode', 'nobigmath', 'output_limit', 'output_prefix',
-                  'checker', 'checker_args']
+                  'checker', 'checker_args', 'interactor', 'interactor_feedback']
         widgets = {
             'checker_args': HiddenInput,
         }
@@ -218,6 +246,9 @@ class ProblemDataView(TitleMixin, ProblemManagerMixin):
                 valid_files = self.get_valid_files(context['data_form'].instance)
             except BadZipfile:
                 pass
+            # Only for what is saved: a form sent back with errors may hold an
+            # interactor that was never written.
+            context['interactor_mode'] = self.get_interactor_mode(context['data_form'].instance)
         context['valid_files'] = set(valid_files)
         context['valid_files_json'] = mark_safe(json.dumps(valid_files))
         context['max_case_rows_json'] = mark_safe(json.dumps(max_case_rows(ProblemCaseFormSet)))
@@ -225,6 +256,16 @@ class ProblemDataView(TitleMixin, ProblemManagerMixin):
         context['cases_formset'] = self.get_case_formset(valid_files)
         context['all_case_forms'] = chain(context['cases_formset'], [context['cases_formset'].empty_form])
         return context
+
+    @staticmethod
+    def get_interactor_mode(data):
+        if not data.interactor:
+            return None
+        try:
+            with problem_data_storage.open(data.interactor.name, 'rb') as f:
+                return 'testlib' if interactor_uses_testlib(data.interactor.name, f.read()) else 'simple'
+        except IOError:
+            return 'missing'
 
     def post(self, request, *args, **kwargs):
         self.object = problem = self.get_object()
@@ -250,6 +291,66 @@ class ProblemDataView(TitleMixin, ProblemManagerMixin):
                                                              valid_files=valid_files))
 
     put = post
+
+
+# The worked example shown in the guide and handed out as a zip. Each source is
+# shown with the lexer that goes with it.
+INTERACTIVE_EXAMPLE_SOURCES = (
+    ('interactor.cpp', 'cpp'),
+    ('interactor.py', 'python3'),
+    ('interactor_testlib.cpp', 'cpp'),
+    ('solucion.cpp', 'cpp'),
+    ('solucion.py', 'python3'),
+    ('enunciado.md', 'markdown'),
+)
+
+
+def read_interactive_example(name):
+    with open(os.path.join(INTERACTIVE_EXAMPLE_DIR, name), encoding='utf-8') as f:
+        return f.read()
+
+
+class ProblemInteractiveGuideView(TitleMixin, ProblemManagerMixin):
+    template_name = 'problem/interactive-guide.html'
+
+    def get_title(self):
+        return _('Interactive problems')
+
+    def get_content_title(self):
+        return mark_safe(escape(_('Interactive problems: %s')) % (
+            format_html('<a href="{1}">{0}</a>', self.object.name,
+                        reverse('problem_data', args=[self.object.code]))))
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['example'] = {
+            name: highlight_code(read_interactive_example(name), lexer) for name, lexer in INTERACTIVE_EXAMPLE_SOURCES
+        }
+        context['example_cases'] = [
+            (name, read_interactive_example(os.path.join('casos', name)).strip())
+            for name in sorted(os.listdir(os.path.join(INTERACTIVE_EXAMPLE_DIR, 'casos')))
+        ]
+        return context
+
+
+class ProblemInteractiveExampleView(ProblemManagerMixin):
+    def get(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        cases_dir = os.path.join(INTERACTIVE_EXAMPLE_DIR, 'casos')
+        cases = io.BytesIO()
+        with ZipFile(cases, 'w', ZIP_DEFLATED) as archive:
+            for name in sorted(os.listdir(cases_dir)):
+                archive.write(os.path.join(cases_dir, name), name)
+
+        bundle = io.BytesIO()
+        with ZipFile(bundle, 'w', ZIP_DEFLATED) as archive:
+            archive.writestr('ejemplo-interactivo/casos.zip', cases.getvalue())
+            for name, lexer in INTERACTIVE_EXAMPLE_SOURCES:
+                archive.write(os.path.join(INTERACTIVE_EXAMPLE_DIR, name), 'ejemplo-interactivo/' + name)
+
+        response = HttpResponse(bundle.getvalue(), content_type='application/zip')
+        response['Content-Disposition'] = 'attachment; filename="ejemplo-interactivo.zip"'
+        return response
 
 
 @login_required

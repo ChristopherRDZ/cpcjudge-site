@@ -39,6 +39,27 @@ class ProblemDataStorage(FileSystemStorage):
         return os.rename(self.path(old), self.path(new))
 
 
+# Interactor sources the site accepts, with the judge language to force. C and
+# C++ are left to the judge, which picks the newest compiler it has loaded; a
+# Python file has to be pinned, or the judge may look for a Python 2 runtime.
+INTERACTOR_LANGUAGES = {
+    '.cpp': None,
+    '.cc': None,
+    '.c': None,
+    '.py': 'PY3',
+}
+TESTLIB_HEADER = 'testlib.h'
+INTERACTIVE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'interactive')
+TESTLIB_PATH = os.path.join(INTERACTIVE_DIR, TESTLIB_HEADER)
+INTERACTIVE_EXAMPLE_DIR = os.path.join(INTERACTIVE_DIR, 'ejemplo')
+# The optional BOM is for a first line saved by Windows editors, which g++ accepts.
+retestlib_include = re.compile(br'^(?:\xef\xbb\xbf)?[ \t]*#[ \t]*include[ \t]*[<"]testlib\.h[>"]', re.M)
+
+
+def interactor_uses_testlib(name, source):
+    return os.path.splitext(name)[1].lower() in ('.cpp', '.cc') and bool(retestlib_include.search(source))
+
+
 class ProblemDataError(Exception):
     def __init__(self, message):
         super(ProblemDataError, self).__init__(message)
@@ -53,6 +74,37 @@ class ProblemDataCompiler(object):
         self.files = files
 
         self.generator = data.generator
+        # Files the judge needs next to init.yml besides the uploaded ones,
+        # written before init.yml so that no version of it names a missing file.
+        self.support_files = {}
+
+    def make_interactive(self):
+        interactor_path = split_path_first(self.data.interactor.name)
+        if len(interactor_path) != 2:
+            raise ProblemDataError(_('How did you corrupt the interactor path?'))
+        name = interactor_path[1]
+        extension = os.path.splitext(name)[1].lower()
+        if extension not in INTERACTOR_LANGUAGES:
+            raise ProblemDataError(_('The interactor must be a C++, C or Python source file.'))
+        if self.generator and os.path.basename(self.generator.name) in (name, TESTLIB_HEADER):
+            raise ProblemDataError(_('The generator and the interactor need different file names.'))
+
+        from judge.models import problem_data_storage
+        try:
+            with problem_data_storage.open(self.data.interactor.name, 'rb') as f:
+                source = f.read()
+        except IOError:
+            raise ProblemDataError(_('The interactor file is missing; please upload it again.'))
+
+        interactive = {'files': [name], 'feedback': bool(self.data.interactor_feedback)}
+        if INTERACTOR_LANGUAGES[extension]:
+            interactive['lang'] = INTERACTOR_LANGUAGES[extension]
+        if interactor_uses_testlib(name, source):
+            interactive['type'] = 'testlib'
+            interactive['files'].append(TESTLIB_HEADER)
+            with open(TESTLIB_PATH, 'rb') as f:
+                self.support_files[TESTLIB_HEADER] = f.read()
+        return interactive
 
     def make_init(self):
         cases = []
@@ -206,6 +258,8 @@ class ProblemDataCompiler(object):
             init['checker'] = make_checker(self.data)
         else:
             self.data.checker_args = ''
+        if self.data.interactor:
+            init['interactive'] = self.make_interactive()
 
         if hints:
             init['hints'] = hints
@@ -227,6 +281,13 @@ class ProblemDataCompiler(object):
         else:
             self.data.feedback = ''
             self.data.save()
+            for name, content in self.support_files.items():
+                path = '%s/%s' % (self.problem.code, name)
+                if problem_data_storage.exists(path):
+                    with problem_data_storage.open(path, 'rb') as f:
+                        if f.read() == content:
+                            continue
+                problem_data_storage.save(path, ContentFile(content))
             if init:
                 problem_data_storage.save(yml_file, ContentFile(init))
             else:

@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+
+{% block media %}
+    <style>
+        .interactive-guide {
+            max-width: 60em;
+        }
+
+        .interactive-guide details {
+            margin: 0.5em 0;
+        }
+
+        .interactive-guide summary {
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .interactive-guide h3 {
+            margin-top: 1.4em;
+        }
+
+        .interactive-guide .table td {
+            text-align: left;
+            vertical-align: top;
+            padding: 7px 10px;
+        }
+
+        .interactive-guide .table td.term {
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .interactive-guide .guide-actions a + a {
+            margin-left: 1em;
+        }
+    </style>
+{% endblock %}
+
+{% block body %}
+    <div class="content-description interactive-guide">
+        <p class="guide-actions">
+            <a class="button inline-button" href="{{ url('problem_interactive_example', problem.code) }}">
+                <i class="fa fa-download"></i> Descargar el ejemplo completo
+            </a>
+            <a href="{{ url('problem_data', problem.code) }}">Volver a los datos de prueba</a>
+        </p>
+
+        <h3>Qué es un problema interactivo</h3>
+        <p>
+            En un problema normal, el programa del participante lee un archivo de entrada y el juez compara lo que
+            imprime con la salida esperada. En uno interactivo hay un segundo programa, el <b>interactor</b>, que
+            escribes tú. El juez ejecuta los dos a la vez y los conecta: lo que imprime el interactor le llega al
+            participante como entrada, y lo que imprime el participante le llega al interactor. Así el interactor
+            puede contestar preguntas, esconder información o adaptarse a lo que va pasando. Al final decide si la
+            respuesta es correcta.
+        </p>
+
+        <h3>Qué tienes que hacer</h3>
+        <ol>
+            <li>
+                Prepara los casos como siempre: un ZIP con parejas <code>.in</code> y <code>.out</code>. El
+                <code>.in</code> lleva los datos secretos del caso; el interactor lo lee. El <code>.out</code> es
+                obligatorio, pero puedes usarlo para lo que quieras o dejarlo sin usar: el interactor también lo
+                recibe.
+            </li>
+            <li>Escribe el interactor, en C++, C o Python.</li>
+            <li>
+                En la página de datos, sube el ZIP y el interactor, detecta los casos y guarda. El sitio pone el
+                interactor junto a los casos y configura al juez. Si el interactor usa <code>testlib.h</code>, el
+                sitio lo detecta y añade ese archivo; no lo subas.
+            </li>
+            <li>
+                Con el problema todavía oculto, envía tu solución de referencia y alguna incorrecta. El juez compila
+                el interactor al calificar: si no compila, <b>todos</b> los envíos salen como <b>Error de
+                Compilación</b> con los errores del interactor, y el participante vería esas líneas de tu código.
+            </li>
+        </ol>
+        <p>
+            Para cambiar el interactor, sube el nuevo y guarda. Para volver a un problema normal, marca «Limpiar» junto
+            al interactor y guarda. Los demás cambios de la página conservan el interactor.
+        </p>
+
+        <h3>Qué recibe y qué devuelve el interactor</h3>
+        <table class="table">
+            <tr>
+                <td class="term">Entrada del caso</td>
+                <td>El nombre del archivo <code>.in</code> llega como primer argumento (<code>argv[1]</code>).</td>
+            </tr>
+            <tr>
+                <td class="term">Salida esperada</td>
+                <td>El nombre del archivo <code>.out</code> llega como segundo argumento (<code>argv[2]</code>).</td>
+            </tr>
+            <tr>
+                <td class="term">Hablar con el participante</td>
+                <td>
+                    Lo que imprimes en la salida estándar le llega al participante. Lo que él imprime lo lees de la
+                    entrada estándar. <b>Vacía el búfer después de cada mensaje</b> (<code>endl</code>,
+                    <code>flush=True</code>) o los dos programas se quedarán esperándose.
+                </td>
+            </tr>
+            <tr>
+                <td class="term">Veredicto</td>
+                <td>
+                    Termina con código <b>0</b> si la respuesta es correcta y con <b>1</b> si no lo es. Cualquier otro
+                    código, o que el interactor se caiga o se pase de tiempo, da <b>Error Interno</b>: el fallo es del
+                    interactor, no del participante.
+                </td>
+            </tr>
+            <tr>
+                <td class="term">Mensajes</td>
+                <td>
+                    Lo que escribas en la salida de error se muestra al participante sólo si marcas
+                    «mostrar mensajes del interactor». Útil en práctica; en concurso, no escribas ahí la respuesta.
+                </td>
+            </tr>
+            <tr>
+                <td class="term">Límites</td>
+                <td>
+                    El interactor tiene el tiempo del problema más 2 segundos, para que un participante lento reciba
+                    Límite de Tiempo Excedido y no Error Interno.
+                </td>
+            </tr>
+        </table>
+
+        <h3>Ejemplo: adivina el número</h3>
+        <p>
+            El juez elige un número secreto entre 1 y n y el participante tiene 30 preguntas para encontrarlo. Cada
+            <code>.in</code> contiene n y el número secreto, por ejemplo <code>100 37</code>. El ZIP de descarga trae
+            todo lo necesario para montarlo tal cual.
+        </p>
+        <details open>
+            <summary>interactor.cpp (el más sencillo)</summary>
+            {{ example['interactor.cpp'] }}
+        </details>
+        <details>
+            <summary>interactor.py (lo mismo en Python)</summary>
+            {{ example['interactor.py'] }}
+        </details>
+        <details>
+            <summary>interactor_testlib.cpp (lo mismo con testlib, como en Codeforces/Polygon)</summary>
+            <p>
+                Con testlib los argumentos cambian por dentro, pero no tienes que hacer nada:
+                <code>registerInteraction</code> abre la entrada en <code>inf</code>, la respuesta del participante
+                en <code>ouf</code> y la salida esperada en <code>ans</code>. <code>quitf(_ok, ...)</code> acepta y
+                <code>quitf(_wa, ...)</code> rechaza.
+            </p>
+            {{ example['interactor_testlib.cpp'] }}
+        </details>
+        <details>
+            <summary>Casos</summary>
+            <table class="table">
+                <tr><th>Archivo</th><th>Contenido</th></tr>
+                {% for name, content in example_cases %}
+                    <tr><td><code>{{ name }}</code></td><td><code>{{ content }}</code></td></tr>
+                {% endfor %}
+            </table>
+        </details>
+        <details>
+            <summary>solucion.cpp y solucion.py</summary>
+            {{ example['solucion.cpp'] }}
+            {{ example['solucion.py'] }}
+        </details>
+
+        <h3>Qué poner en el enunciado</h3>
+        <p>
+            El participante no ve el interactor, así que el enunciado tiene que explicar la conversación completa:
+            qué recibe primero, cómo pregunta, qué le contestan, cómo da su respuesta final y cuántas preguntas
+            tiene. Y debe pedir, con estas palabras o parecidas, que <b>vacíe el búfer después de cada línea</b>.
+        </p>
+        <details>
+            <summary>Enunciado del ejemplo</summary>
+            {{ example['enunciado.md'] }}
+        </details>
+
+        <h3>Veredictos que pueden sorprender</h3>
+        <table class="table">
+            <tr><th>Veredicto</th><th>Causa habitual</th></tr>
+            <tr>
+                <td>Límite de Tiempo Excedido</td>
+                <td>
+                    El participante no vació el búfer: su pregunta nunca llegó y los dos programas se quedaron
+                    esperando. Pasa sobre todo en C++ con <code>cin.tie(nullptr)</code> y <code>"\n"</code>.
+                </td>
+            </tr>
+            <tr>
+                <td>Otro veredicto en vez de Respuesta Incorrecta</td>
+                <td>
+                    El interactor rechazó la respuesta y terminó, pero el participante siguió como si nada. Lo que
+                    sale depende del lenguaje:
+                    <ul>
+                        <li>
+                            En Python, <code>input()</code> falla al no encontrar nada y sale <b>Retorno no Válido</b>
+                            o <b>Error de Tiempo de Ejecución</b>.
+                        </li>
+                        <li>
+                            En C++, <code>cin</code> falla sin avisar y el programa sigue en su bucle. Sale
+                            <b>Respuesta Incorrecta</b> si el bucle termina pronto, o <b>Límite de Tiempo Excedido</b>
+                            si no.
+                        </li>
+                    </ul>
+                    Para que un programa que sigue el protocolo reciba Respuesta Incorrecta, imprime <code>-1</code>
+                    antes de terminar y pide en el enunciado que el programa termine al leerlo, como en el ejemplo.
+                    En ICPC todos cuentan como rechazo.
+                </td>
+            </tr>
+            <tr>
+                <td>Error de Compilación en todos los envíos</td>
+                <td>
+                    El que no compila es el interactor, no el participante. El mensaje muestra líneas del interactor.
+                </td>
+            </tr>
+            <tr>
+                <td>Error Interno</td>
+                <td>
+                    El interactor se cayó, se pasó de tiempo o terminó con un código distinto de 0 y 1. El detalle lo
+                    ve el personal en el envío.
+                </td>
+            </tr>
+        </table>
+
+        <h3>Otros detalles</h3>
+        <ul>
+            <li>El verificador de la página de datos no se usa: decide el interactor.</li>
+            <li>
+                La prueba personalizada no usa el interactor: ejecuta el programa con la entrada que el participante
+                escribe a mano.
+            </li>
+            <li>
+                El interactor puede ser adaptativo, es decir, cambiar su respuesta según las preguntas, siempre que
+                sea coherente con todo lo que ya contestó.
+            </li>
+        </ul>
+    </div>
+{% endblock %}

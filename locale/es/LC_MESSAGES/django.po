@@ -7967,3 +7967,65 @@ msgstr "Este zip necesita {rows} filas, pero sólo caben {max} en un envío. Par
 #: judge/autorrellenado
 msgid "Filled in from the zip file automatically. Check the points, then press Submit."
 msgstr "Rellenado automáticamente desde el archivo zip. Revisa los puntos y pulsa Enviar."
+
+#: judge/interactivos
+msgid "interactor"
+msgstr "interactor"
+
+#: judge/interactivos
+msgid "Makes the problem interactive: the program that talks with each submission, in C++, C or Python. Leave it empty for a normal problem."
+msgstr "Convierte el problema en interactivo: es el programa que conversa con cada envío, en C++, C o Python. Déjalo vacío para un problema normal."
+
+#: judge/interactivos
+msgid "show interactor messages"
+msgstr "mostrar mensajes del interactor"
+
+#: judge/interactivos
+msgid "Show contestants what the interactor writes to standard error."
+msgstr "Muestra a los participantes lo que el interactor escribe en la salida de error."
+
+#: judge/interactivos
+msgid "How did you corrupt the interactor path?"
+msgstr "¿Cómo se corrompió la ruta del interactor?"
+
+#: judge/interactivos
+msgid "The interactor must be a C++, C or Python source file."
+msgstr "El interactor debe ser un código fuente en C++, C o Python."
+
+#: judge/interactivos
+msgid "The generator and the interactor need different file names."
+msgstr "El generador y el interactor necesitan nombres de archivo distintos."
+
+#: judge/interactivos
+msgid "The interactor file is missing; please upload it again."
+msgstr "Falta el archivo del interactor; súbelo de nuevo."
+
+#: judge/interactivos
+#, python-format
+msgid "The interactor must be a source file ending in %s."
+msgstr "El interactor debe ser un código fuente terminado en %s."
+
+#: judge/interactivos
+msgid "The interactor must not be larger than 1 MB."
+msgstr "El interactor no puede pasar de 1 MB."
+
+#: judge/interactivos
+msgid "Interactive problems"
+msgstr "Problemas interactivos"
+
+#: judge/interactivos
+#, python-format
+msgid "Interactive problems: %s"
+msgstr "Problemas interactivos: %s"
+
+#: judge/interactivos
+msgid "This problem is interactive, with a testlib interactor; testlib.h is added automatically. The checker is not used."
+msgstr "Este problema es interactivo, con un interactor de testlib; testlib.h se añade automáticamente. El verificador no se usa."
+
+#: judge/interactivos
+msgid "This problem is interactive. The checker is not used."
+msgstr "Este problema es interactivo. El verificador no se usa."
+
+#: judge/interactivos
+msgid "How to make an interactive problem"
+msgstr "Cómo hacer un problema interactivo"

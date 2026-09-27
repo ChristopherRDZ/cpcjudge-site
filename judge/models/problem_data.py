@@ -46,17 +46,40 @@ class ProblemData(models.Model):
     nobigmath = models.BooleanField(verbose_name=_('disable bigInteger / bigDecimal'), null=True, blank=True)
     checker_args = models.TextField(verbose_name=_('checker arguments'), blank=True,
                                     help_text=_('Checker arguments as a JSON object.'))
+    interactor = models.FileField(verbose_name=_('interactor'), storage=problem_data_storage, null=True, blank=True,
+                                  upload_to=problem_directory_file,
+                                  help_text=_('Makes the problem interactive: the program that talks with each '
+                                              'submission, in C++, C or Python. Leave it empty for a normal '
+                                              'problem.'))
+    # db_default keeps the column fillable by code that predates it, so rolling
+    # back the code alone never breaks the creation of new data rows.
+    interactor_feedback = models.BooleanField(verbose_name=_('show interactor messages'), default=False,
+                                              db_default=False,
+                                              help_text=_('Show contestants what the interactor writes to standard '
+                                                          'error.'))
 
-    __original_zipfile = None
+    # Files whose previous version is removed from disk once replaced or cleared.
+    REPLACED_FILES = ('zipfile', 'interactor')
+
+    __original_files = None
 
     def __init__(self, *args, **kwargs):
         super(ProblemData, self).__init__(*args, **kwargs)
-        self.__original_zipfile = self.zipfile
+        self.__original_files = {field: getattr(self, field).name for field in self.REPLACED_FILES}
 
     def save(self, *args, **kwargs):
-        if self.zipfile != self.__original_zipfile:
-            self.__original_zipfile.delete(save=False)
-        return super(ProblemData, self).save(*args, **kwargs)
+        result = super(ProblemData, self).save(*args, **kwargs)
+        # Old files go by name, and only once the new ones are saved. This used to
+        # call FieldFile.delete first, which also blanks the field on this very
+        # instance: a zip uploaded over another one was never stored, and the
+        # problem was left with test cases and no archive. A new upload that ends
+        # up with the old name has already replaced the file, so it stays.
+        for field, original in self.__original_files.items():
+            current = getattr(self, field).name
+            if original and original != current:
+                problem_data_storage.delete(original)
+            self.__original_files[field] = current
+        return result
 
     def has_yml(self):
         return problem_data_storage.exists('%s/init.yml' % self.problem.code)
@@ -71,6 +94,10 @@ class ProblemData(models.Model):
             self.zipfile.name = _problem_directory_file(new, self.zipfile.name)
         if self.generator:
             self.generator.name = _problem_directory_file(new, self.generator.name)
+        if self.interactor:
+            self.interactor.name = _problem_directory_file(new, self.interactor.name)
+        # The directory moved as a whole; there is no old copy left to remove.
+        self.__original_files = {field: getattr(self, field).name for field in self.REPLACED_FILES}
         self.save()
     _update_code.alters_data = True
 
