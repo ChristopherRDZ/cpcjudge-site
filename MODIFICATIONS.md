@@ -1,8 +1,9 @@
 # CPC-UAEH modifications to DMOJ
 
-As of 2026-09-22, this source includes team support and team contests, an owner
-account that restricts deletion in the administration interface, a dark theme
-available to every account, test cases filled in from a problem data archive,
+As of 2026-09-27, this source includes interactive problems configured from the
+problem data page, team support and team contests, an owner account that
+restricts deletion in the administration interface, a dark theme available to
+every account, test cases filled in from a problem data archive,
 frozen scoreboards, a reveal ceremony, balloon operations, contest announcements
 and clarifications, self-refreshing rankings, resilient live updates, custom-test
 admission controls, a pre-upload check for problem data and the Django 5.2.17
@@ -29,6 +30,26 @@ GNU Affero General Public License version 3.
 - Authentication using either a username or an email address.
 - A signed-in custom code testing workflow and its judge bridge support.
 - Minor registration and presentation adjustments.
+
+## Interactive problems — 2026-09-25 to 2026-09-27
+
+- The problem data page has an interactor upload field (C++, C or Python, up to
+  1 MB) and a checkbox that shows the interactor's standard error to contestants.
+  Migration `0156_problemdata_interactor` adds both columns; the boolean has a
+  database default so code without the field can still insert rows.
+- Saving the page writes the judge's `interactive:` block into `init.yml` every
+  time, instead of dropping a hand-written one. Interactors that include
+  `testlib.h` use the judge's testlib mode, and the page copies a bundled
+  `testlib.h` next to them. Python interactors are pinned to `PY3`.
+- The page reports whether the problem is interactive, whether it uses testlib and
+  whether the interactor file is missing, and links to a Spanish guide for problem
+  setters with a downloadable worked example
+  (`/problem/<code>/test_data/interactive`, editors only).
+- Fix: uploading a data archive over an existing one deleted the old file and
+  never stored the new one, because `FieldFile.delete` also clears the field on
+  the instance being saved. Replaced files are now removed by name after saving.
+- Tests in `tests/interactive_problems`; operator documentation in
+  [docs/interactive-problems.md](docs/interactive-problems.md).
 
 ## Fixes and hardening — 2026-09-20 to 2026-09-22
 
@@ -192,6 +213,11 @@ This modified version is distributed under the GNU Affero General Public
 License version 3. The complete license text is provided in [LICENSE](LICENSE).
 Existing copyright and license notices from DMOJ and bundled third-party
 components are retained.
+
+`judge/utils/interactive/testlib.h` is testlib 0.9.45 by Mike Mirzayanov
+(<https://github.com/MikeMirzayanov/testlib>, commit
+`2d20123984e9479b8a56ebe0d6a51e23ad7c35b3`), distributed under the MIT License,
+whose text is included in `judge/utils/interactive/testlib-LICENSE.txt`.
 
 Branding artwork is included as part of the deployed version by CPC-UAEH. Its
 inclusion does not grant rights to third-party trademarks beyond those provided

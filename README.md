@@ -166,6 +166,16 @@ point distribution, with feedback for unpaired files.
 
 ![Problem data form populated from a sample ZIP archive](docs/screenshots/testcase-autofill.png)
 
+### Interactive problems
+
+Upload an interactor next to the test data and the problem becomes interactive.
+The data page writes the judge configuration on every save, recognizes testlib
+interactors and supplies `testlib.h`. It links to a guide for problem setters with
+a complete example that can be downloaded. Uploading a new data archive over an
+existing one also works now; upstream lost both files.
+
+![Problem data page with a testlib interactor](docs/screenshots/interactive-problem.png)
+
 ## Administration
 
 Manage teams, invitations, memberships and contest participation from the admin,
@@ -193,6 +203,7 @@ own branding.
 | [Fork overview](docs/fork-overview.md) | Features and changes relative to upstream |
 | [Django 5.2 upgrade](docs/django52/README.md) | Compatibility changes, tested dependencies and upgrade guidance |
 | [Contest tools](docs/contest-tools.md) | Freeze, reveal, balloons, announcements and clarifications |
+| [Interactive problems](docs/interactive-problems.md) | Interactors from the data page, judge requirements and verdicts |
 | [Deployment examples](deploy/examples/README.md) | Example service units, Nginx settings and maintenance tasks |
 | [Security guides](docs/security/README.md) | How to configure each control, and known limitations |
 | [Screenshot gallery](docs/screenshots/README.md) | Full-size demonstration images |

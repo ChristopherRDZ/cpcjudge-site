@@ -33,6 +33,8 @@ presents them, with the date each one was added.
 | Rebuilt custom test | Full-width editor, no line wrapping, output up to 64 KB, translated messages. 2026-09-18 |
 | Translated navigation bar | Through a `dmoj-user` catalog that did not exist upstream. 2026-09-19 |
 | Test case autofill | Pairs files from a zip, natural ordering, batch detection, point distribution. 2026-09-19 |
+| Interactive problems | Interactor upload on the data page, `interactive:` written on every save, testlib detection with a bundled `testlib.h`, optional contestant feedback, a guide with a downloadable example. Migration `0156`. 2026-09-25 |
+| Data archive replacement | Uploading an archive over an existing one lost both upstream; the new one is now stored and the old one removed. 2026-09-25 |
 | Admin bulk selection | The bottom action bar of admin lists works again with Django 5.2 and stays in sync with the top one. 2026-09-20 |
 | Spanish interface | Spanish translations for every screen the fork adds. |
 

@@ -20,6 +20,8 @@ in the fork.
 | [Light and dark themes](dark-mode.png) | The same page in both themes |
 | [Custom test](custom-test.png) | Example code, input and simulated output |
 | [Test case autofill](testcase-autofill.png) | Cases paired from a sample archive |
+| [Interactive problem](interactive-problem.png) | Data page with a testlib interactor and feedback enabled |
+| [Interactive problem guide](interactive-guide.png) | The guide for problem setters, with the downloadable example |
 | [Team administration](admin-teams.png) | Members and contest participation counts |
 | [Owner-only deletion](admin-owner-lock.png) | Confirmation with affected record counts |
 

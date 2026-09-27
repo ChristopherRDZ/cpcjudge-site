@@ -69,8 +69,8 @@ Never commit `dmoj/local_settings.py`. It is already in `.gitignore`.
 /srv/dmoj/venv/bin/python manage.py migrate
 ```
 
-This fork adds migrations `0150` through `0155`: announcements, clarifications,
-scoreboard freeze, balloons and teams. Keep the database backup from step 1
+This fork adds migrations `0150` through `0156`: announcements, clarifications,
+scoreboard freeze, balloons, teams and interactive problems. Keep the database backup from step 1
 before applying them to an existing installation.
 
 ## 4. Translations
@@ -241,6 +241,11 @@ Start the services and verify these workflows:
 6. `/static../robots.txt` must answer 404.
 7. Sign in as a second superuser and confirm the delete actions are **not**
    there, and that it cannot edit the owner account.
+8. On a hidden problem, open the interactive problem guide from the data page and
+   download the example. Upload its `casos.zip` and `interactor.cpp`, detect the
+   cases, save, and submit `solucion.cpp`: all four cases must be accepted. This
+   is what proves your judges compile interactors; see
+   [Interactive problems](interactive-problems.md).
 
 ---
 
