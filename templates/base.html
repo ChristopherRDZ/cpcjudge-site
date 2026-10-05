@@ -18,7 +18,38 @@
     {% if meta_description %}
         <meta name="description" content="{{ meta_description }}">
     {% endif %}
-    <meta id="viewport" name="viewport" content="width=device-width, initial-scale=1">
+    {# Phones narrower than 480 px get the 480 px layout the stylesheets were written for, scaled to
+       fit, from the first paint. common.js only switched on `resize`, so a phone showed the cramped
+       device-width layout until the address bar moved; and because it measured the page it had just
+       rescaled, at some widths (390 px) it flipped between both layouts dozens of times a second.
+       This decides from the screen, so its own change can never trigger it again.
+       The meta has no id on purpose: the old handler, still inside the compressed bundle, finds it
+       by id and is left with nothing to change. Kept outside every {% compress %} block. #}
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script>
+        (function () {
+            var meta = document.querySelector('meta[name="viewport"]');
+            var landscape = window.matchMedia && window.matchMedia('(orientation: landscape)');
+
+            function fit() {
+                // iOS reports the portrait size of the screen in every orientation, so the
+                // orientation comes from the viewport and the screen only gives the two sides.
+                var narrow = Math.min(screen.width, screen.height);
+                var wide = Math.max(screen.width, screen.height);
+                var width = landscape && landscape.matches ? wide : narrow;
+                var content = width < 480 ? 'width=480' : 'width=device-width, initial-scale=1';
+                if (meta.getAttribute('content') !== content)
+                    meta.setAttribute('content', content);
+            }
+
+            fit();
+            if (landscape && landscape.addEventListener)
+                landscape.addEventListener('change', fit);
+            else if (landscape && landscape.addListener)
+                landscape.addListener(fit);
+            window.addEventListener('orientationchange', fit);
+        })();
+    </script>
     <!-- Favicons-->
     <link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
     <link rel="apple-touch-icon" sizes="60x60" href="/apple-touch-icon-60x60.png">
@@ -448,6 +479,28 @@
 
     #clarification-badge.has-pending {
         display: inline-block;
+    }
+
+    /* MathJax pairs every formula with an invisible MathML copy for screen readers. The copy is
+       usually wider than the drawn formula, so near the right edge it made the page pan sideways on
+       a phone and Chrome zoomed the whole page out to fit it. Keeping it to its formula's width
+       changes nothing visible or audible: it is clipped to 1 px either way. */
+    mjx-container > mjx-assistive-mml {
+        max-width: 100% !important;
+    }
+
+    /* The floating contest timer was sized for one line on a desktop. On a phone the contest and
+       team names wrap, the link's fixed 1.4em height pushed the clock out of the box, and the box
+       ran into the right edge. Same 20 px on both sides; the link grows with its lines and keeps
+       the old height when it fits in one, so a desktop sees the same box as before. */
+    #contest-info {
+        max-width: calc(100% - 40px);
+        box-sizing: border-box;
+    }
+
+    #contest-info a {
+        height: auto;
+        min-height: 1.4em;
     }
 
     /* Same breakpoint the rest of the site uses. */

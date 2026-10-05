@@ -768,6 +768,21 @@
             white-space: nowrap;
         }
 
+        /* On a phone both tables were wider than the page, so the whole page panned sideways and
+           the browser zoomed it out. Below the site's 760 px breakpoint the form labels may wrap
+           (`.table th` never does) and the case table scrolls inside its own box; the markup and
+           the row scripts are untouched, and a desktop sees no change. */
+        @media (max-width: 760px) {
+            #content-body form > table.table:not(#case-table) th {
+                white-space: normal;
+            }
+
+            #case-table {
+                display: block;
+                overflow-x: auto;
+            }
+        }
+
         .type-column {
             width: 8em;
         }
