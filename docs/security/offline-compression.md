@@ -27,6 +27,12 @@ Regenerate the manifest and restart the web service whenever you change:
 - a translation catalog or the `LANGUAGES` setting;
 - django-compressor or the minifiers (`rcssmin`, `rjsmin`).
 
+Each block is keyed by its rendered content, so editing a template **outside**
+its `{% compress %}` blocks does not invalidate the manifest. The viewport script
+and the inline styles of `templates/base.html` sit outside its blocks for that
+reason. If you edit `base.html`, either keep both blocks byte-identical or
+rebuild.
+
 A missing variant answers `OfflineGenerationError` (HTTP 500) on the affected
 page. After a rebuild, load the home page, `/problems/`, `/submissions/` and
 `/stats/language/` in each language (`Accept-Language`), signed out and signed

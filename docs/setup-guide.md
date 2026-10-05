@@ -246,6 +246,9 @@ Start the services and verify these workflows:
    cases, save, and submit `solucion.cpp`: all four cases must be accepted. This
    is what proves your judges compile interactors; see
    [Interactive problems](interactive-problems.md).
+9. On a phone, or in a browser's device emulation, open a long problem and
+   scroll. The page must load at the 480 px layout scaled to fit, with the
+   footer on one line, and stay that way.
 
 ---
 
@@ -264,6 +267,12 @@ Start the services and verify these workflows:
 
 **Pages answer 500 in some languages but not others.** Stale offline compression
 manifest. Regenerate it and restart the web service.
+
+**On some phones every page keeps growing and shrinking.** The upstream viewport
+handler in `resources/common.js` is active again. It looks up `meta#viewport`,
+and this fork's `templates/base.html` deliberately leaves that `id` off the
+viewport `<meta>`. If you merge `base.html` from upstream or customize it, keep
+the `<meta>` without the `id` and keep the inline script that follows it.
 
 **A page that used to be translated shows English again.** Somebody ran
 `makemessages`. Restore the catalog from Git and add the new entries by hand.

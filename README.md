@@ -150,6 +150,12 @@ The fork's screens and navigation include Spanish and English translations.
 
 ![The same teams page in light and dark themes](docs/screenshots/dark-mode.png)
 
+### Phones
+
+Pages load on phones at a stable 480 px layout scaled to fit, without the
+zooming in and out that upstream shows at some screen widths. Wide editor tables,
+such as the test case table, scroll inside their own box.
+
 ### Custom tests
 
 Try code with your own input in a spacious editor, with translated status

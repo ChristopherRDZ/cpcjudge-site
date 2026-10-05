@@ -1,9 +1,10 @@
 # CPC-UAEH modifications to DMOJ
 
-As of 2026-09-27, this source includes interactive problems configured from the
-problem data page, team support and team contests, an owner account that
-restricts deletion in the administration interface, a dark theme available to
-every account, test cases filled in from a problem data archive,
+As of 2026-10-01, this source includes a stable phone layout, interactive
+problems configured from the problem data page, team support and team contests,
+an owner account that restricts deletion in the administration interface, a dark
+theme available to every account, test cases filled in from a problem data
+archive,
 frozen scoreboards, a reveal ceremony, balloon operations, contest announcements
 and clarifications, self-refreshing rankings, resilient live updates, custom-test
 admission controls, a pre-upload check for problem data and the Django 5.2.17
@@ -30,6 +31,29 @@ GNU Affero General Public License version 3.
 - Authentication using either a username or an email address.
 - A signed-in custom code testing workflow and its judge bridge support.
 - Minor registration and presentation adjustments.
+
+## Phone layout — 2026-10-01
+
+- Phones narrower than 480 px get the 480 px layout the stylesheets were written
+  for, scaled to fit, from the first paint. Upstream `common.js` switched the
+  viewport only on `resize`, so a phone showed the cramped device-width layout
+  until scrolling moved the address bar. Because it measured the page it had just
+  rescaled, at about one screen width in five between 320 and 480 px it then
+  flipped between both layouts many times a second. An inline script in
+  `templates/base.html` now decides from the screen size and orientation, so its
+  own change cannot trigger it again.
+- The viewport `<meta>` no longer has `id="viewport"`. The upstream handler is
+  still in `common.js`, inside the compressed bundle, but finds nothing to change.
+- MathJax's invisible MathML copy of each formula is kept to the width of the
+  formula. Near the right edge it made pages pan sideways on phones and zoomed
+  them out.
+- The floating contest timer grows with its lines and keeps the same margin on
+  both sides; on phones the clock fell out of its box.
+- The problem data page fits on phones: below 760 px the form labels wrap and the
+  test case table scrolls inside its own box. The markup and the row scripts are
+  unchanged, and so is the desktop layout.
+- No migration. The `{% compress %}` blocks of `base.html` are byte-identical, so
+  an existing offline manifest stays valid; reload the web service.
 
 ## Interactive problems — 2026-09-25 to 2026-09-27
 
