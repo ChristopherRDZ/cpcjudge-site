@@ -53,7 +53,8 @@ env = dict(os.environ, DJANGO_SETTINGS_MODULE='feature_test_settings', PYTHONPAT
            PYTHONDONTWRITEBYTECODE='1')
 print('Isolated test copy:', lab, flush=True)
 subprocess.run([sys.executable, '-B', 'manage.py', 'compilejsi18n'], cwd=lab, env=env, check=True)
-subprocess.run([sys.executable, '-B', 'manage.py', 'test', 'test_balloons', '--noinput'],
+subprocess.run([sys.executable, '-B', 'manage.py', 'test', 'test_balloons', 'test_contest_problem_removal',
+                '--noinput'],
                cwd=lab, env=env, check=True)
 for name in ('check_freeze.py', 'check_reveal.py', 'check_awards.py'):
     subprocess.run([sys.executable, '-B', name], cwd=lab, env=env, check=True)

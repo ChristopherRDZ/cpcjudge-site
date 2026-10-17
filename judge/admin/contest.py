@@ -78,6 +78,14 @@ class ContestProblemInline(SortableInlineAdminMixin, admin.TabularInline):
               'balloon_color', 'balloon_color_name', 'order', 'rejudge_column')
     readonly_fields = ('rejudge_column',)
     form = ContestProblemInlineForm
+    # Fuera del candado de borrado (judge/admin_owner.py): quien puede cambiar los problemas
+    # del concurso también puede quitar uno, que no es más grave que cambiarlo por otro. Con
+    # él se van sus envíos dentro del concurso (los envíos siguen en el historial de cada
+    # quien), sus aclaraciones y sus globos.
+    owner_lock_exempt = True
+
+    def has_delete_permission(self, request, obj=None):
+        return self.has_change_permission(request, obj)
 
     @admin.display(description='')
     def rejudge_column(self, obj):

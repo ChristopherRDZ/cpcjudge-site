@@ -1,5 +1,82 @@
 {% extends "admin/base_site.html" %}
 
+{% block wpadmin_extrastyle %}{{ block.super }}
+    <style>
+        /* Selector de dos listas (permisos, grupos, excluidos del rating). wpadmin fija cada lista en
+           260 px y corta los nombres de los permisos; aqui ocupan todo el ancho libre de la fila. En los
+           de permisos, si asi no cabe el nombre mas largo (unos 600 px por lista), las dos listas van
+           una encima de otra. El boton de anadir, cuando lo hay, sigue a la derecha. */
+        #content .related-widget-wrapper:has(> .selector) {
+            display: flex;
+            align-items: flex-start;
+            flex: 1 1 0;
+            min-width: 0;
+            container-type: inline-size;
+        }
+
+        #content .related-widget-wrapper > .selector {
+            order: 1;
+        }
+
+        #content .related-widget-wrapper:has(> .selector) > a {
+            order: 2;
+            margin-left: 10px;
+        }
+
+        #content .selector {
+            flex: 1 1 auto;
+            float: none;
+            width: auto;
+            max-width: none;
+            min-width: 0;
+        }
+
+        #content .selector .selector-available,
+        #content .selector .selector-chosen {
+            flex: 1 1 0;
+            width: auto;
+            min-width: 0;
+        }
+
+        #content .selector .selector-available select,
+        #content .selector .selector-chosen select {
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        #content .selector .selector-available .selector-filter input,
+        #content .selector .selector-chosen .selector-filter input {
+            width: calc(100% - 40px);
+            box-sizing: border-box;
+        }
+
+        @container (max-width: 1259px) {
+            #content .field-permissions .selector,
+            #content .field-user_permissions .selector {
+                flex-direction: column;
+            }
+
+            #content .field-permissions .selector ul.selector-chooser,
+            #content .field-user_permissions .selector ul.selector-chooser {
+                display: flex;
+                justify-content: center;
+                align-self: center;
+                width: auto;
+                height: auto;
+                margin: 4px 0 8px;
+                transform: none;
+            }
+
+            #content .field-permissions .selector ul.selector-chooser .selector-add:after,
+            #content .field-permissions .selector ul.selector-chooser .selector-remove:after,
+            #content .field-user_permissions .selector ul.selector-chooser .selector-add:after,
+            #content .field-user_permissions .selector ul.selector-chooser .selector-remove:after {
+                transform: rotate(90deg);
+            }
+        }
+    </style>
+{% endblock %}
+
 {% block pretitle %}{{ block.super }}
     <form style="display: none" id="empty-action-form" method="post">
         {% csrf_token %}

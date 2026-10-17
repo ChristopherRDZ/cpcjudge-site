@@ -27,6 +27,13 @@ from django.utils.translation import gettext
 _PERMISSION_FLAG = '_cpc_delete_permission_guarded'
 _VIEW_FLAG = '_cpc_delete_view_guarded'
 
+# Un inline puede quedar fuera del candado declarando `owner_lock_exempt = True` en su
+# propia clase. Se mira en `__dict__`, como las banderas, para que una subclase no herede
+# la excepción sin declararla. Sólo vale para inlines: un ModelAdmin exento enseñaría un
+# botón de borrar que la segunda barrera convierte en 403. Hoy la usa únicamente la lista
+# de problemas de un concurso (`ContestProblemInline`).
+EXEMPT_ATTRIBUTE = 'owner_lock_exempt'
+
 
 def server_owners():
     """Nombres de usuario con permiso para borrar. Vacío significa que nadie borra."""
@@ -50,9 +57,11 @@ def is_owner_account(user):
     return bool(user) and getattr(user, 'username', None) in server_owners()
 
 
-def _guard_permission(cls):
+def _guard_permission(cls, exempt_allowed=False):
     """Oculta el botón de borrar y retira la acción en lote para quien no es dueño."""
     if _PERMISSION_FLAG in cls.__dict__:
+        return
+    if exempt_allowed and cls.__dict__.get(EXEMPT_ATTRIBUTE):
         return
     original = cls.has_delete_permission
 
@@ -95,7 +104,7 @@ def install(site=None):
     for model_admin in site._registry.values():
         _guard_permission(type(model_admin))
         for inline in getattr(model_admin, 'inlines', ()) or ():
-            _guard_permission(inline)
+            _guard_permission(inline, exempt_allowed=True)
 
 
 class OwnerOnlyActionsMixin:
