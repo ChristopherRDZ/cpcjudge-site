@@ -1,24 +1,16 @@
-<div style="border:2px solid #fd0;margin:4px 0;"><div style="background:#000;border:6px solid #000;">
-<a href="{{ protocol }}://{{ domain }}"><img src="{{ protocol }}://{{ domain }}/static/icons/logo.svg" alt="{{ site_name }}" width="160" height="44"></a>
-</div></div>
-
-<div style="border:2px solid #337ab7;margin:4px 0;"><div style="background:#fafafa;border:12px solid #fafafa;font-family:segoe ui,lucida grande,Arial,sans-serif;font-size:14px;">
-<br><br>
-{{ user.get_username() }},
-<br>
-{% trans %}You have requested to change your email address to this email for your user account at {{ site_name }}.{% endtrans %}
-<br><br>
-{% trans trimmed count=expiry_minutes %}
-Please click the link to confirm this email change. The link will expire in {{ count }} minute.
+{% extends "registration/email_base.html" %}
+{% import "registration/email_macros.html" as m %}
+{% set link = protocol ~ '://' ~ domain ~ url('email_change_activate', activation_key=activation_key) %}
+{% block preheader %}{{ _('Confirm that this is your new email address.') }}{% endblock %}
+{% block heading %}{{ _('Confirm your new email') }}{% endblock %}
+{% block content %}
+{% call m.paragraph() %}{{ _('Hi %(username)s, you asked to use this address for your %(site_name)s account.', username=user.get_username(), site_name=site_name) }}{% endcall %}
+{{ m.button(link, _('Confirm email change')) }}
+{% call m.note() %}{% trans trimmed count=expiry_minutes %}
+This link expires in {{ count }} minute.
 {% pluralize %}
-Please click the link to confirm this email change. The link will expire in {{ count }} minutes.
-{% endtrans %}
-<br>
-<a href="{{ protocol }}://{{ domain }}{{ url('email_change_activate', activation_key=activation_key) }}">{{ protocol }}://{{ domain }}{{ url('email_change_activate', activation_key=activation_key) }}</a>
-<br><br>
-{% if site_admin_email %}
-{% with link='<a href="mailto:%(email)s">%(email)s</a>'|safe|format(email=site_admin_email) %}
-{{ _('If you have encountered any problems, feel free to shoot us an email at %(email)s.', email=link) }}
-{% endwith %}
-{% endif %}
-</div></div>
+This link expires in {{ count }} minutes.
+{% endtrans %}{% endcall %}
+{{ m.fallback(link) }}
+{% call m.small() %}{{ _('If you did not request this change, ignore this email and your address will stay the same.') }}{% endcall %}
+{% endblock %}

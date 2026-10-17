@@ -1,0 +1,80 @@
+{#- Plantilla común de los correos del sitio. Tablas y estilos en línea: es lo único que respetan
+    Gmail, Outlook y las apps del teléfono. Colores del sitio: texto #333, enlaces #1958c1,
+    bordes #ccc sobre #f8f8f8; la franja usa los tres colores del logo. -#}
+{%- set _proto = protocol if protocol is defined else request.scheme -%}
+{%- set _domain = domain if domain is defined else site.domain -%}
+{%- set _site_name = site_name if site_name is defined else site.name -%}
+{%- set _admin_email = site_admin_email if site_admin_email is defined else (SITE_ADMIN_EMAIL if SITE_ADMIN_EMAIL is defined else '') -%}
+{%- set _home = _proto ~ '://' ~ _domain -%}
+{%- set _font = "font-family:'Segoe UI','Lucida Grande',Arial,sans-serif;" -%}
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light only">
+<meta name="supported-color-schemes" content="light">
+<title>{{ _site_name }}</title>
+<style>
+@media only screen and (max-width: 480px) {
+  .px { padding-left: 20px !important; padding-right: 20px !important; }
+  .title { font-size: 20px !important; }
+}
+</style>
+</head>
+<body style="margin:0;padding:0;background-color:#eeeeee;">
+<div style="display:none;max-height:0;max-width:0;overflow:hidden;opacity:0;mso-hide:all;">{% block preheader %}{% endblock %}{% for i in range(40) %}&#847;&zwnj;&nbsp;{% endfor %}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#eeeeee;">
+<tr>
+<td align="center" style="padding:24px 12px;">
+<!--[if mso]><table role="presentation" width="600" align="center" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;background-color:#ffffff;border:1px solid #cccccc;border-radius:3px;border-collapse:separate;">
+<tr>
+<td class="px" style="background-color:#ffffff;padding:20px 32px 16px;border-radius:3px 3px 0 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td valign="middle"><a href="{{ _home }}" style="text-decoration:none;"><img src="{{ _home }}/static/icons/logo-correo.png" width="150" height="60" alt="{{ _site_name }}" style="display:block;border:0;color:#3b3b3b;{{ _font }}font-size:20px;font-weight:bold;"></a></td>
+<td valign="middle" align="right" style="{{ _font }}font-size:13px;color:#777777;"><a href="{{ _home }}" style="color:#777777;text-decoration:none;">{{ _domain }}</a></td>
+</tr>
+</table>
+</td>
+</tr>
+<tr>
+<td style="font-size:0;line-height:0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td width="33%" height="4" style="background-color:#1e9fd3;font-size:0;line-height:0;">&nbsp;</td>
+<td width="34%" height="4" style="background-color:#f6bd00;font-size:0;line-height:0;">&nbsp;</td>
+<td width="33%" height="4" style="background-color:#d52020;font-size:0;line-height:0;">&nbsp;</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr>
+<td class="px" style="padding:28px 32px 12px;{{ _font }}font-size:15px;line-height:1.55;color:#333333;">
+<h1 class="title" style="margin:0 0 16px;{{ _font }}font-size:22px;line-height:1.3;font-weight:bold;color:#222222;">{% block heading %}{% endblock %}</h1>
+{% block content %}{% endblock %}
+</td>
+</tr>
+</table>
+<!--[if mso]></td></tr></table><![endif]-->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;">
+<tr>
+<td align="center" style="padding:16px 24px 8px;{{ _font }}font-size:12px;line-height:1.6;color:#777777;">
+{{ _('This is an automatic message from %(site_name)s.', site_name=_site_name) }}
+{%- if _admin_email %}
+<br>
+{%- with link='<a href="mailto:%(email)s" style="color:#555555;">%(email)s</a>'|safe|format(email=_admin_email) %}
+{{ _('Questions? Write to us at %(email)s.', email=link) }}
+{%- endwith %}
+{%- endif %}
+<br>
+<a href="{{ _home }}" style="color:#555555;">{{ _domain }}</a>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+</body>
+</html>

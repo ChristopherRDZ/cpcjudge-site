@@ -1,5 +1,6 @@
 {
-	"name": "DMOJ",
+	"name": "CPC UAEH Judge",
+	"short_name": "CPC",
 	"icons": [
 		{
 			"src": "\/android-chrome-36x36.png",

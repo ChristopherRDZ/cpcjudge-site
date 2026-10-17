@@ -1,27 +1,16 @@
-<div style="border:2px solid #fd0;margin:4px 0;"><div style="background:#f3f3f3;border:6px solid #000;">
-<a href="{{ request.scheme }}://{{ site.domain }}"><img src="{{ request.scheme }}://{{ site.domain }}/static/icons/logo.png" alt="{{ SITE_NAME }}" width="100" height="40"></a>
-</div></div>
-
-<div style="border:2px solid #337ab7;margin:4px 0;"><div style="background:#fafafa;border:12px solid #fafafa;font-family:segoe ui,lucida grande,Arial,sans-serif;font-size:14px;">
-<strong>{{ _("Gracias por registrarte en el Club de Programación Competitiva - UAEH. Nos alegra que estés aquí :DD", site_name=SITE_NAME) }}</strong>
-<br><br>
-{% trans trimmed count=expiration_days, site_name=SITE_NAME %}
-The last step is activating your account. Please activate your {{ site_name }} account in the next {{ count }} day.
+{% extends "registration/email_base.html" %}
+{% import "registration/email_macros.html" as m %}
+{% set link = request.scheme ~ '://' ~ site.domain ~ '/accounts/activate/' ~ activation_key ~ '/' %}
+{% block preheader %}{{ _('Confirm your email to start solving problems on %(site_name)s.', site_name=site.name) }}{% endblock %}
+{% block heading %}{{ _('Welcome to %(site_name)s!', site_name=site.name) }}{% endblock %}
+{% block content %}
+{% call m.paragraph() %}{{ _('Hi %(username)s, thanks for signing up. There is only one step left: confirm your email address to activate your account.', username=user.get_username()) }}{% endcall %}
+{{ m.button(link, _('Activate my account')) }}
+{% call m.note() %}{% trans trimmed count=expiration_days %}
+This link expires in {{ count }} day.
 {% pluralize %}
-The last step is activating your account. Please activate your {{ site_name }} account in the next {{ count }} days.
-{% endtrans %}
-<br><br>
-{{ _('Please click on the following link to activate your account:') }}
-<br>
-<a href="{{ request.scheme }}://{{ site.domain }}/accounts/activate/{{ activation_key }}/">{{ request.scheme }}://{{ site.domain }}/accounts/activate/{{ activation_key }}/</a>
-<br><br>
-{{ _('Alternatively, you can reply to this message to activate your account. Your reply must keep the following text intact for this to work:') }}
-<p style="font-family:monospace;">{{ activation_key }}</p>
-{% if SITE_ADMIN_EMAIL %}
-{% with link='<a href="mailto:%(email)s">%(email)s</a>'|safe|format(email=SITE_ADMIN_EMAIL) %}
-{{ _('See you soon! If you have problems activating your account, feel free to send us an email at %(email)s.', email=link) }}
-{% endwith %}
-{% else %}
-{{ _('See you soon!') }}
-{% endif %}
-</div></div>
+This link expires in {{ count }} days.
+{% endtrans %}{% endcall %}
+{{ m.fallback(link) }}
+{% call m.small() %}{{ _('If you did not create this account, you can ignore this email.') }}{% endcall %}
+{% endblock %}

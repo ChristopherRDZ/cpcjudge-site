@@ -1,9 +1,18 @@
-{{ user.get_username() }},
-{% trans %}Someone (hopefully you!) has requested to change the email address associated with your user account at {{ site_name }} to {{ new_email }}.{% endtrans %}
+{#- Texto plano: sin escape HTML, o un apóstrofo saldría como &#x27;. -#}
+{% autoescape false -%}
+{{ _('Your email address is being changed') }}
 
-{{ _('If this was you, no further action is required.') }}
-{% if site_admin_email %}
-{{ _('If this was not you, please change your password and email us immediately at %(email)s.', email=site_admin_email) }}
-{% else %}
-{{ _('If this was not you, please change your password and reply to this email immediately.') }}
-{% endif %}
+{{ _('Hi %(username)s, someone (hopefully you) asked to change the email address of your %(site_name)s account to %(new_email)s.', username=user.get_username(), site_name=site_name, new_email=new_email) }}
+
+{{ _("If this was you, there is nothing else to do.") }}
+
+{% if site_admin_email %}{{ _("If this was not you, change your password right away and write to us at %(email)s.", email=site_admin_email) }}{% else %}{{ _("If this was not you, change your password right away and reply to this email.") }}{% endif %}
+
+
+{{ _('Change my password') }}:
+{{ protocol }}://{{ domain }}{{ url('password_change') }}
+
+--
+{{ _('This is an automatic message from %(site_name)s.', site_name=site_name) }}
+{{ protocol }}://{{ domain }}
+{%- endautoescape %}

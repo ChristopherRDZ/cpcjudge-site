@@ -5305,7 +5305,7 @@ msgstr[1] "Vaya a esta página para confirmar este cambio de correo electrónico
 #: templates/registration/email_change_activate_subject.txt:1
 #, python-format
 msgid "Email change request on %(site_name)s"
-msgstr "Solicitud de cambio de correo electrónico en %(site_name)s"
+msgstr "Confirma tu nuevo correo en %(site_name)s"
 
 #: templates/registration/email_change_notify_email.html:9
 #: templates/registration/email_change_notify_email.txt:2
@@ -5332,7 +5332,7 @@ msgstr "Si no fue usted, por favor cambie su contraseña y responda a este corre
 #: templates/registration/email_change_notify_subject.txt:1
 #, python-format
 msgid "Alert: Email change request on %(site_name)s"
-msgstr "Alerta: Solicitud de cambio de correo electrónico en %(site_name)s"
+msgstr "Aviso: se pidió cambiar el correo de tu cuenta de %(site_name)s"
 
 #: templates/registration/login.html:35
 msgid "Invalid username or password."
@@ -5435,7 +5435,7 @@ msgstr "El equipo de %(site_name)s"
 #: templates/registration/password_reset_subject.txt:1
 #, python-format
 msgid "Password reset on %(site_name)s"
-msgstr "Contraseña se reinicia en %(site_name)s"
+msgstr "Restablece tu contraseña de %(site_name)s"
 
 #: templates/registration/profile_creation.html:38
 #: templates/registration/username_select.html:7
@@ -8029,3 +8029,92 @@ msgstr "Este problema es interactivo. El verificador no se usa."
 #: judge/interactivos
 msgid "How to make an interactive problem"
 msgstr "Cómo hacer un problema interactivo"
+
+#. Correos rediseñados, 2026-10-08 (security_preparation/correos-diseno-20261008)
+msgid "This is an automatic message from %(site_name)s."
+msgstr "Este es un mensaje automático de %(site_name)s."
+
+msgid "Questions? Write to us at %(email)s."
+msgstr "¿Dudas? Escríbenos a %(email)s."
+
+msgid "If the button doesn't work, copy this link into your browser:"
+msgstr "Si el botón no funciona, copia este enlace en tu navegador:"
+
+msgid "Confirm your email to start solving problems on %(site_name)s."
+msgstr "Confirma tu correo para empezar a resolver problemas en %(site_name)s."
+
+msgid "Welcome to %(site_name)s!"
+msgstr "¡Te damos la bienvenida a %(site_name)s!"
+
+msgid "Hi %(username)s, thanks for signing up. There is only one step left: confirm your email address to activate your account."
+msgstr "Hola, %(username)s. Gracias por registrarte. Solo falta un paso: confirma tu correo para activar tu cuenta."
+
+msgid "Activate my account"
+msgstr "Activar mi cuenta"
+
+msgid "This link expires in %(count)s day."
+msgid_plural "This link expires in %(count)s days."
+msgstr[0] "Este enlace vence en %(count)s día."
+msgstr[1] "Este enlace vence en %(count)s días."
+
+msgid "If you did not create this account, you can ignore this email."
+msgstr "Si no creaste esta cuenta, puedes ignorar este correo."
+
+msgid "Use this link to choose a new password."
+msgstr "Usa este enlace para elegir una contraseña nueva."
+
+msgid "Reset your password"
+msgstr "Restablece tu contraseña"
+
+msgid "Hi %(username)s, we received a request to reset the password of your %(site_name)s account."
+msgstr "Hola, %(username)s. Recibimos una solicitud para restablecer la contraseña de tu cuenta de %(site_name)s."
+
+msgid "Choose a new password"
+msgstr "Elegir contraseña nueva"
+
+msgid "Your username is %(username)s. The link can only be used once."
+msgstr "Tu nombre de usuario es %(username)s. El enlace solo se puede usar una vez."
+
+msgid "If you did not request this, ignore this email: your password will not change."
+msgstr "Si no lo pediste tú, ignora este correo: tu contraseña no cambiará."
+
+msgid "Confirm that this is your new email address."
+msgstr "Confirma que esta es tu nueva dirección de correo."
+
+msgid "Confirm your new email"
+msgstr "Confirma tu nuevo correo"
+
+msgid "Hi %(username)s, you asked to use this address for your %(site_name)s account."
+msgstr "Hola, %(username)s. Pediste usar esta dirección en tu cuenta de %(site_name)s."
+
+msgid "Confirm email change"
+msgstr "Confirmar cambio de correo"
+
+msgid "This link expires in %(count)s minute."
+msgid_plural "This link expires in %(count)s minutes."
+msgstr[0] "Este enlace vence en %(count)s minuto."
+msgstr[1] "Este enlace vence en %(count)s minutos."
+
+msgid "If you did not request this change, ignore this email and your address will stay the same."
+msgstr "Si no pediste este cambio, ignora este correo y tu dirección seguirá igual."
+
+msgid "Someone asked to change the email address of your account."
+msgstr "Alguien pidió cambiar el correo de tu cuenta."
+
+msgid "Your email address is being changed"
+msgstr "Se pidió cambiar el correo de tu cuenta"
+
+msgid "Hi %(username)s, someone (hopefully you) asked to change the email address of your %(site_name)s account to %(new_email)s."
+msgstr "Hola, %(username)s. Alguien (esperamos que tú) pidió cambiar el correo de tu cuenta de %(site_name)s a %(new_email)s."
+
+msgid "If this was you, there is nothing else to do."
+msgstr "Si fuiste tú, no tienes que hacer nada."
+
+msgid "If this was not you, change your password right away and write to us at %(email)s."
+msgstr "Si no fuiste tú, cambia tu contraseña de inmediato y escríbenos a %(email)s."
+
+msgid "If this was not you, change your password right away and reply to this email."
+msgstr "Si no fuiste tú, cambia tu contraseña de inmediato y responde a este correo."
+
+msgid "Change my password"
+msgstr "Cambiar mi contraseña"

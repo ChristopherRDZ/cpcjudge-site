@@ -1,23 +1,19 @@
-<div style="border:2px solid #fd0;margin:4px 0;"><div style="background:#000;border:6px solid #000;">
-<a href="{{ protocol }}://{{ domain }}"><img src="{{ protocol }}://{{ domain }}/static/icons/logo.svg" alt="{{ site_name }}" width="160" height="44"></a>
-</div></div>
-
-<div style="border:2px solid #337ab7;margin:4px 0;"><div style="background:#fafafa;border:12px solid #fafafa;font-family:segoe ui,lucida grande,Arial,sans-serif;font-size:14px;">
-<br><br>
-{{ user.get_username() }},
-<br>
-{% trans %}Someone (hopefully you!) has requested to change the email address associated with your user account at {{ site_name }} to {{ new_email }}.{% endtrans %}
-<br><br>
-{{ _('If this was you, no further action is required.') }}
-
-<br>
-<b>
-{% if site_admin_email %}
-{% with link='<a href="mailto:%(email)s">%(email)s</a>'|safe|format(email=site_admin_email) %}
-{{ _('If this was not you, please change your password and email us immediately at %(email)s.', email=link) }}
-{% endwith %}
-{% else %}
-{{ _('If this was not you, please change your password and reply to this email immediately.') }}
-{% endif %}
-</b>
-</div></div>
+{% extends "registration/email_base.html" %}
+{% import "registration/email_macros.html" as m %}
+{% set change_link = protocol ~ '://' ~ domain ~ url('password_change') %}
+{% block preheader %}{{ _('Someone asked to change the email address of your account.') }}{% endblock %}
+{% block heading %}{{ _('Your email address is being changed') }}{% endblock %}
+{% block content %}
+{% call m.paragraph() %}{{ _('Hi %(username)s, someone (hopefully you) asked to change the email address of your %(site_name)s account to %(new_email)s.', username=user.get_username(), site_name=site_name, new_email=new_email) }}{% endcall %}
+{% call m.paragraph() %}{{ _("If this was you, there is nothing else to do.") }}{% endcall %}
+{% call m.alert() %}
+{%- if site_admin_email -%}
+{%- with link='<a href="mailto:%(email)s" style="color:#1958c1;">%(email)s</a>'|safe|format(email=site_admin_email) -%}
+{{ _("If this was not you, change your password right away and write to us at %(email)s.", email=link) }}
+{%- endwith -%}
+{%- else -%}
+{{ _("If this was not you, change your password right away and reply to this email.") }}
+{%- endif -%}
+{% endcall %}
+{{ m.button(change_link, _('Change my password')) }}
+{% endblock %}

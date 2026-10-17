@@ -1,15 +1,24 @@
-{{ user.get_username() }},
+{#- Texto plano: sin escape HTML, o un apóstrofo saldría como &#x27;. -#}
+{% autoescape false -%}
+{% set link = protocol ~ '://' ~ domain ~ url('email_change_activate', activation_key=activation_key) -%}
+{{ _('Confirm your new email') }}
 
-{% trans %}You have requested to change your email address to this email for your user account at {{ site_name }}.{% endtrans %}
+{{ _('Hi %(username)s, you asked to use this address for your %(site_name)s account.', username=user.get_username(), site_name=site_name) }}
+
+{{ _('Confirm email change') }}:
+{{ link }}
 
 {% trans trimmed count=expiry_minutes %}
-Please go to this page to confirm this email change. The link will expire in {{ count }} minute.
+This link expires in {{ count }} minute.
 {% pluralize %}
-Please go to this page to confirm this email change. The link will expire in {{ count }} minutes.
+This link expires in {{ count }} minutes.
 {% endtrans %}
 
-{{ protocol }}://{{ domain }}{{ url('email_change_activate', activation_key=activation_key) }}
 
-{% if site_admin_email %}
-{{ _('If you have encountered any problems, feel free to shoot us an email at %(email)s.', email=site_admin_email) }}
-{% endif %}
+{{ _('If you did not request this change, ignore this email and your address will stay the same.') }}
+
+--
+{{ _('This is an automatic message from %(site_name)s.', site_name=site_name) }}
+{% if site_admin_email %}{{ _('Questions? Write to us at %(email)s.', email=site_admin_email) }}
+{% endif %}{{ protocol }}://{{ domain }}
+{%- endautoescape %}

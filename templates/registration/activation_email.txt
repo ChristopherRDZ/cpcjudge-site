@@ -1,13 +1,24 @@
-{% trans trimmed count=expiration_days, site_name=site.name %}
-Please activate your {{ site_name }} account in the next {{ count }} day.
+{#- Texto plano: sin escape HTML, o un apóstrofo saldría como &#x27;. -#}
+{% autoescape false -%}
+{% set link = request.scheme ~ '://' ~ site.domain ~ '/accounts/activate/' ~ activation_key ~ '/' -%}
+{{ _('Welcome to %(site_name)s!', site_name=site.name) }}
+
+{{ _('Hi %(username)s, thanks for signing up. There is only one step left: confirm your email address to activate your account.', username=user.get_username()) }}
+
+{{ _('Activate my account') }}:
+{{ link }}
+
+{% trans trimmed count=expiration_days %}
+This link expires in {{ count }} day.
 {% pluralize %}
-Please activate your {{ site_name }} account in the next {{ count }} days.
+This link expires in {{ count }} days.
 {% endtrans %}
 
 
-{{ _('Please click on the following link to activate your account:') }}
-    {{ request.scheme }}://{{ site.domain }}/accounts/activate/{{ activation_key }}/
+{{ _('If you did not create this account, you can ignore this email.') }}
 
-{{ _('Alternatively, you can reply to this message to activate your account. Your reply must keep the following text intact for this to work:') }}
-
-{{ activation_key }}
+--
+{{ _('This is an automatic message from %(site_name)s.', site_name=site.name) }}
+{% if SITE_ADMIN_EMAIL is defined and SITE_ADMIN_EMAIL %}{{ _('Questions? Write to us at %(email)s.', email=SITE_ADMIN_EMAIL) }}
+{% endif %}{{ request.scheme }}://{{ site.domain }}
+{%- endautoescape %}

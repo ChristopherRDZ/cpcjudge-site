@@ -1,0 +1,40 @@
+{#- Piezas de los correos: botón, enlace de respaldo y recuadros. Ver email_base.html. -#}
+
+{% macro paragraph() -%}
+<p style="margin:0 0 16px;">{{ caller() }}</p>
+{%- endmacro %}
+
+{% macro button(url, label) -%}
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 20px;">
+<tr>
+<td align="center" bgcolor="#1958c1" style="background-color:#1958c1;border-radius:3px;">
+<a href="{{ url }}" target="_blank" style="display:inline-block;padding:12px 24px;font-family:'Segoe UI','Lucida Grande',Arial,sans-serif;font-size:15px;font-weight:bold;line-height:1.2;color:#ffffff;text-decoration:none;border-radius:3px;">{{ label }}</a>
+</td>
+</tr>
+</table>
+{%- endmacro %}
+
+{% macro fallback(url) -%}
+<p style="margin:0 0 20px;font-size:13px;line-height:1.5;color:#666666;">{{ _("If the button doesn't work, copy this link into your browser:") }}<br>
+<a href="{{ url }}" style="color:#1958c1;word-break:break-all;">{{ url }}</a></p>
+{%- endmacro %}
+
+{% macro note() -%}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px;">
+<tr>
+<td style="background-color:#f8f8f8;border:1px solid #cccccc;border-radius:3px;padding:12px 14px;font-family:'Segoe UI','Lucida Grande',Arial,sans-serif;font-size:14px;line-height:1.5;color:#444444;">{{ caller() }}</td>
+</tr>
+</table>
+{%- endmacro %}
+
+{% macro alert() -%}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px;">
+<tr>
+<td style="background-color:#ffffff;border:1px solid #cccccc;border-left:4px solid #d52020;border-radius:3px;padding:12px 14px;font-family:'Segoe UI','Lucida Grande',Arial,sans-serif;font-size:14px;line-height:1.5;color:#333333;font-weight:bold;">{{ caller() }}</td>
+</tr>
+</table>
+{%- endmacro %}
+
+{% macro small() -%}
+<p style="margin:0 0 16px;font-size:13px;line-height:1.5;color:#666666;">{{ caller() }}</p>
+{%- endmacro %}
