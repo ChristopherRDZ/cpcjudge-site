@@ -16,6 +16,41 @@ listen [::1]:8082;
 Changing a `listen` directive needs a **restart**; a reload keeps the old socket
 and does not report an error.
 
+## Visitor address
+
+With a tunnel or proxy on the same host, every request reaches Nginx from loopback.
+Unless Nginx is told otherwise, Django receives `127.0.0.1` as `REMOTE_ADDR` for
+every visitor: each per-IP limit (password reset and email change requests, for
+example) becomes one counter for the whole site, and the IP stored on each profile
+is meaningless. Take the address from the header your edge sets, and trust it only
+from loopback:
+
+```nginx
+set_real_ip_from 127.0.0.1;
+set_real_ip_from ::1;
+real_ip_header CF-Connecting-IP;
+```
+
+`CF-Connecting-IP` is Cloudflare's header; other proxies use `X-Real-IP` or
+`X-Forwarded-For` (the latter with `real_ip_recursive on` and the proxies' own
+addresses in `set_real_ip_from`). The directives come from
+`ngx_http_realip_module`, built into the usual distribution packages
+(`nginx -V` lists `--with-http_realip_module`).
+
+Only loopback is trusted, so nobody outside the machine can choose the address
+Django sees. A process on the machine itself can still set the header; without
+these directives it already shared one address with every visitor, so nothing new
+opens. Requests that arrive without the header, such as local probes, keep
+`127.0.0.1`. Nginx's access log records the real addresses too.
+
+To check it, send a request from outside and look at the first field of the
+access log, or from the machine itself:
+
+```sh
+curl -s -o /dev/null -H 'Host: judge.example.org' -H 'CF-Connecting-IP: 192.0.2.10' http://127.0.0.1:8082/robots.txt
+journalctl -t dmoj_nginx -n 1 -o cat    # starts with 192.0.2.10
+```
+
 ## Headers
 
 ```nginx

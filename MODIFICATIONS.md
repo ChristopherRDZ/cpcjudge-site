@@ -1,12 +1,14 @@
 # CPC-UAEH modifications to DMOJ
 
-As of 2026-10-01, this source includes a stable phone layout, interactive
-problems configured from the problem data page, team support and team contests,
-an owner account that restricts deletion in the administration interface, a dark
-theme available to every account, test cases filled in from a problem data
-archive,
-frozen scoreboards, a reveal ceremony, balloon operations, contest announcements
-and clarifications, self-refreshing rankings, resilient live updates, custom-test
+As of 2026-10-14, this source includes per-recipient and daily email limits, the
+visitor's real address behind a tunnel, redesigned account emails and icons,
+removal of contest problems by contest authors, a readable permission selector
+in the admin, a stable phone layout, interactive problems configured from the
+problem data page, team support and team contests, an owner account that
+restricts deletion in the administration interface, a dark theme available to
+every account, test cases filled in from a problem data archive, frozen
+scoreboards, a reveal ceremony, balloon operations, contest announcements and
+clarifications, self-refreshing rankings, resilient live updates, custom-test
 admission controls, a pre-upload check for problem data and the Django 5.2.17
 upgrade.
 Timezone, storage/dependency and contest administration adaptations are
@@ -31,6 +33,63 @@ GNU Affero General Public License version 3.
 - Authentication using either a username or an email address.
 - A signed-in custom code testing workflow and its judge bridge support.
 - Minor registration and presentation adjustments.
+
+## Email limits and the visitor's address — 2026-10-14
+
+- Password reset sends at most `DMOJ_PASSWORD_RESET_DAILY_LIMIT` emails (2) to one
+  address in 24 hours, counted per address whether or not an account uses it, so the
+  answer does not reveal who is registered. Email change accepts
+  `DMOJ_EMAIL_CHANGE_DAILY_LIMIT` requests (1) per account in 24 hours.
+- Every email the site sends is counted per UTC day against
+  `DMOJ_EMAIL_DAILY_LIMIT` (90). Registrations and error reports leave
+  `DMOJ_EMAIL_DAILY_RESERVE` (20) of it to existing accounts. Error reports to
+  `ADMINS` are also capped at `DMOJ_EMAIL_ERROR_DAILY_LIMIT` (10) a day.
+- Registration sends the activation email inside the transaction that creates the
+  account. Upstream sent it after committing, so a failed send left an inactive
+  account with no email whose address could not register again. Now nothing is
+  created and the page says so.
+- A failed password reset email stays hidden, as Django does, but no longer counts
+  against the user; a failed email change is reported.
+- The new limits answer with a translated page and HTTP 429, or 503 when sending
+  failed.
+- The example Nginx configuration takes the visitor's address from the edge's header,
+  trusted only from loopback. Behind a tunnel, Django otherwise saw one address for
+  every visitor, which made DMOJ's per-IP limits a single site-wide counter.
+- No migration. Tests in `tests/email_limits`; operator documentation in
+  [docs/security/email.md](docs/security/email.md) and
+  [docs/security/nginx.md](docs/security/nginx.md#visitor-address).
+
+## Account emails and icons — 2026-10-08
+
+- Activation, password reset and the two email change messages share one template
+  (`templates/registration/email_base.html` and `email_macros.html`): tables and
+  inline styles that Gmail, Outlook and phone apps respect, the site logo at three
+  times its displayed size, a button with the plain link below it, notes and
+  warnings in boxes, a preview text and a contact line with `SITE_ADMIN_EMAIL`.
+- The previous password reset and email change messages referenced an icon the
+  site does not have, and the activation message offered to activate the account
+  by replying to it, which this site does not support.
+- The plain-text versions no longer show HTML entities: translated strings come out
+  of `_()` already escaped, so the English source strings avoid apostrophes.
+- A multi-size `favicon.ico` (16 to 256 px), the site's artwork instead of DMOJ's in
+  the wide Windows tile and in `logo.png` (browser notifications), and the site's
+  name in `manifest.json`.
+- Spanish texts revised. No migration; the templates are outside the compressed
+  blocks.
+
+## Administration — 2026-10-07
+
+- Contest authors can remove a problem from a contest they edit.
+  `ContestProblemInline` declares `owner_lock_exempt = True`, which the owner-only
+  deletion lock honours only on inlines and only when declared on the class itself,
+  not inherited, and its delete permission is its change permission. Removing a
+  problem deletes its submissions' link to the contest, its contest clarifications
+  and its balloons; the problem and the submissions stay. Everything else stays
+  locked, including deleting the contest itself.
+- The two-list permission selector of the admin theme cut most permission names
+  short. It now uses the full width and stacks both lists when they would be too
+  narrow (`templates/admin/base_site.html`).
+- No migration. Tests in `tests/contest_features/test_contest_problem_removal.py`.
 
 ## Phone layout — 2026-10-01
 

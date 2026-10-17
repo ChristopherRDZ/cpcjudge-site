@@ -76,6 +76,29 @@ IMPERSONATE = {
 # 1000 caps the form at about 70 rows; 10240 allows about 730.
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 10240
 
+# Outgoing email. Use explicit sender addresses on your own domain: with many
+# providers the SMTP user is not an address, and copying it into the sender makes
+# every send fail.
+EMAIL_HOST = 'smtp.example.org'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.environ.get('DMOJ_EMAIL_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('DMOJ_EMAIL_PASSWORD', '')
+EMAIL_TIMEOUT = 20
+DEFAULT_FROM_EMAIL = 'Example Judge <judge@example.org>'
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
+
+# Email limits; see docs/security/email.md. Keep the daily limit below your
+# provider's daily quota, or use it as a spending cap.
+DMOJ_EMAIL_DAILY_LIMIT = 90
+DMOJ_EMAIL_DAILY_RESERVE = 20
+DMOJ_PASSWORD_RESET_DAILY_LIMIT = 2
+DMOJ_EMAIL_CHANGE_DAILY_LIMIT = 1
+DMOJ_EMAIL_ERROR_DAILY_LIMIT = 10
+# Per-IP request limits DMOJ already had (per window of minutes). A whole school
+# network shares one address; raise the count if many people may reset at once.
+DMOJ_PASSWORD_RESET_LIMIT_COUNT = 10
+
 # Custom-test ceilings per user. Zero or less disables one.
 CPC_CUSTOM_TEST_MAX_IN_FLIGHT = 2
 CPC_CUSTOM_TEST_MAX_PER_MINUTE = 12

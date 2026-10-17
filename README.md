@@ -56,6 +56,10 @@ settings and how to upgrade an existing installation. The
   announcements.
 - **Upload check:** Nginx asks the application whether a caller may upload
   problem data before accepting a large request body.
+- **Email limits:** two password reset emails per address and one email change
+  per account in 24 hours, a daily cap for the whole site with a reserve for
+  existing accounts, and no account is created if its activation email cannot be
+  sent.
 
 ### Deployment controls
 
@@ -66,6 +70,7 @@ The [deployment examples](deploy/examples/README.md) and
 - authenticated Redis and private service listeners;
 - secure session and CSRF cookies, edge HSTS, a structural Content Security
   Policy and referrer policy;
+- the visitor's real address behind a tunnel, so per-IP limits count each visitor;
 - request-size limits, a permission check before large uploads, on-disk request
   buffering, disabled directory listings and a private event-publishing endpoint;
 - protected configuration and backups, and scheduled cleanup of finished custom
@@ -156,6 +161,12 @@ Pages load on phones at a stable 480 px layout scaled to fit, without the
 zooming in and out that upstream shows at some screen widths. Wide editor tables,
 such as the test case table, scroll inside their own box.
 
+### Account emails
+
+Activation, password reset and email change messages share one design that reads
+well in Gmail, Outlook and phone apps: the site logo, a button with a plain link
+below it, and a contact line.
+
 ### Custom tests
 
 Try code with your own input in a spacious editor, with translated status
@@ -195,6 +206,11 @@ privileges. Permanent team and contest deletion requires a confirmation that
 lists the affected records; submission records are preserved.
 
 ![Owner-only deletion confirmation listing affected records](docs/screenshots/admin-owner-lock.png)
+
+Contest authors can remove a problem from a contest they edit. The problem and
+its submissions stay; only their link to the contest goes. This is the only
+exception to the owner-only deletion lock. The two-list permission selector shows
+full permission names at any screen width.
 
 ## Installation and documentation
 

@@ -18,7 +18,7 @@ They all assume the layout used in [the setup guide](../../docs/setup-guide.md):
 
 | File | Purpose |
 | --- | --- |
-| [`nginx.conf`](nginx.conf) | Front end: body limits, the upload check, static files, events |
+| [`nginx.conf`](nginx.conf) | Front end: the visitor's address, body limits, the upload check, static files, events |
 | [`uwsgi.ini`](uwsgi.ini) | Application socket and request timeout |
 | [`runtime-hardening.settings.py`](runtime-hardening.settings.py) | Offline compression, custom-test limits, error logging |
 | [`judge.example.yml`](judge.example.yml) | Judge configuration skeleton |

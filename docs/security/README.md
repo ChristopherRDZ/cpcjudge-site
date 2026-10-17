@@ -5,13 +5,14 @@ up on each server; the [examples](../../deploy/examples/README.md) show one way.
 
 | Guide | What it covers |
 | --- | --- |
-| [Nginx](nginx.md) | private origin, headers, body limits, the upload check, static files, the event daemon |
+| [Nginx](nginx.md) | private origin, the visitor's address, headers, body limits, the upload check, static files, the event daemon |
 | [HTTPS](https.md) | secure cookies, HSTS, how the HTTPS scheme reaches Django |
 | [Redis](redis.md) | password-protected Redis for sessions, cache and Celery |
 | [Service isolation](service-isolation.md) | one account per service, systemd restrictions, judges, WSL |
 | [Private files and backups](private-files-and-backups.md) | settings, permissions, backups |
 | [Offline compression](offline-compression.md) | read-only static files and when to rebuild |
 | [Custom tests](custom-tests.md) | ownership, per-user limits, cleanup |
+| [Email](email.md) | per-recipient and daily limits, failed sends, sender addresses |
 | [Custom test privacy](custom-test-privacy.md) | what custom tests are hidden from |
 | [Owner accounts](../setup-guide.md#6-the-owner-account) | who can delete from the admin, impersonation |
 
@@ -23,6 +24,8 @@ up on each server; the [examples](../../deploy/examples/README.md) show one way.
   lock stops accidental deletions by other administrators; it does not protect
   against an administrator acting in bad faith.
 - The custom-test in-flight limit is not atomic under simultaneous requests.
+- The email limits are fixed windows in the cache: two simultaneous requests can
+  both take the last free slot, and clearing the cache resets them.
 - Email addresses are not unique in the database. Registration and the email
   change form check them, but the admin does not. Login by email tries the
   password against each account with that address (up to five).

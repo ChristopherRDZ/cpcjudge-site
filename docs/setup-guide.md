@@ -61,6 +61,11 @@ Also set `SITE_NAME`, `SITE_LONG_NAME` and `SITE_ADMIN_EMAIL`, and review the te
 settings at the end of the example (`CPC_TEAMS_ENABLED` pauses new teams and team
 registrations without touching existing ones).
 
+For email, point the `EMAIL_*` settings at your provider and give
+`DEFAULT_FROM_EMAIL` and `SERVER_EMAIL` explicit addresses on your own domain. Set
+`DMOJ_EMAIL_DAILY_LIMIT` below the provider's daily quota; the other email limits
+have workable defaults. See [Email](security/email.md).
+
 Never commit `dmoj/local_settings.py`. It is already in `.gitignore`.
 
 ## 3. Database
@@ -169,6 +174,10 @@ point. These details are deliberate and easy to lose:
   test needs.
 - **`location /static/` with the trailing slash.** Without it, `/static../X`
   serves any file of the checkout.
+- **The visitor's address from the edge** (`set_real_ip_from` loopback and
+  `real_ip_header`). Behind a tunnel every request comes from loopback; without
+  it Django sees one address for everybody and each per-IP limit becomes a single
+  counter for the whole site.
 
 If a CDN sits in front of the site, its own upload limit also applies:
 Cloudflare's Free and Pro plans refuse requests over 100 MB.
@@ -218,7 +227,8 @@ The fork ships with the CPC-UAEH name and artwork. To use your own:
 | Logo on the error page and in the README | `logo.png` in the repository root |
 | Footer text | the `Hecho por CPC-UAEH.` line in `templates/base.html` |
 | Link preview description | the `og:description` default in `templates/base.html` |
-| Welcome text of the activation email | `templates/registration/activation_email.html` |
+| Email design: colors, header logo, button and footer | `templates/registration/email_base.html` and `email_macros.html`; the logo is `resources/icons/logo-correo.png` |
+| Email texts | the activation, password reset and email change templates in `templates/registration/` |
 | Home page text | a blog post or flat page created from the admin |
 
 The footer and email texts are translatable strings. If you change them, add the
@@ -249,6 +259,9 @@ Start the services and verify these workflows:
 9. On a phone, or in a browser's device emulation, open a long problem and
    scroll. The page must load at the 480 px layout scaled to fit, with the
    footer on one line, and stay that way.
+10. Request a password reset for your own account: the email arrives from your
+    domain and its button points to your site. Request it twice more for the same
+    address: the third answer is the limit message.
 
 ---
 
@@ -290,6 +303,16 @@ errors on the temporary directories.
 for `auth request unexpected status` in the Nginx journal: the internal
 `/internal/problem-data-upload-gate` location is missing `client_max_body_size 0`,
 or the application does not have that URL.
+
+**Password reset emails never arrive, although the page says they were sent.**
+Django hides a failed reset email so the page does not reveal which addresses
+have accounts. Look for `Failed to send password reset` in the web service
+journal, and check the provider's credentials, sending domain and credit.
+
+**Registration says the account was not created.** The activation email could
+not be sent, or the site reached `DMOJ_EMAIL_DAILY_LIMIT` for the day. Nothing is
+left half-created: the same address can register again once mail works. See
+[Email](security/email.md).
 
 **Local test POSTs fail the CSRF check but browsers work.** Direct requests to the
 origin lack the `X-Forwarded-Proto: https` header that the tunnel adds. See

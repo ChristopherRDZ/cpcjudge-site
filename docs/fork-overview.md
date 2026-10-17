@@ -14,6 +14,7 @@ presents them, with the date each one was added.
 | Self-refreshing rankings | Polls only while the tab is visible, backs off, stops after the contest. 2026-09-15 |
 | Resilient live updates | Heartbeat in the event daemon, exponential backoff in the browser, long-polling fallback. 2026-09-15 |
 | Contest cloning | A clone keeps the freeze settings but starts unrevealed. 2026-09-21 |
+| Removing contest problems | Contest authors can remove a problem from a contest they edit; the problem and its submissions stay. The only exemption from the owner-only deletion lock. 2026-10-07 |
 
 ## Teams
 
@@ -38,6 +39,9 @@ presents them, with the date each one was added.
 | Admin bulk selection | The bottom action bar of admin lists works again with Django 5.2 and stays in sync with the top one. 2026-09-20 |
 | Phone layout | Phones get the 480 px layout from the first paint. Upstream switched only on `resize` and, at about one width in five, kept flipping between layouts. 2026-10-01 |
 | Phone overflow fixes | MathJax formulas no longer make pages pan sideways, the contest timer keeps its clock inside the box, and the problem data page fits with its case table scrolling on its own. 2026-10-01 |
+| Readable permission selector | The admin's two-list selector shows full permission names at any width. 2026-10-07 |
+| Account emails | One design for activation, password reset and email change, readable in Gmail, Outlook and phone apps. 2026-10-08 |
+| Site icons | A multi-size favicon, and the site's own artwork in the Windows tile and browser notifications. 2026-10-08 |
 | Spanish interface | Spanish translations for every screen the fork adds. |
 
 ## Accounts
@@ -46,6 +50,8 @@ presents them, with the date each one was added.
 | --- | --- |
 | Registration fields | First and last name are required when registering. |
 | Login by email | Sign in with the username or the email address; if several accounts share an address, the password decides which one. |
+| Email limits | Two password reset emails per address and one email change per account in 24 hours, and a daily cap per UTC day with a reserve for existing accounts. 2026-10-14 |
+| No stuck sign-ups | The activation email is sent inside the registration transaction; if it fails, no account is created and the address can register again. 2026-10-14 |
 
 ## Security
 
@@ -61,6 +67,8 @@ presents them, with the date each one was added.
 | Upload check before buffering | Nginx asks the application whether the caller may upload problem data before reading the body. 2026-09-21 |
 | Service isolation | One unprivileged account per service with systemd namespace restrictions. 2026-09-10 |
 | Transport and origin | Redis authentication, loopback-only listeners, HSTS, structural CSP, referrer policy, secure cookies. 2026-09-11 |
+| Visitor address behind a tunnel | Nginx takes the edge's header, from loopback only, so per-IP limits count each visitor. 2026-10-14 |
+| Error report cap | Error emails to `ADMINS` are capped per day and never use the reserve that existing accounts need. 2026-10-14 |
 
 ## Operations
 
