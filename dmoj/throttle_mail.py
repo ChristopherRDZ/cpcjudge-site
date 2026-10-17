@@ -26,4 +26,11 @@ class ThrottledEmailHandler(AdminEmailHandler):
         else:
             if count >= self.throttle:
                 return
+        try:
+            # Imported here: logging is configured before the apps are ready.
+            from judge.utils.mail import error_email_allowed
+            if settings.ADMINS and not error_email_allowed(len(settings.ADMINS)):
+                return
+        except Exception:
+            traceback.print_exc()
         AdminEmailHandler.emit(self, record)

@@ -1,8 +1,12 @@
 # coding=utf-8
+import logging
+
 from django import forms
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import get_default_password_validators
+from django.contrib.sites.shortcuts import get_current_site
+from django.db import transaction
 from django.forms import ChoiceField, ModelChoiceField
 from django.shortcuts import render
 from django.utils.translation import gettext, gettext_lazy as _, ngettext
@@ -12,10 +16,13 @@ from registration.forms import RegistrationForm
 from sortedm2m.forms import SortedMultipleChoiceField
 
 from judge.models import Language, Organization, Profile, TIMEZONE
-from judge.utils.mail import validate_email_domain
+from judge.utils.mail import SEND_ERRORS, email_budget_available, spend_email_budget, validate_email_domain
 from judge.utils.recaptcha import ReCaptchaField, ReCaptchaWidget
 from judge.utils.subscription import Subscription, newsletter_id
+from judge.utils.views import generic_message
 from judge.widgets import Select2MultipleWidget, Select2Widget
+
+logger = logging.getLogger('judge.mail')
 
 
 class CustomRegistrationForm(RegistrationForm):
@@ -55,10 +62,30 @@ class CustomRegistrationForm(RegistrationForm):
         return self.cleaned_data['organizations']
 
 
+class ActivationEmailNotSent(Exception):
+    pass
+
+
 class RegistrationView(OldRegistrationView):
     title = _('Register')
     form_class = CustomRegistrationForm
     template_name = 'registration/registration_form.html'
+    # register() sends the activation email itself, inside the transaction that creates the account: if
+    # it cannot be sent, the account is not created and the address can be used to register again.
+    SEND_ACTIVATION_EMAIL = False
+
+    def form_valid(self, form):
+        if not email_budget_available(reserve=settings.DMOJ_EMAIL_DAILY_RESERVE):
+            return self.activation_email_not_sent(status=429)
+        try:
+            return super(RegistrationView, self).form_valid(form)
+        except ActivationEmailNotSent:
+            return self.activation_email_not_sent(status=503)
+
+    def activation_email_not_sent(self, status):
+        return generic_message(self.request, gettext('Account not created'),
+                               gettext('We could not send the activation email, so your account was not created. '
+                                       'Please try again later.'), status=status)
 
     def get_context_data(self, **kwargs):
         if 'title' not in kwargs:
@@ -69,26 +96,35 @@ class RegistrationView(OldRegistrationView):
         return super(RegistrationView, self).get_context_data(**kwargs)
 
     def register(self, form):
-        user = super(RegistrationView, self).register(form)
+        with transaction.atomic():
+            user = super(RegistrationView, self).register(form)
 
-        # Aqui asignamos first_name y last_name del formulario al usuario
-        cleaned_data = form.cleaned_data
-        user.first_name = cleaned_data['first_name']
-        user.last_name = cleaned_data['last_name']
-        user.save()  # con esto se guardan
+            # Aqui asignamos first_name y last_name del formulario al usuario
+            cleaned_data = form.cleaned_data
+            user.first_name = cleaned_data['first_name']
+            user.last_name = cleaned_data['last_name']
+            user.save()  # con esto se guardan
 
-        profile, _ = Profile.objects.get_or_create(user=user, defaults={
-            'language': Language.get_default_language(),
-        })
+            profile, _ = Profile.objects.get_or_create(user=user, defaults={
+                'language': Language.get_default_language(),
+            })
 
-        profile.timezone = cleaned_data['timezone']
-        profile.language = cleaned_data['language']
-        profile.organizations.add(*cleaned_data['organizations'])
-        profile.save()
+            profile.timezone = cleaned_data['timezone']
+            profile.language = cleaned_data['language']
+            profile.organizations.add(*cleaned_data['organizations'])
+            profile.save()
 
-        if newsletter_id is not None and cleaned_data.get('newsletter'):
-            Subscription(user=user, newsletter_id=newsletter_id, subscribed=True).save()
+            if newsletter_id is not None and cleaned_data.get('newsletter'):
+                Subscription(user=user, newsletter_id=newsletter_id, subscribed=True).save()
 
+            try:
+                registration = self.registration_profile.objects.get(user=user)
+                registration.send_activation_email(get_current_site(self.request), self.request)
+            except SEND_ERRORS as error:
+                logger.exception('Activation email could not be sent; the account was not created')
+                raise ActivationEmailNotSent from error
+
+        spend_email_budget()
         return user
 
     def get_initial(self, *args, **kwargs):

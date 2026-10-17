@@ -8118,3 +8118,27 @@ msgstr "Si no fuiste tú, cambia tu contraseña de inmediato y responde a este c
 
 msgid "Change my password"
 msgstr "Cambiar mi contraseña"
+
+#: judge/topes-de-correo
+msgid "The site has reached its email limit for today. Please try again later."
+msgstr "El sitio llegó a su límite de correos por hoy. Inténtalo de nuevo más tarde."
+
+#: judge/topes-de-correo
+msgid "We could not send the email right now. Please try again later."
+msgstr "No pudimos enviar el correo en este momento. Inténtalo de nuevo más tarde."
+
+#: judge/topes-de-correo
+msgid "We have already sent the maximum number of password reset emails to this address in the last 24 hours. Check your inbox and spam folder, or try again later."
+msgstr "Ya enviamos a esta dirección el máximo de correos para restablecer la contraseña en las últimas 24 horas. Revisa tu bandeja de entrada y la carpeta de spam, o inténtalo más tarde."
+
+#: judge/topes-de-correo
+msgid "You already requested an email change in the last 24 hours. Check the inbox of the new address, including the spam folder, or try again later."
+msgstr "Ya pediste un cambio de correo en las últimas 24 horas. Revisa la bandeja de entrada de la dirección nueva, incluida la carpeta de spam, o inténtalo más tarde."
+
+#: judge/topes-de-correo
+msgid "Account not created"
+msgstr "No se creó la cuenta"
+
+#: judge/topes-de-correo
+msgid "We could not send the activation email, so your account was not created. Please try again later."
+msgstr "No pudimos enviar el correo de activación, así que tu cuenta no se creó. Inténtalo de nuevo más tarde."

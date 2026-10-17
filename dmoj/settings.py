@@ -117,6 +117,19 @@ DMOJ_EMAIL_CHANGE_LIMIT_COUNT = 10
 # Number of minutes before an email change request activation key expires
 DMOJ_EMAIL_CHANGE_EXPIRY_MINUTES = 60
 
+# Emails the site may send per UTC day, which is when providers reset their quotas. Keep it below the
+# provider's daily limit: once it is reached, registration, password reset and email change refuse with
+# a message instead of failing half-way. See judge/utils/mail.py.
+DMOJ_EMAIL_DAILY_LIMIT = 90
+# Part of the daily limit that registrations and error reports may not use, so existing users can
+# still reset their password on a day of many sign-ups.
+DMOJ_EMAIL_DAILY_RESERVE = 20
+# Password reset emails to the same address, and email change requests from the same user, in 24 hours
+DMOJ_PASSWORD_RESET_DAILY_LIMIT = 2
+DMOJ_EMAIL_CHANGE_DAILY_LIMIT = 1
+# Error report emails to ADMINS per UTC day, on top of DMOJ_EMAIL_THROTTLING
+DMOJ_EMAIL_ERROR_DAILY_LIMIT = 10
+
 # At the bare minimum, dark and light theme CSS file locations must be declared
 DMOJ_THEME_CSS = {
     'light': 'style.css',

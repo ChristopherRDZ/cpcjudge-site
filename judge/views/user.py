@@ -2,6 +2,7 @@ import base64
 import binascii
 import itertools
 import json
+import logging
 import os
 from datetime import datetime, timezone as datetime_timezone
 from operator import attrgetter, itemgetter
@@ -9,6 +10,7 @@ from operator import attrgetter, itemgetter
 from django.conf import settings
 from django.contrib.auth import logout as auth_logout
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import PasswordResetForm
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.models import Permission, User
 from django.contrib.auth.views import LoginView, PasswordChangeView, PasswordResetView, redirect_to_login
@@ -38,7 +40,8 @@ from judge.ratings import rating_class, rating_progress
 from judge.tasks import prepare_user_data
 from judge.utils.celery import task_status_by_id, task_status_url_by_id
 from judge.utils.infinite_paginator import InfinitePaginationMixin
-from judge.utils.mail import send_mail
+from judge.utils.mail import (SEND_ERRORS, claim_email_attempt, email_budget_available, release_email_attempt,
+                              send_mail, spend_email_budget)
 from judge.utils.problems import contest_completed_ids, user_completed_ids
 from judge.utils.pwned import PwnedPasswordsValidator
 from judge.utils.ranker import ranker
@@ -49,6 +52,8 @@ from .contests import ContestRanking
 
 __all__ = ['UserPage', 'UserAboutPage', 'UserProblemsPage', 'UserDownloadData', 'UserPrepareData',
            'users', 'edit_profile']
+
+logger = logging.getLogger('judge.mail')
 
 
 def remap_keys(iterable, mapping):
@@ -502,11 +507,53 @@ class UserLogoutView(TitleMixin, TemplateView):
 MINUTES_TO_SECONDS = 60
 
 
+def email_limit_reached(request, title):
+    return generic_message(request, title,
+                           _('The site has reached its email limit for today. Please try again later.'), status=429)
+
+
+def email_not_sent(request, title):
+    return generic_message(request, title,
+                           _('We could not send the email right now. Please try again later.'), status=503)
+
+
+class BudgetedPasswordResetForm(PasswordResetForm):
+    failed = False
+
+    def send_mail(self, subject_template_name, email_template_name, context, from_email, to_email,
+                  html_email_template_name=None):
+        try:
+            send_mail(context, from_email=from_email, to_email=to_email, subject_template_name=subject_template_name,
+                      email_template_name=email_template_name, html_email_template_name=html_email_template_name)
+        except Exception:
+            # Logged and swallowed, as Django does, so the page never tells whether the address has an account.
+            self.failed = True
+            logger.exception('Failed to send password reset email to %s', context['user'].pk)
+        else:
+            spend_email_budget()
+
+
 class CustomPasswordResetView(PasswordResetView):
     template_name = 'registration/password_reset.html'
     html_email_template_name = 'registration/password_reset_email.html'
     email_template_name = 'registration/password_reset_email.txt'
     extra_email_context = {'site_admin_email': settings.SITE_ADMIN_EMAIL}
+    form_class = BudgetedPasswordResetForm
+
+    def form_valid(self, form):
+        # Counted per address whether or not an account uses it, so the answer reveals nothing.
+        email = form.cleaned_data['email']
+        title = _('Reset your password')
+        if not email_budget_available():
+            return email_limit_reached(self.request, title)
+        if not claim_email_attempt('pwreset', email, settings.DMOJ_PASSWORD_RESET_DAILY_LIMIT):
+            return generic_message(self.request, title, _(
+                'We have already sent the maximum number of password reset emails to this address in the last '
+                '24 hours. Check your inbox and spam folder, or try again later.'), status=429)
+        response = super().form_valid(form)
+        if form.failed:
+            release_email_attempt('pwreset', email)
+        return response
 
     def post(self, request, *args, **kwargs):
         key = f'pwreset!{request.META["REMOTE_ADDR"]}'
@@ -530,6 +577,15 @@ class EmailChangeRequestView(LoginRequiredMixin, TitleMixin, FormView):
     notify_subject_template_name = 'registration/email_change_notify_subject.txt'
 
     def form_valid(self, form):
+        title = _('Change your email')
+        if not email_budget_available(2):
+            return email_limit_reached(self.request, title)
+        requester = str(self.request.user.id)
+        if not claim_email_attempt('emailchange', requester, settings.DMOJ_EMAIL_CHANGE_DAILY_LIMIT):
+            return generic_message(self.request, title, _(
+                'You already requested an email change in the last 24 hours. Check the inbox of the new address, '
+                'including the spam folder, or try again later.'), status=429)
+
         signer = signing.TimestampSigner()
         new_email = form.cleaned_data['email']
         activation_key = base64.urlsafe_b64encode(signer.sign_object({
@@ -548,20 +604,31 @@ class EmailChangeRequestView(LoginRequiredMixin, TitleMixin, FormView):
             'activation_key': activation_key,
             'new_email': new_email,
         }
-        send_mail(
-            context,
-            to_email=self.request.user.email,
-            subject_template_name=self.notify_subject_template_name,
-            email_template_name=self.notify_email_template_name,
-            html_email_template_name=self.notify_html_email_template_name,
-        )
-        send_mail(
-            context,
-            to_email=new_email,
-            subject_template_name=self.activate_subject_template_name,
-            email_template_name=self.activate_email_template_name,
-            html_email_template_name=self.activate_html_email_template_name,
-        )
+        sent = 0
+        try:
+            send_mail(
+                context,
+                to_email=self.request.user.email,
+                subject_template_name=self.notify_subject_template_name,
+                email_template_name=self.notify_email_template_name,
+                html_email_template_name=self.notify_html_email_template_name,
+            )
+            sent += 1
+            send_mail(
+                context,
+                to_email=new_email,
+                subject_template_name=self.activate_subject_template_name,
+                email_template_name=self.activate_email_template_name,
+                html_email_template_name=self.activate_html_email_template_name,
+            )
+            sent += 1
+        except SEND_ERRORS:
+            logger.exception('Email change emails could not be sent')
+            release_email_attempt('emailchange', requester)
+            return email_not_sent(self.request, title)
+        finally:
+            if sent:
+                spend_email_budget(sent)
 
         return generic_message(
             self.request,
