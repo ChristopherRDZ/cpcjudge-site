@@ -1,7 +1,7 @@
 # Setting up this fork
 
-This guide configures the fork's contest tools, team support and deployment
-controls on top of a working DMOJ installation.
+This guide configures the fork's contest tools, team support, duels and
+deployment controls on top of a working DMOJ installation.
 
 First follow the [upstream installation instructions](https://docs.dmoj.ca/) and
 verify login, problem creation and submission judging before continuing.
@@ -59,7 +59,9 @@ CPC_CUSTOM_TEST_MAX_PER_HOUR = 200
 
 Also set `SITE_NAME`, `SITE_LONG_NAME` and `SITE_ADMIN_EMAIL`, and review the team
 settings at the end of the example (`CPC_TEAMS_ENABLED` pauses new teams and team
-registrations without touching existing ones).
+registrations without touching existing ones). The `CPC_ARENA_*` limits for
+[duels](duels.md) after them have workable defaults. Problem and contest PDFs stay
+off until you set the two `DMOJ_PDF_*` settings; see [PDFs](pdf.md).
 
 For email, point the `EMAIL_*` settings at your provider and give
 `DEFAULT_FROM_EMAIL` and `SERVER_EMAIL` explicit addresses on your own domain. Set
@@ -74,9 +76,9 @@ Never commit `dmoj/local_settings.py`. It is already in `.gitignore`.
 /srv/dmoj/venv/bin/python manage.py migrate
 ```
 
-This fork adds migrations `0150` through `0156`: announcements, clarifications,
-scoreboard freeze, balloons, teams and interactive problems. Keep the database backup from step 1
-before applying them to an existing installation.
+This fork adds migrations `0150` through `0157`: announcements, clarifications,
+scoreboard freeze, balloons, teams, interactive problems and duels. Keep the
+database backup from step 1 before applying them to an existing installation.
 
 ## 4. Translations
 
@@ -98,6 +100,10 @@ Some message ids in the team and admin code are written in Spanish, because that
 is the language they were authored in. They therefore need an entry in **both**
 catalogs: an identity entry in `es` and a real translation in `en`. If you add
 strings, keep that pattern or English users will see Spanish text.
+
+Navigation bar labels are translated through the `dmoj-user` catalogs, and a
+label with no entry in the reader's language falls back to English. The duels
+label, `Duelos`, has an entry in both; give any label you add one in both too.
 
 ## 5. Styles and static files
 
@@ -154,6 +160,15 @@ restrictions.
 Judges connect to the bridge; see
 [`judge.example.yml`](../deploy/examples/judge.example.yml) and register each one
 in the admin to get its key.
+
+[Duels](duels.md) need no service of their own, but live code, the player lock
+and their request limits live in the cache, so with several web workers the cache
+must be shared (Redis). Give organizers the `manage_arena` permission and add the
+`Duelos` entry to the navigation bar, as the guide explains.
+
+PDFs of problems and contests need [pdfoid](pdf.md), an optional extra service with
+headless Chrome. There is an [example unit](../deploy/examples/systemd/dmoj-pdfoid.service)
+and a [patch](../deploy/examples/pdfoid/README.md) that pdfoid needs.
 
 ## 8. Front end
 
@@ -262,6 +277,16 @@ Start the services and verify these workflows:
 10. Request a password reset for your own account: the email arrives from your
     domain and its button points to your site. Request it twice more for the same
     address: the third answer is the limit message.
+11. In a problem statement, add a sample table (`||input`, `||output`, `||end`)
+    and a formula with `$...$`; the preview and the problem page show a table and
+    the formula. See [Sample tables and math](statements.md).
+12. As an organizer, open `/duelos/manage/`, create a quick battle between two
+    test accounts with a problem your judges have, call it, open a screen link in
+    another browser and start the game. Each player is kept on `/duelos/`, sees
+    the statement after the countdown and gets a verdict; the screen shows the
+    live code and the winner. `/arena/` must forward to `/duelos/`.
+13. With pdfoid configured, open `/problem/<code>/pdf` for a public problem, and
+    the contest PDF from the bottom of a contest page you organize.
 
 ---
 
@@ -313,6 +338,18 @@ journal, and check the provider's credentials, sending domain and credit.
 not be sent, or the site reached `DMOJ_EMAIL_DAILY_LIMIT` for the day. Nothing is
 left half-created: the same address can register again once mail works. See
 [Email](security/email.md).
+
+**The `Duelos` tab shows in English for Spanish readers.** The label has no entry
+in the Spanish `dmoj-user` catalog, or its `.mo` was not compiled. Add an identity
+entry and run `compilemessages`.
+
+**Live code or the player lock behave differently from one request to the next.**
+Each web worker has its own cache. Duels need a shared cache such as Redis.
+
+**The site does not start after enabling PDFs.** `DMOJ_PDF_PROBLEM_CACHE` points
+to a folder that does not exist; `dmoj/settings.py` checks it on every start.
+Create it (a `tmpfiles.d` line keeps it across reboots) and let the web service
+write to it.
 
 **Local test POSTs fail the CSRF check but browsers work.** Direct requests to the
 origin lack the `X-Forwarded-Proto: https` header that the tunnel adds. See

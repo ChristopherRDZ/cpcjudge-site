@@ -1,0 +1,52 @@
+# pdfoid prints statements as PDF with headless Chrome. See docs/pdf.md.
+#
+# Its own account, listening only on loopback, with no access to the site's code,
+# settings, problem data, media or the PDF cache (the web service writes the cache).
+# Chrome needs the network to fetch the site's stylesheet and MathJax. pdfoid makes
+# one PDF at a time and starts a browser for each one.
+[Unit]
+Description=DMOJ pdfoid (statement PDFs)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=dmoj-pdf
+Group=dmoj-pdf
+WorkingDirectory=/opt/dmoj-pdf
+ExecStart=/opt/dmoj-pdf/venv/bin/python -B -m pdfoid --address=127.0.0.1 --port=8887
+Environment=PYTHONPATH=/opt/dmoj-pdf/pdfoid PYTHONDONTWRITEBYTECODE=1
+Environment=CHROME_PATH=/opt/dmoj-pdf/chrome/chrome
+Environment=CHROMEDRIVER_PATH=/opt/dmoj-pdf/chromedriver/chromedriver
+# The PDF takes its title from the <title> of problem/raw.html: exiftool is not needed.
+Environment=EXIFTOOL_PATH=/bin/true
+# Seconds to load a page; needs the patch in deploy/examples/pdfoid.
+Environment=PDFOID_PAGE_LOAD_TIMEOUT=30
+Environment=HOME=/var/lib/dmoj-pdf SE_OFFLINE=true
+StateDirectory=dmoj-pdf
+StateDirectoryMode=0700
+Restart=on-failure
+RestartSec=5
+KillMode=control-group
+TimeoutStopSec=20
+UMask=0077
+
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+# Chrome uses netlink sockets.
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+InaccessiblePaths=/srv/dmoj -/var/cache/dmoj-pdf -/var/backups
+MemoryMax=1500M
+TasksMax=512
+
+[Install]
+WantedBy=multi-user.target

@@ -24,12 +24,14 @@ They all assume the layout used in [the setup guide](../../docs/setup-guide.md):
 | [`judge.example.yml`](judge.example.yml) | Judge configuration skeleton |
 | [`cleanup_custom_tests.py`](cleanup_custom_tests.py) | Scheduled custom-test cleanup |
 | [`systemd/`](systemd) | One unit per service, each under its own account |
+| [`pdfoid/`](pdfoid/README.md) | A patch for pdfoid, the optional PDF service |
 
 ## Accounts
 
 Each service runs as its own unprivileged user, so that a flaw in one of them
 does not reach the others: `dmoj-uwsgi`, `dmoj-celery`, `dmoj-bridge`,
-`dmoj-events`, `dmoj-proxy` and `dmoj-judge`. The units share the restrictions in
+`dmoj-events`, `dmoj-proxy` and `dmoj-judge`, plus `dmoj-pdf` if you run pdfoid
+for [PDFs](../../docs/pdf.md). The units share the restrictions in
 [`systemd/common-hardening.conf`](systemd/common-hardening.conf).
 
 Make `/srv/dmoj/problems` group-writable by the accounts that need it (for

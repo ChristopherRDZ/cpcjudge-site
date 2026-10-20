@@ -1,0 +1,47 @@
+--- a/pdfoid/backends/direct.py
++++ b/pdfoid/backends/direct.py
+@@ -3,7 +3,6 @@
+ import subprocess
+ import tempfile
+ import base64
+-from contextlib import closing
+ 
+ from tornado import gen
+ from tornado.process import Subprocess
+@@ -17,6 +16,9 @@
+ from selenium.webdriver.support import expected_conditions as EC
+ from selenium.webdriver.support.ui import WebDriverWait
+ 
++# CPC: seconds to load the page and its resources (the site's CSS, MathJax from its CDN).
++PAGE_LOAD_TIMEOUT = int(os.environ.get('PDFOID_PAGE_LOAD_TIMEOUT', '30'))
++
+ 
+ class DirectSeleniumBackend(object):
+     def __init__(self):
+@@ -86,8 +88,15 @@
+         options.binary_location = self.backend.chrome_path
+ 
+         browser = webdriver.Chrome(service=service, options=options)
+-        with closing(browser):
+-            browser.get('file://%s' % self.input_html_file)
++        # CPC: quit() instead of closing(browser), which only closed the window and left one chromedriver (and
++        # sometimes a Chrome) running per PDF. And a page load limit: Selenium waits 300 s by default, more than the
++        # 120 s after which uWSGI kills the worker that is waiting for this PDF.
++        browser.set_page_load_timeout(PAGE_LOAD_TIMEOUT)
++        try:
++            try:
++                browser.get('file://%s' % self.input_html_file)
++            except TimeoutException:
++                raise RuntimeError('PDF rendering timed out loading the page:\n%s' % self.get_log(browser))
+ 
+             if wait_for is not None:
+                 (wait_for_class, wait_for_duration_secs) = wait_for
+@@ -112,6 +121,8 @@
+ 
+             with open(self.output_pdf_file, 'wb') as f:
+                 f.write(base64.b64decode(response['data']))
++        finally:
++            browser.quit()
+ 
+     @gen.coroutine
+     def set_pdf_title_with_exiftool(self, title):

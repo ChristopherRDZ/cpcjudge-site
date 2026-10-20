@@ -10,12 +10,14 @@
   <a href="docs/fork-overview.md">Features</a> ·
   <a href="#django-52">Django 5.2</a> ·
   <a href="#security">Security</a> ·
+  <a href="docs/duels.md">Duels</a> ·
   <a href="docs/contest-tools.md">Contest guide</a> ·
   <a href="MODIFICATIONS.md">Changelog</a>
 </p>
 
 Run individual or team contests with frozen scoreboards, an interactive reveal
-ceremony, balloon delivery tools and a Spanish interface. This fork is maintained
+ceremony, balloon delivery tools and a Spanish interface, and 1v1 duels and
+knockout tournaments on a projector. This fork is maintained
 by **CPC-UAEH** and builds on [DMOJ](https://github.com/DMOJ/online-judge), with
 additional contest, administration and deployment features.
 
@@ -56,6 +58,8 @@ settings and how to upgrade an existing installation. The
   announcements.
 - **Upload check:** Nginx asks the application whether a caller may upload
   problem data before accepting a large request body.
+- **Live updates that stay up:** the event daemon answers malformed messages
+  with an error instead of ending the process.
 - **Email limits:** two password reset emails per address and one email change
   per account in 24 hours, a daily cap for the whole site with a reserve for
   existing accounts, and no account is created if its activation email cannot be
@@ -120,6 +124,29 @@ about a problem or the contest rules; the jury can answer privately or share an
 answer with everyone.
 
 ![Contest announcements and an answered clarification](docs/screenshots/announcements.png)
+
+### Every statement in one PDF
+
+Participants download all the statements of a contest in one PDF once it starts,
+to keep reading if the connection drops; organizers can prepare it beforehand.
+Problem PDFs no longer get stuck as empty files after a failed render. Both need
+[pdfoid](docs/pdf.md).
+
+## Duels
+
+First-to-solve battles between two players, alone or as best-of-N series, and
+knockout tournaments with a bracket that builds itself. Organizers call the
+players, pick the problems by hand or from a problem bank, and start each game
+from a panel. Players stay on the duel page and submit from it until the battle is
+decided; a projector shows both players' code live, the scoreboard, the
+statements and the bracket.
+
+![A player during a duel: statement, editor, custom input and submissions](docs/screenshots/duels-player.png)
+
+![A projector at the end of a game, with the winner](docs/screenshots/duels-projector.png)
+
+See the [duels guide](docs/duels.md) for the setup, the rules of a game and the
+known limitations.
 
 ## Teams
 
@@ -193,6 +220,15 @@ existing one also works now; upstream lost both files.
 
 ![Problem data page with a testlib interactor](docs/screenshots/interactive-problem.png)
 
+### Sample tables and math
+
+Write the samples of a statement as OmegaUp does, with `||input`, `||output`, an
+optional `||description` and `||end`, and they show as a compact table with a copy
+icon on each input. Inline formulas also accept `$...$`, with rules that keep
+prices as text. Statements written the usual way render exactly as before.
+
+![A statement with two sample tables](docs/screenshots/sample-table.png)
+
 ## Administration
 
 Manage teams, invitations, memberships and contest participation from the admin,
@@ -226,6 +262,9 @@ own branding.
 | [Django 5.2 upgrade](docs/django52/README.md) | Compatibility changes, tested dependencies and upgrade guidance |
 | [Contest tools](docs/contest-tools.md) | Freeze, reveal, balloons, announcements and clarifications |
 | [Interactive problems](docs/interactive-problems.md) | Interactors from the data page, judge requirements and verdicts |
+| [Duels](docs/duels.md) | Battles, tournaments, projectors, settings and limitations |
+| [Sample tables and math](docs/statements.md) | The `\|\|input` table and `$...$` in statements |
+| [PDFs](docs/pdf.md) | Problem and contest PDFs with pdfoid |
 | [Deployment examples](deploy/examples/README.md) | Example service units, Nginx settings and maintenance tasks |
 | [Security guides](docs/security/README.md) | How to configure each control, and known limitations |
 | [Screenshot gallery](docs/screenshots/README.md) | Full-size demonstration images |

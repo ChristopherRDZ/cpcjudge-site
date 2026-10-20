@@ -137,6 +137,13 @@ Django publishes events straight to the daemon's publishing port, which must sta
 on loopback. Do not proxy a public `/post_event/` route: anybody could publish
 messages to every connected browser.
 
+The public socket accepts only the two subscription commands browsers send. The
+daemon in this fork answers anything else with an error instead of crashing:
+upstream's let a two-byte message such as `{}` or `null`, a malformed frame or a
+broken long-polling URL end the process, and with it every live update.
+Incoming messages are capped at 64 KiB from browsers and 32 MiB from Django
+(`max_receive_payload` and `max_post_payload` in `websocket/config.js`).
+
 ## Applying changes
 
 Validate with `nginx -t`, then **reload**. A reload is gradual: old workers keep

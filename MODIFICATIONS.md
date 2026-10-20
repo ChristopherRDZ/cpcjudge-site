@@ -1,16 +1,18 @@
 # CPC-UAEH modifications to DMOJ
 
-As of 2026-10-14, this source includes per-recipient and daily email limits, the
-visitor's real address behind a tunnel, redesigned account emails and icons,
-removal of contest problems by contest authors, a readable permission selector
-in the admin, a stable phone layout, interactive problems configured from the
-problem data page, team support and team contests, an owner account that
-restricts deletion in the administration interface, a dark theme available to
-every account, test cases filled in from a problem data archive, frozen
-scoreboards, a reveal ceremony, balloon operations, contest announcements and
-clarifications, self-refreshing rankings, resilient live updates, custom-test
-admission controls, a pre-upload check for problem data and the Django 5.2.17
-upgrade.
+As of 2026-10-20, this source includes 1v1 duels and knockout tournaments,
+sample tables and `$...$` math in problem statements, reliable problem PDFs and
+one PDF with every statement of a contest, an event daemon that survives
+malformed messages, per-recipient and daily email limits, the visitor's real
+address behind a tunnel, redesigned account emails and icons, removal of contest
+problems by contest authors, a readable permission selector in the admin, a
+stable phone layout, interactive problems configured from the problem data page,
+team support and team contests, an owner account that restricts deletion in the
+administration interface, a dark theme available to every account, test cases
+filled in from a problem data archive, frozen scoreboards, a reveal ceremony,
+balloon operations, contest announcements and clarifications, self-refreshing
+rankings, resilient live updates, custom-test admission controls, a pre-upload
+check for problem data and the Django 5.2.17 upgrade.
 Timezone, storage/dependency and contest administration adaptations are
 documented in the [upgrade guide](docs/django52/README.md). A grouped list of
 every change is in the [fork overview](docs/fork-overview.md).
@@ -33,6 +35,71 @@ GNU Affero General Public License version 3.
 - Authentication using either a username or an email address.
 - A signed-in custom code testing workflow and its judge bridge support.
 - Minor registration and presentation adjustments.
+
+## Problem and contest PDFs — 2026-10-19
+
+- Problem PDFs are rendered first and then moved into the cache at once. Upstream
+  opened the cache file before rendering, so a failed render left an empty PDF that
+  was served from then on, and a concurrent request could read a half-written one.
+- `problem/raw.html` has a `<title>`, so the PDF is named without `exiftool`.
+- `/contest/<key>/pdf`: every statement of a contest in one PDF, with a cover, one
+  statement per page and translations in the reader's language. Offered at the
+  bottom of the contest page and of its problem list to whoever is inside the
+  contest once it started, and at any time to its authors, curators, testers and
+  editors of every contest. Never for the hidden contests behind duels.
+- Cached under a fingerprint of its HTML; only one request renders it, with a time
+  limit below the uWSGI `harakiri`, and the others get a page that retries by itself.
+- `render_pdf()` takes an optional `timeout`.
+- A patch for [pdfoid](https://github.com/DMOJ/pdfoid) and an example unit in
+  `deploy/examples`: upstream pdfoid leaves a ChromeDriver running after every PDF
+  and waits up to 300 seconds for a page.
+- No migration. Guide in [docs/pdf.md](docs/pdf.md); tests in `tests/statements`.
+
+## Sample tables and inline math in statements — 2026-10-18
+
+- Statements, their translations and editorials accept OmegaUp's sample table:
+  `||input`, `||output`, an optional `||description` in Markdown, and `||end`.
+  Without a closing `||end` the text stays as it was.
+- The table brings its own stylesheet, appended once to the rendered statement, so
+  it looks the same on every page that shows a statement and in PDFs, in both
+  themes. Each column is as wide as its own samples (2026-10-19).
+- `$...$` is inline math in the same styles, next to `~...~`, with Pandoc's rules
+  so that prices stay text, and `\$` for a literal dollar sign.
+- Other Markdown styles (comments, blog posts, contest descriptions, profiles) do
+  not change. No migration. Guide in [docs/statements.md](docs/statements.md); tests
+  in `tests/statements`.
+
+## Duels and tournaments — 2026-10-17
+
+- First-to-solve battles between two players, alone or as best-of-N series, and
+  knockout tournaments of up to 64 players with an optional third-place match.
+  At `/duelos/` since 2026-10-19; `/arena/` forwards there. In the code the feature
+  is `judge/arena`, with `Arena*` models and `arena_*` URL names.
+- An organizer panel behind the `judge.manage_arena` permission: battles, series,
+  tournaments with a bracket built by itself, problems chosen by hand or dealt from
+  problem banks, projector screens with secret links and an organizer guide in
+  Spanish.
+- Each game runs on a hidden, unrated contest, so judging uses the contest queue,
+  the bridge and `update_contest()` unchanged. The engine decides start, end and
+  winner on each state poll; organizer actions are versioned.
+- Players are kept on the duel page while their battle lasts and can only submit
+  from it (`ContestMiddleware` and `ProblemSubmit`). The lock expires after
+  `CPC_ARENA_LOCK_IDLE_MINUTES` without activity.
+- Request limits per player and per screen in `CPC_ARENA_*` settings.
+- The admin gets a *Battles* section. The contests behind games are left out of
+  `/contests/` and of the admin's contest and participation lists
+  (`Contest.duel_contests()`), and are deleted with their game.
+- Migration `0157` only creates the `judge_arena*` tables. Guide in
+  [docs/duels.md](docs/duels.md); tests in `tests/duels`.
+
+## Event daemon hardening — 2026-10-17
+
+- `websocket/daemon.js` validates every request: a JSON object with a string
+  command, looked up as an own property. A message such as `{}` or `null` used to
+  throw out of the handler and end the process, and with it every live update.
+- Both sockets have an `'error'` listener, sends to closing sockets are ignored,
+  the long-polling server answers 500 instead of crashing, and incoming messages are
+  capped (`max_receive_payload`, `max_post_payload`).
 
 ## Email limits and the visitor's address — 2026-10-14
 

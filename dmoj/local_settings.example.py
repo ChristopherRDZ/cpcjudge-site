@@ -112,3 +112,18 @@ CPC_TEAMS_ENABLED = True
 # Active teams one account may own, and invitations one account may send per hour.
 CPC_MAX_OWNED_TEAMS = 20
 CPC_TEAM_INVITES_PER_HOUR = 20
+
+# Duels (judge/arena); see docs/duels.md. Minutes without activity after which a
+# battle stops holding its players on the duel page, and request limits per player
+# or per projector screen. Zero turns a limit off.
+CPC_ARENA_LOCK_IDLE_MINUTES = 60
+CPC_ARENA_STATE_PER_SECOND = 6
+CPC_ARENA_CODE_PER_SECOND = 4
+CPC_ARENA_SUBMISSIONS_PER_10_SECONDS = 4
+CPC_ARENA_SCREEN_PER_SECOND = 30
+
+# Problem and contest PDFs through pdfoid; see docs/pdf.md. Off while unset. The
+# cache folder must exist, be writable by the web service and never be served by
+# the front end.
+# DMOJ_PDF_PDFOID_URL = 'http://127.0.0.1:8887'
+# DMOJ_PDF_PROBLEM_CACHE = '/var/cache/dmoj-pdf'

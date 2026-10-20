@@ -15,6 +15,18 @@ presents them, with the date each one was added.
 | Resilient live updates | Heartbeat in the event daemon, exponential backoff in the browser, long-polling fallback. 2026-09-15 |
 | Contest cloning | A clone keeps the freeze settings but starts unrevealed. 2026-09-21 |
 | Removing contest problems | Contest authors can remove a problem from a contest they edit; the problem and its submissions stay. The only exemption from the owner-only deletion lock. 2026-10-07 |
+| Contest PDF | Every statement of a contest in one PDF, for participants once it started and for organizers at any time; cached by content, rendered once at a time. 2026-10-19 |
+
+## Duels
+
+| Change | Notes |
+| --- | --- |
+| 1v1 duels | First-to-solve battles, alone or as best-of-N series, with partial or all-or-nothing points and optional penalties. At `/duelos/`; `/arena/` forwards there. Migration `0157`. 2026-10-17 |
+| Tournaments | Knockout brackets of up to 64 players, seeded by hand, at random or by rating, with an optional third-place match; problems by hand or from problem banks. 2026-10-17 |
+| Organizer panel | One permission, `judge.manage_arena`; versioned actions so several organizers can work at once; a guide in Spanish. 2026-10-17 |
+| Player lock | Players stay on the duel page and submit only from it while their battle lasts; expires after a period without activity. 2026-10-17 |
+| Projector screens | Secret, revocable links with combined, scoreboard, live code, statements and bracket views. 2026-10-17 |
+| Duel contests out of the lists | The hidden contest behind each game stays out of `/contests/` and the admin's contest lists, and is deleted with its game. 2026-10-19 |
 
 ## Teams
 
@@ -37,6 +49,8 @@ presents them, with the date each one was added.
 | Interactive problems | Interactor upload on the data page, `interactive:` written on every save, testlib detection with a bundled `testlib.h`, optional contestant feedback, a guide with a downloadable example. Migration `0156`. 2026-09-25 |
 | Data archive replacement | Uploading an archive over an existing one lost both upstream; the new one is now stored and the old one removed. 2026-09-25 |
 | Admin bulk selection | The bottom action bar of admin lists works again with Django 5.2 and stays in sync with the top one. 2026-09-20 |
+| Sample tables | OmegaUp's `\|\|input` / `\|\|output` / `\|\|description` / `\|\|end` in statements, translations and editorials, as a compact table with its own style. 2026-10-18 |
+| Inline math with dollars | `$...$` next to `~...~` in the same styles, with Pandoc's rules so prices stay text. 2026-10-18 |
 | Phone layout | Phones get the 480 px layout from the first paint. Upstream switched only on `resize` and, at about one width in five, kept flipping between layouts. 2026-10-01 |
 | Phone overflow fixes | MathJax formulas no longer make pages pan sideways, the contest timer keeps its clock inside the box, and the problem data page fits with its case table scrolling on its own. 2026-10-01 |
 | Readable permission selector | The admin's two-list selector shows full permission names at any width. 2026-10-07 |
@@ -69,6 +83,7 @@ presents them, with the date each one was added.
 | Transport and origin | Redis authentication, loopback-only listeners, HSTS, structural CSP, referrer policy, secure cookies. 2026-09-11 |
 | Visitor address behind a tunnel | Nginx takes the edge's header, from loopback only, so per-IP limits count each visitor. 2026-10-14 |
 | Error report cap | Error emails to `ADMINS` are capped per day and never use the reserve that existing accounts need. 2026-10-14 |
+| Event daemon input checks | Malformed messages, frames or long-polling URLs get an error instead of ending the daemon; message size caps. 2026-10-17 |
 
 ## Operations
 
@@ -77,6 +92,7 @@ presents them, with the date each one was added.
 | Scheduled custom-test cleanup | Removes finished tests from every account, not only from whoever submits next. 2026-09-19 |
 | Offline compression | Required for a read-only checkout; the guides explain what invalidates the manifest. 2026-09-14 |
 | Django 5.2.17 | Upgrade with timezone, storage and dependency adaptations. 2026-09-12 |
+| Reliable problem PDFs | A failed render no longer leaves an empty PDF in the cache; the PDF takes its title from the page; a patch and a unit for pdfoid. 2026-10-19 |
 
 Git history and file-level diffs are the authoritative record.
 See [MODIFICATIONS.md](../MODIFICATIONS.md) for the licensing statement.

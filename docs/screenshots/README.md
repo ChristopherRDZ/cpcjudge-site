@@ -3,7 +3,8 @@
 These screenshots show the fork's interface in an isolated demonstration
 instance. All accounts, teams, contests, submissions and results are fictional;
 no production user data is included. The custom-test output is simulated for the
-example, without sending code to a judging server.
+example, without sending code to a judging server, and so are the verdicts of the
+duel screenshots.
 
 The Spanish interface is shown throughout. English translations are also included
 in the fork.
@@ -22,6 +23,9 @@ in the fork.
 | [Test case autofill](testcase-autofill.png) | Cases paired from a sample archive |
 | [Interactive problem](interactive-problem.png) | Data page with a testlib interactor and feedback enabled |
 | [Interactive problem guide](interactive-guide.png) | The guide for problem setters, with the downloadable example |
+| [Duel, player](duels-player.png) | Statement, editor, custom input and submissions during a battle |
+| [Duel, projector](duels-projector.png) | Both players' scores and code at the end of a game |
+| [Sample tables](sample-table.png) | Two sample tables in a statement, with descriptions |
 | [Team administration](admin-teams.png) | Members and contest participation counts |
 | [Owner-only deletion](admin-owner-lock.png) | Confirmation with affected record counts |
 

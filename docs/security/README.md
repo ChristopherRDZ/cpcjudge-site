@@ -15,6 +15,8 @@ up on each server; the [examples](../../deploy/examples/README.md) show one way.
 | [Email](email.md) | per-recipient and daily limits, failed sends, sender addresses |
 | [Custom test privacy](custom-test-privacy.md) | what custom tests are hidden from |
 | [Owner accounts](../setup-guide.md#6-the-owner-account) | who can delete from the admin, impersonation |
+| [Duels](../duels.md#known-limitations) | the player lock, screen links, request limits |
+| [PDFs](../pdf.md#setting-up-pdfoid) | pdfoid on loopback under its own account, a private cache |
 
 ## Known limitations
 
@@ -24,6 +26,10 @@ up on each server; the [examples](../../deploy/examples/README.md) show one way.
   lock stops accidental deletions by other administrators; it does not protect
   against an administrator acting in bad faith.
 - The custom-test in-flight limit is not atomic under simultaneous requests.
+- A duel screen link gives read-only access to whatever that screen shows, live
+  code included, without an account. The duel page blocks submitting elsewhere,
+  pasting and the rest of the site, but cannot stop a player from typing what
+  they see on another device.
 - The email limits are fixed windows in the cache: two simultaneous requests can
   both take the last free slot, and clearing the cache resets them.
 - Email addresses are not unique in the database. Registration and the email
