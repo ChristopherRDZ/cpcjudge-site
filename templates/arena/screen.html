@@ -1,0 +1,808 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - {{ SITE_LONG_NAME }}{% endblock %}
+{% block meta %}<meta name="robots" content="noindex, nofollow">{% endblock %}
+{% block title_row %}{% endblock %}
+{% block title_ruler %}{% endblock %}
+
+{% block media %}
+{% include "arena/_style.html" %}
+{% include "arena/_chrome.html" %}
+<style>
+    /* A projector shows the battle and nothing else of the site. */
+    #navigation { display: none !important; }
+    html { font-size: clamp(13px, 0.95vw, 22px); }
+    body.sc-idle-cursor { cursor: none; }
+    .sc-app { min-height: 100vh; display: flex; flex-direction: column; color: var(--ar-fg); }
+    .sc-top {
+        display: flex;
+        align-items: center;
+        gap: 1em;
+        height: 4.2em;
+        padding: 0 1.4em;
+        /* In the colours of the theme, like the site's bar; the logo is the site's, which changes with it. */
+        background: var(--ar-bg);
+        color: var(--ar-fg);
+        border-bottom: 1px solid var(--ar-border);
+        box-shadow: 0 2px 4px var(--ar-shadow);
+        flex: 0 0 auto;
+    }
+    .sc-top img { height: 3em; width: auto; display: block; }
+    .sc-top .sc-divider { width: 1px; height: 2.4em; background: var(--ar-border); }
+    .sc-top .sc-title { font-size: 1.35em; }
+    .sc-top .sc-sub { opacity: .75; border: 0; }
+    .sc-top .sc-clock { margin-left: auto; font-size: 2.2em; font-weight: bold; font-variant-numeric: tabular-nums; }
+    .sc-top .sc-clock.sc-low { color: var(--ar-bad-solid); }
+    .sc-main { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+
+    .sc-center {
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1.4em;
+        text-align: center;
+        padding: 2em;
+    }
+    .sc-huge { font-size: 3.2em; font-weight: bold; }
+    .sc-message { font-size: 3em; line-height: 1.3; max-width: 30em; }
+    .sc-muted { color: var(--ar-muted); font-size: 1.4em; }
+    /* Before a game the players are what the room looks at: big photos. During the countdown the number goes
+       between them, in the place of "VS", still big enough to read from the back of the room. */
+    .sc-count { font-size: min(22vh, 13vw); line-height: 1; font-weight: bold; color: var(--ar-blue);
+                font-variant-numeric: tabular-nums; min-width: 1.2em; text-align: center; }
+
+    .sc-versus { display: flex; align-items: center; justify-content: center; gap: 3em; flex-wrap: wrap; }
+    .sc-fighter { display: flex; flex-direction: column; align-items: center; gap: .6em; min-width: 0; }
+    .sc-fighter.sc-a { --side: var(--ar-a); }
+    .sc-fighter.sc-b { --side: var(--ar-b); }
+    .sc-fighter img { width: min(42vh, 26vw); height: min(42vh, 26vw); border-radius: 4px;
+                      border: .4em solid var(--ar-border); }
+    .sc-fighter.sc-a img { border-color: var(--ar-a); }
+    .sc-fighter.sc-b img { border-color: var(--ar-b); }
+    .sc-fighter .sc-name { font-size: 2.6em; font-weight: 600; max-width: min(42vh, 26vw); overflow-wrap: anywhere; }
+    .sc-fighter .sc-series { display: flex; gap: .3em; font-size: 1.6em; }
+    .sc-fighter .sc-series span { width: .9em; height: .9em; border-radius: 50%; border: 2px solid var(--side); }
+    .sc-fighter .sc-series span.sc-won { background: var(--side); }
+    .sc-vs { font-size: 4em; font-weight: bold; color: var(--ar-muted); }
+
+    /* ---- Duel ---- */
+    .sc-duel { flex: 1 1 auto; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1em;
+               padding: 1em 1.2em; min-height: 0; }
+    .sc-duel.sc-single { grid-template-columns: minmax(0, 1fr); }
+    .sc-side {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        background: var(--ar-bg);
+        border: 1px solid var(--ar-border);
+        border-top: .45em solid var(--side);
+        border-radius: 4px;
+        transition: box-shadow .2s;
+    }
+    .sc-side.sc-a { --side: var(--ar-a); }
+    .sc-side.sc-b { --side: var(--ar-b); }
+    .sc-side.sc-flash-ok { box-shadow: 0 0 0 .4em var(--ar-ok-solid); }
+    .sc-side.sc-flash-bad { box-shadow: 0 0 0 .4em var(--ar-bad-solid); }
+    /* Whoever won the game stays framed in green until the next game starts, whose view is built anew. */
+    .sc-side.sc-winner { border-color: var(--ar-ok-solid); box-shadow: 0 0 0 .4em var(--ar-ok-solid); }
+    .sc-who { display: flex; align-items: center; gap: .8em; padding: .7em 1em; border-bottom: 1px solid var(--ar-soft-border); }
+    .sc-who img { width: 3.6em; height: 3.6em; border-radius: 4px; }
+    .sc-who .sc-name { font-size: 1.9em; font-weight: 600; }
+    .sc-who .sc-series { display: flex; gap: .3em; }
+    .sc-who .sc-series span { width: .9em; height: .9em; border-radius: 50%; border: 2px solid var(--side); }
+    .sc-who .sc-series span.sc-won { background: var(--side); }
+    .sc-who .sc-score { margin-left: auto; font-size: 3em; font-weight: bold; font-variant-numeric: tabular-nums; }
+    .sc-chips { display: flex; gap: .5em; flex-wrap: wrap; padding: .6em 1em; border-bottom: 1px solid var(--ar-soft-border); }
+    .sc-chip {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-width: 4.2em;
+        padding: .3em .6em;
+        border-radius: 4px;
+        border: 1px solid var(--ar-soft-border);
+        background: var(--ar-soft);
+        color: var(--ar-muted);
+        font-weight: bold;
+    }
+    .sc-chip b { font-size: 1.4em; }
+    .sc-chip small { font-size: .85em; font-weight: normal; }
+    .sc-code { flex: 1 1 auto; min-height: 8em; }
+    .sc-code-label { padding: .3em 1em; color: var(--ar-muted); font-size: .95em; border-bottom: 1px solid var(--ar-soft-border); }
+    .sc-cursor { position: absolute; border-left: 3px solid var(--side, #2980b9); }
+    .sc-side.sc-a .sc-cursor { border-left-color: var(--ar-a); }
+    .sc-side.sc-b .sc-cursor { border-left-color: var(--ar-b); }
+    .sc-idle-code { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; color: var(--ar-muted);
+                    font-size: 1.3em; padding: 1em; text-align: center; }
+
+    .sc-banner {
+        position: fixed;
+        left: 50%;
+        bottom: 6%;
+        transform: translateX(-50%);
+        z-index: 8500;
+        background: var(--ar-bg);
+        color: var(--ar-fg);
+        border-radius: 4px;
+        border-top: .5em solid var(--ar-ok-solid);
+        padding: 1em 2.5em;
+        text-align: center;
+        box-shadow: 0 .5em 2em rgba(0, 0, 0, .45);
+        min-width: 24em;
+    }
+    .sc-banner h2 { font-size: 2.8em; margin: 0; }
+    .sc-banner div { font-size: 1.3em; color: var(--ar-muted); }
+    .sc-verdicts { position: fixed; right: 1.2em; bottom: 1.2em; display: flex; flex-direction: column; gap: .5em; z-index: 8000; }
+    .sc-verdict { padding: .6em 1em; border-radius: 4px; background: var(--ar-bg); border: 1px solid var(--ar-border);
+                  border-left: .4em solid var(--ar-blue); font-size: 1.25em; box-shadow: 0 .2em .8em rgba(0, 0, 0, .25); }
+    .sc-verdict.sc-ok { border-left-color: var(--ar-ok-solid); }
+    .sc-verdict.sc-bad { border-left-color: var(--ar-bad-solid); }
+
+    /* ---- Statements ---- */
+    .sc-statements { flex: 1 1 auto; overflow: auto; padding: 1em 2em 3em; background: var(--ar-bg); font-size: 1.15em; }
+    .sc-statements .ar-statement { max-width: 70em; margin: 0 auto 2em; padding-bottom: 1.5em; border-bottom: 2px solid var(--ar-border); }
+    .sc-overlay { position: fixed; inset: 4.2em 0 0 0; z-index: 7000; display: flex; flex-direction: column; }
+    .ar-statement-head { display: flex; align-items: baseline; gap: .6em; margin: .4em 0 .2em; }
+    .ar-statement-label { font-weight: bold; font-size: 1.5em; background: var(--ar-head-bg); color: var(--ar-head-fg);
+                          border-radius: 4px; padding: 0 .45em; }
+    .ar-statement-title { font-size: 1.6em; font-weight: 600; }
+    .ar-statement-limits { display: flex; gap: 1.4em; flex-wrap: wrap; margin-bottom: .5em; }
+
+    /* ---- Bracket ---- */
+    /* The bracket itself is templates/arena/_bracket.html; here only where it goes. */
+    .sc-bracket-view { flex: 1 1 0; min-height: 20em; margin: 1em; font-size: 1.1em; }
+    .sc-champion { text-align: center; padding: .5em; font-size: 1.8em; flex: 0 0 auto; }
+    .sc-champion img { width: 2.4em; height: 2.4em; border-radius: 4px; vertical-align: middle; margin: 0 .3em; }
+
+    /* ---- Hidden menu ---- */
+    .sc-menu {
+        position: fixed;
+        top: 4.6em;
+        right: 1em;
+        z-index: 9300;
+        width: 22em;
+        background: var(--ar-bg);
+        color: var(--ar-fg);
+        border: 1px solid var(--ar-border);
+        border-radius: 4px;
+        box-shadow: 0 .4em 1.5em rgba(0, 0, 0, .35);
+        font-size: .95rem;
+    }
+    .sc-menu a { color: inherit; }
+    .sc-menu .sc-menu-row { display: flex; align-items: center; gap: .5em; padding: .45em .8em; border-top: 1px solid var(--ar-soft-border); }
+    .sc-menu .sc-menu-row.sc-current { background: var(--ar-info-bg); }
+    .sc-menu kbd { border: 1px solid var(--ar-border); border-radius: 3px; padding: 0 .35em; }
+</style>
+{% endblock %}
+
+{% block js_media %}
+<script type="text/javascript" src="{{ ACE_URL }}/ace.js"></script>
+{% include "arena/_js.html" %}
+{% include "arena/_bracket.html" %}
+{{ state|json_script('sc-initial') }}
+<script type="text/javascript">
+$(function () {
+    var TOKEN = {{ screen_token|tojson }};
+    var HEADERS = {'X-Arena-Screen': TOKEN};
+    var URLS = {
+        state: {{ url('arena_screen_state')|tojson }},
+        code: {{ url('arena_screen_code')|tojson }},
+        statement: {{ url('arena_home')|tojson }} + 'screen-api/statement/',
+        page: {{ url('arena_screen', screen_token)|tojson }},
+        darkCss: {{ static(DARK_STYLE_CSS)|tojson }}
+    };
+    var TEXT = {
+        waiting: {{ _('The battle starts soon')|tojson }},
+        nextGame: {{ _('Next: game')|tojson }},
+        game: {{ _('Game')|tojson }},
+        bestOf: {{ _('Best of')|tojson }},
+        noStatements: {{ _('The statements appear when the game starts.')|tojson }},
+        noCode: {{ _('Waiting for code...')|tojson }},
+        codeOff: {{ _('Code is not shown in this battle.')|tojson }},
+        wins: {{ _('wins the game!')|tojson }},
+        winsMatch: {{ _('wins the battle!')|tojson }},
+        champion: {{ _('Champion')|tojson }},
+        tie: {{ _('Tie')|tojson }},
+        cancelled: {{ _('Game cancelled')|tojson }},
+        verifying: {{ _('Time is up. Waiting for the last verdicts...')|tojson }},
+        problem: {{ _('Problem')|tojson }},
+        reasons: {
+            all_solved: {{ _('Solved every problem first')|tojson }},
+            unreachable: {{ _('The rival could no longer catch up')|tojson }},
+            more_points: {{ _('More points when time ran out')|tojson }},
+            earlier: {{ _('Same points, reached first')|tojson }},
+            organizer: {{ _('Decided by the organizer')|tojson }},
+            walkover: {{ _('Won by walkover')|tojson }},
+            games: {{ _('Won the series')|tojson }}
+        },
+        verdicts: {
+            AC: {{ _('Accepted')|tojson }}, WA: {{ _('Wrong answer')|tojson }},
+            TLE: {{ _('Time limit exceeded')|tojson }}, MLE: {{ _('Memory limit exceeded')|tojson }},
+            OLE: {{ _('Output limit exceeded')|tojson }}, RTE: {{ _('Runtime error')|tojson }},
+            IR: {{ _('Invalid return')|tojson }}, CE: {{ _('Compilation error')|tojson }},
+            IE: {{ _('Internal error')|tojson }}, AB: {{ _('Aborted')|tojson }}, PARTIAL: {{ _('Partial')|tojson }},
+            judging: {{ _('Judging')|tojson }}
+        },
+        views: {
+            combined: {{ _('Everything')|tojson }}, scoreboard: {{ _('Scoreboard')|tojson }},
+            'code-a': {{ _('Code of player A')|tojson }}, 'code-b': {{ _('Code of player B')|tojson }},
+            statements: {{ _('Statements')|tojson }}, bracket: {{ _('Bracket')|tojson }}
+        },
+        newTab: {{ _('Open in a new tab')|tojson }},
+        fullscreen: {{ _('Full screen')|tojson }},
+        theme: {{ _('Light or dark')|tojson }},
+        bigger: {{ _('Bigger code')|tojson }},
+        smaller: {{ _('Smaller code')|tojson }},
+        statementsKey: {{ _('Statements over the duel')|tojson }}
+    };
+    var VIEWS = ['combined', 'scoreboard', 'code-a', 'code-b', 'statements', 'bracket'];
+    var A = window.Arena;
+    var params = new URLSearchParams(window.location.search);
+    var view = VIEWS.indexOf(params.get('view')) !== -1 ? params.get('view') : 'combined';
+    var theme = {{ forced_theme|tojson }} || (localStorage.getItem('arena-screen-theme') || '');
+    var state = JSON.parse(document.getElementById('sc-initial').textContent);
+    var codeSeq = {a: 0, b: 0}, codeGame = null;
+    var editors = {};
+    var fontSize = parseInt(localStorage.getItem('arena-screen-font') || '20', 10);
+    var seenVerdicts = null;
+    var statementsFor = null;
+    var overlay = false;
+    var built = null;
+    var failures = 0;
+
+    // ---------------------------------------------------------------- theme
+    function applyTheme() {
+        var root = document.documentElement;
+        root.classList.toggle('ar-dark-forced', theme === 'dark');
+        root.classList.toggle('ar-light-forced', theme === 'light');
+        var links = Array.prototype.filter.call(document.querySelectorAll('link[rel="stylesheet"]'), function (link) {
+            return link.getAttribute('href') === URLS.darkCss;
+        });
+        if (!links.length && theme === 'dark') {
+            var link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = URLS.darkCss;
+            document.head.appendChild(link);
+            links = [link];
+        }
+        links.forEach(function (link) {
+            if (!link.dataset.media) link.dataset.media = link.media || 'all';
+            link.media = theme === 'dark' ? 'all' : (theme === 'light' ? 'not all' : link.dataset.media);
+        });
+        Object.keys(editors).forEach(function (slot) { setEditorTheme(editors[slot]); });
+    }
+    function setEditorTheme(editor) {
+        A.aceTheme(editor, '', {{ ace_light_theme|tojson }}, {{ ace_dark_theme|tojson }}, theme);
+    }
+
+    // ---------------------------------------------------------------- polling
+    var revoked = false;
+    function pollState() {
+        A.get(URLS.state, HEADERS).then(function (data) {
+            failures = 0;
+            $('#ar-offline').prop('hidden', true);
+            state = data;
+            render();
+        }).catch(function (error) {
+            // The organizer made a new link for this screen: this one will never work again, so say so and stop.
+            if (error && error.status === 404) {
+                revoked = true;
+                $('#ar-offline').prop('hidden', true);
+                $('#ar-revoked').prop('hidden', false);
+                return;
+            }
+            failures++;
+            if (failures >= 3) $('#ar-offline').prop('hidden', false);
+        }).then(function () {
+            if (revoked) return;
+            var g = state.match && state.match.game;
+            var fast = g && (g.status === 'countdown' || g.status === 'live' || g.status === 'verifying');
+            setTimeout(pollState, fast ? 1000 : 3000);
+        });
+    }
+
+    function codeWanted() {
+        var g = state.match && state.match.game;
+        return state.mode === 'match' && g && g.started && g.code &&
+            (view === 'combined' || view === 'code-a' || view === 'code-b') && !overlay;
+    }
+
+    // While a game is live the code is asked for about three times a second, as often as the players send it. An
+    // answer with nothing new stays cheap: two small queries (the screen and its game) and a few cache operations.
+    function pollCode() {
+        if (revoked) return;
+        if (!codeWanted()) { setTimeout(pollCode, 1000); return; }
+        var g = state.match.game;
+        if (codeGame !== g.id) { codeGame = g.id; codeSeq = {a: 0, b: 0}; }
+        A.get(URLS.code + '?a=' + codeSeq.a + '&b=' + codeSeq.b, HEADERS).then(function (data) {
+            if (data.enabled === false) return;
+            ['a', 'b'].forEach(function (slot) {
+                if (data[slot]) { codeSeq[slot] = data[slot].seq; showCode(slot, data[slot]); }
+            });
+        }).catch(function () {}).then(function () { setTimeout(pollCode, g.status === 'live' ? 300 : 1000); });
+    }
+
+    // ---------------------------------------------------------------- rendering helpers
+    function header() {
+        var parts = [];
+        if (state.tournament) parts.push(state.tournament);
+        var match = state.match;
+        if (match) {
+            if (match.round) parts.push(match.round);
+            if (match.title) parts.push(match.title);
+        }
+        $('#sc-title').text(parts.join(' · ') || {{ SITE_NAME|tojson }});
+        var sub = '';
+        if (match && match.game) {
+            sub = TEXT.game + ' ' + match.game.number;
+            if (match.series.best_of > 1) sub += ' · ' + TEXT.bestOf + ' ' + match.series.best_of;
+        }
+        $('#sc-sub').text(sub);
+    }
+
+    function fighter(match, slot) {
+        var card = match.players[slot];
+        return A.el('div', {'class': 'sc-fighter sc-' + slot}, [
+            card.avatar ? A.el('img', {src: card.avatar, alt: ''}) : null,
+            A.el('div', {'class': 'sc-name', text: card.name}),
+            seriesDots(match, slot)
+        ]);
+    }
+
+    // `middle` goes between the two players: "VS" while waiting, the countdown number once it runs.
+    function versus(match, middle) {
+        return A.el('div', {'class': 'sc-versus'}, [fighter(match, 'a'), middle || A.el('div', {'class': 'sc-vs', text: 'VS'}),
+                                                    fighter(match, 'b')]);
+    }
+
+    function verdictLabel(row) {
+        if (row.pending) return TEXT.verdicts.judging;
+        if (row.status === 'CE') return TEXT.verdicts.CE;
+        if (row.status === 'IE' || row.status === 'AB') return TEXT.verdicts[row.status];
+        if (row.result === 'AC' && row.points >= row.full - 1e-9) return TEXT.verdicts.AC;
+        if (row.points > 0) return TEXT.verdicts.PARTIAL + ' ' + A.points(row.points);
+        return TEXT.verdicts[row.result] || row.result || '?';
+    }
+
+    function chipFor(problem, row) {
+        var cls = 'sc-chip', top = problem.label, bottom = '';
+        if (row) {
+            if (row.full) { cls += ' ar-ok'; bottom = '✓ ' + A.clock(row.solved_at || 0); }
+            else if (row.pending) { cls += ' ar-info'; bottom = '…'; }
+            else if (row.best > 0) { cls += ' ar-warn'; bottom = A.points(row.best); }
+            else if (row.attempts) { cls += ' ar-bad'; bottom = '✗ ' + row.attempts; }
+        }
+        return A.el('div', {'class': cls}, [A.el('b', {text: top}), A.el('small', {text: bottom || ' '})]);
+    }
+
+    // One circle per game needed to win the series, filled for each game won. The duel view is built once per
+    // game, so updateScores fills them again on every poll: a game won shows without reloading the page.
+    function fillSeries(box, match, slot) {
+        A.clear(box);
+        if (match.series.best_of <= 1) return box;
+        for (var i = 0; i < match.series.needed; i++) {
+            box.appendChild(A.el('span', {'class': i < match.series.wins[slot] ? 'sc-won' : ''}));
+        }
+        return box;
+    }
+
+    function seriesDots(match, slot, id) {
+        var attrs = {'class': 'sc-series'};
+        if (id) attrs.id = id;
+        return fillSeries(A.el('span', attrs), match, slot);
+    }
+
+    // The same winner the banner announces.
+    function winnerOf(match) {
+        var g = match.game || {};
+        if (g.status === 'finished' && g.winner) return g.winner;
+        if (match.status === 'decided' && match.winner) return match.winner;
+        return null;
+    }
+
+    function side(match, slot, withCode) {
+        var g = match.game || {};
+        var standing = (g.standing || {})[slot] || {};
+        var card = match.players[slot];
+        var node = A.el('div', {'class': 'sc-side sc-' + slot, id: 'sc-side-' + slot}, [
+            A.el('div', {'class': 'sc-who'}, [
+                card.avatar ? A.el('img', {src: card.avatar, alt: ''}) : null,
+                A.el('div', {}, [A.el('div', {'class': 'sc-name', text: card.name}), seriesDots(match, slot, 'sc-series-' + slot)]),
+                A.el('div', {'class': 'sc-score', id: 'sc-score-' + slot, text: A.points(standing.score || 0)})
+            ]),
+            A.el('div', {'class': 'sc-chips', id: 'sc-chips-' + slot})
+        ]);
+        if (withCode) {
+            if (!g.code) {
+                node.appendChild(A.el('div', {'class': 'sc-idle-code', text: TEXT.codeOff}));
+            } else {
+                node.appendChild(A.el('div', {'class': 'sc-code-label', id: 'sc-code-label-' + slot}));
+                node.appendChild(A.el('div', {'class': 'sc-code', id: 'sc-code-' + slot}));
+            }
+        }
+        return node;
+    }
+
+    function updateScores(match) {
+        var g = match.game || {};
+        var winner = winnerOf(match);
+        ['a', 'b'].forEach(function (slot) {
+            var standing = (g.standing || {})[slot] || {};
+            $('#sc-score-' + slot).text(A.points(standing.score || 0));
+            var dots = document.getElementById('sc-series-' + slot);
+            if (dots) fillSeries(dots, match, slot);
+            var node = document.getElementById('sc-side-' + slot);
+            if (node) node.classList.toggle('sc-winner', winner === slot);
+            var chips = document.getElementById('sc-chips-' + slot);
+            if (!chips) return;
+            A.clear(chips);
+            (g.problems || []).forEach(function (problem) {
+                chips.appendChild(chipFor(problem, (standing.problems || {})[String(problem.order)]));
+            });
+        });
+    }
+
+    function makeEditor(slot) {
+        var node = document.getElementById('sc-code-' + slot);
+        if (!node) return null;
+        var editor = ace.edit(node);
+        editor.setReadOnly(true);
+        editor.setShowPrintMargin(false);
+        editor.setHighlightActiveLine(false);
+        editor.setFontSize(fontSize);
+        editor.renderer.setShowGutter(true);
+        editor.$blockScrolling = Infinity;
+        editor.getSession().setUseWrapMode(false);
+        // When the player's cursor leaves the view, it glides there instead of jumping.
+        editor.setAnimatedScroll(true);
+        setEditorTheme(editor);
+        editors[slot] = editor;
+        return editor;
+    }
+
+    function showCode(slot, data) {
+        var editor = editors[slot];
+        if (!editor) return;
+        $('#sc-code-label-' + slot).text(TEXT.problem + ' ' + (data.label || '') + ' · ' + (data.language || ''));
+        var session = editor.getSession();
+        if (session.__mode !== data.ace) { session.setMode('ace/mode/' + (data.ace || 'text')); session.__mode = data.ace; }
+        A.followCode(editor, data.text, data.cursor, 'sc-cursor');
+    }
+
+    // ---------------------------------------------------------------- views
+    function build(key, fn) {
+        if (built === key) return false;
+        built = key;
+        Object.keys(editors).forEach(function (slot) { try { editors[slot].destroy(); } catch (err) {} });
+        editors = {};
+        codeSeq = {a: 0, b: 0};
+        var main = A.clear(document.getElementById('sc-main'));
+        fn(main);
+        return true;
+    }
+
+    function render() {
+        header();
+        var match = state.match;
+        if (state.mode === 'message') {
+            build('message:' + state.message, function (main) {
+                main.appendChild(A.el('div', {'class': 'sc-center'}, [A.el('div', {'class': 'sc-message', text: state.message})]));
+            });
+        } else if (state.mode === 'bracket' || (view === 'bracket' && state.bracket)) {
+            renderBracket();
+        } else if (state.mode === 'match' && match) {
+            renderMatch(match);
+        } else {
+            build('idle', function (main) {
+                main.appendChild(A.el('div', {'class': 'sc-center'}, [
+                    A.el('img', {'class': 'site-logo', src: {{ static('icons/logo.png')|tojson }}, alt: '', style: 'height: 10em; width: auto;'}),
+                    A.el('div', {'class': 'sc-huge', text: {{ SITE_NAME|tojson }}}),
+                    A.el('div', {'class': 'sc-muted', text: TEXT.waiting})
+                ]));
+            });
+        }
+        banner();
+    }
+
+    function renderMatch(match) {
+        var g = match.game;
+        var key = 'match:' + match.id + ':' + view + ':' + (g ? g.id + ':' + (g.started ? 's' : 'w') : 'none') + ':' +
+                  (g && g.status === 'countdown' ? 'c' : '');
+        if (!g || (!g.started && g.status !== 'countdown')) {
+            build(key, function (main) {
+                main.appendChild(A.el('div', {'class': 'sc-center'}, [
+                    versus(match),
+                    A.el('div', {'class': 'sc-muted', text: match.next_game ? TEXT.nextGame + ' ' + match.next_game : TEXT.waiting})
+                ]));
+            });
+            return;
+        }
+        if (g.status === 'countdown' && !g.started) {
+            build(key, function (main) {
+                main.appendChild(A.el('div', {'class': 'sc-center'}, [versus(match, A.el('div', {'class': 'sc-count', id: 'sc-count'}))]));
+            });
+            return;
+        }
+        if (view === 'statements') {
+            build(key, function (main) {
+                main.appendChild(A.el('div', {'class': 'sc-statements', id: 'sc-statements'}));
+            });
+            loadStatements(document.getElementById('sc-statements'), g);
+            return;
+        }
+        var single = view === 'code-a' || view === 'code-b';
+        var withCode = view !== 'scoreboard';
+        build(key, function (main) {
+            var duel = A.el('div', {'class': 'sc-duel' + (single ? ' sc-single' : '')});
+            if (single) duel.appendChild(side(match, view === 'code-a' ? 'a' : 'b', true));
+            else { duel.appendChild(side(match, 'a', withCode)); duel.appendChild(side(match, 'b', withCode)); }
+            main.appendChild(duel);
+            if (withCode && g.code) {
+                ['a', 'b'].forEach(function (slot) {
+                    var editor = makeEditor(slot);
+                    if (editor) editor.setValue('', -1);
+                });
+            }
+            if (overlay) showOverlay(true);
+        });
+        updateScores(match);
+        verdicts(match);
+    }
+
+    function verdicts(match) {
+        var g = match.game || {};
+        var rows = g.verdicts || [];
+        if (seenVerdicts === null || seenVerdicts.game !== g.id) {
+            seenVerdicts = {game: g.id, ids: {}};
+            rows.forEach(function (row) { seenVerdicts.ids[row.id] = row.pending; });
+            return;
+        }
+        rows.slice().reverse().forEach(function (row) {
+            var before = seenVerdicts.ids[row.id];
+            seenVerdicts.ids[row.id] = row.pending;
+            if (row.pending || before === false) return;
+            var ok = row.result === 'AC' && row.points >= row.full - 1e-9;
+            var name = match.players[row.slot].name;
+            var item = A.el('div', {'class': 'sc-verdict ' + (ok ? 'sc-ok' : 'sc-bad'),
+                                    text: name + ' · ' + row.label + ' · ' + verdictLabel(row)});
+            document.getElementById('sc-verdicts').appendChild(item);
+            setTimeout(function () { if (item.parentNode) item.parentNode.removeChild(item); }, 6000);
+            var node = document.getElementById('sc-side-' + row.slot);
+            if (node) {
+                node.classList.add(ok ? 'sc-flash-ok' : 'sc-flash-bad');
+                setTimeout(function () { node.classList.remove('sc-flash-ok', 'sc-flash-bad'); }, 1500);
+            }
+        });
+    }
+
+    function banner() {
+        var box = $('#sc-banner');
+        var match = state.mode === 'match' ? state.match : null;
+        var g = match && match.game;
+        // Over the statements it would only hide text people are reading.
+        if (!match || !g || view === 'statements' || overlay) { box.prop('hidden', true); return; }
+        var title = '', sub = '';
+        if (match.status === 'decided' && match.winner) {
+            title = match.players[match.winner].name + ' ' + TEXT.winsMatch;
+            sub = TEXT.reasons[g.reason] || '';
+        } else if (g.status === 'finished' && g.winner) {
+            title = match.players[g.winner].name + ' ' + TEXT.wins;
+            sub = TEXT.reasons[g.reason] || '';
+        } else if (g.status === 'tie') {
+            title = TEXT.tie;
+        } else if (g.status === 'cancelled') {
+            title = TEXT.cancelled;
+        } else if (g.status === 'verifying') {
+            title = TEXT.verifying;
+        }
+        if (!title) { box.prop('hidden', true); return; }
+        $('#sc-banner-title').text(title);
+        $('#sc-banner-sub').text(sub);
+        box.prop('hidden', false);
+    }
+
+    function loadStatements(container, g) {
+        if (!container || statementsFor === container.id + g.id) return;
+        statementsFor = container.id + g.id;
+        A.clear(container);
+        (g.problems || []).forEach(function (problem) {
+            var slot = A.el('div', {}, [A.el('p', {'class': 'sc-muted', text: problem.label + ' · ' + problem.name})]);
+            container.appendChild(slot);
+            A.get(URLS.statement + problem.order, HEADERS).then(function (html) {
+                slot.innerHTML = html;
+                A.typeset(slot);
+            }).catch(function () { statementsFor = null; });
+        });
+    }
+
+    function showOverlay(on) {
+        overlay = on;
+        var existing = document.getElementById('sc-overlay');
+        if (!on) { if (existing) existing.parentNode.removeChild(existing); return; }
+        var g = state.match && state.match.game;
+        if (!g || !g.started) { overlay = false; return; }
+        if (!existing) {
+            existing = A.el('div', {'class': 'sc-overlay', id: 'sc-overlay'},
+                            [A.el('div', {'class': 'sc-statements', id: 'sc-overlay-statements'})]);
+            document.body.appendChild(existing);
+            statementsFor = null;
+        }
+        loadStatements(document.getElementById('sc-overlay-statements'), g);
+    }
+
+    // One bracket component for the whole life of the page, so whoever moved or zoomed it keeps their place when
+    // the screen switches views or the bracket changes; only the champion line above it is rebuilt.
+    var bracketView = null, bracketHolder = null;
+    function renderBracket() {
+        var bracket = state.bracket;
+        if (!bracket) return;
+        var champion = bracket.champion;
+        var rebuilt = build('bracket:' + (champion ? champion.name : ''), function (main) {
+            if (champion) {
+                main.appendChild(A.el('div', {'class': 'sc-champion'}, [
+                    TEXT.champion + ': ',
+                    champion.avatar ? A.el('img', {src: champion.avatar, alt: ''}) : null,
+                    A.el('b', {text: champion.name})
+                ]));
+            }
+            if (!bracketHolder) bracketHolder = A.el('div', {'class': 'sc-bracket-view', id: 'sc-bracket'});
+            main.appendChild(bracketHolder);
+        });
+        if (!bracketView) {
+            bracketView = ArenaBracket.mount(bracketHolder, {follow: true, wheel: 'zoom'});
+        } else if (rebuilt) {
+            // Back on the page after another view: the window may have changed size meanwhile.
+            bracketView.refresh(false);
+        }
+        bracketView.update(bracket);
+    }
+
+    function inBracket() { return bracketView !== null && document.body.contains(bracketView.element); }
+
+    // ---------------------------------------------------------------- clock
+    setInterval(function () {
+        var g = state.mode === 'match' && state.match && state.match.game;
+        var clock = $('#sc-clock');
+        if (g && g.status === 'countdown' && g.started_at) {
+            var left = g.started_at - A.now();
+            $('#sc-count').text(left > 0 ? Math.ceil(left) : '');
+            clock.text('');
+            if (left <= 0) { built = null; }
+        } else if (g && (g.status === 'live') && g.ends_at) {
+            var rest = g.ends_at - A.now();
+            clock.text(A.clock(rest)).toggleClass('sc-low', rest < 60);
+        } else {
+            clock.text('').removeClass('sc-low');
+        }
+    }, 200);
+
+    // ---------------------------------------------------------------- menu and keys
+    function buildMenu() {
+        var menu = A.clear(document.getElementById('sc-menu'));
+        VIEWS.forEach(function (name, index) {
+            var href = URLS.page + '?view=' + name + (theme ? '&theme=' + theme : '');
+            menu.appendChild(A.el('div', {'class': 'sc-menu-row' + (name === view ? ' sc-current' : '')}, [
+                A.el('kbd', {text: String(index + 1)}),
+                A.el('a', {href: href, 'class': 'ar-grow', text: TEXT.views[name]}),
+                A.el('a', {href: href, target: '_blank', rel: 'noopener', title: TEXT.newTab}, [A.el('i', {'class': 'fa fa-external-link'})])
+            ]));
+        });
+        [['F', TEXT.fullscreen], ['T', TEXT.theme], ['E', TEXT.statementsKey], ['+ / -', TEXT.bigger + ' / ' + TEXT.smaller]]
+            .forEach(function (pair) {
+                menu.appendChild(A.el('div', {'class': 'sc-menu-row'}, [A.el('kbd', {text: pair[0]}), A.el('span', {text: pair[1]})]));
+            });
+    }
+
+    function setView(name) {
+        if (VIEWS.indexOf(name) === -1 || name === view) return;
+        view = name;
+        built = null;
+        statementsFor = null;
+        showOverlay(false);
+        history.replaceState(null, '', URLS.page + '?view=' + name + (theme ? '&theme=' + theme : ''));
+        buildMenu();
+        render();
+    }
+
+    function fullscreen() {
+        if (document.fullscreenElement) document.exitFullscreen().catch(function () {});
+        else if (document.documentElement.requestFullscreen)
+            document.documentElement.requestFullscreen().catch(function () {});
+    }
+
+    $(document).on('keydown', function (event) {
+        if (event.ctrlKey || event.metaKey || event.altKey) return;
+        var key = event.key;
+        if (key === 'm' || key === 'M') { $('#sc-menu').prop('hidden', !$('#sc-menu').prop('hidden')); }
+        else if (key >= '1' && key <= '6') setView(VIEWS[parseInt(key, 10) - 1]);
+        else if (key === 'f' || key === 'F') fullscreen();
+        else if (key === 't' || key === 'T') {
+            theme = theme === 'dark' ? 'light' : (theme === 'light' ? '' : 'dark');
+            try { localStorage.setItem('arena-screen-theme', theme); } catch (err) {}
+            applyTheme();
+            buildMenu();
+        } else if (key === 'e' || key === 'E') { if (view === 'combined' || view === 'scoreboard') showOverlay(!overlay); }
+        else if (inBracket() && (key === '+' || key === '=' || key === '-' || key === '0' || key.indexOf('Arrow') === 0)) {
+            // On the bracket the same keys move and zoom it instead of changing the letter size.
+            event.preventDefault();
+            var step = 0.15 * bracketView.element.clientWidth;
+            if (key === '+' || key === '=') bracketView.zoomBy(1.25);
+            else if (key === '-') bracketView.zoomBy(0.8);
+            else if (key === '0') bracketView.fit();
+            else if (key === 'ArrowLeft') bracketView.panBy(step, 0);
+            else if (key === 'ArrowRight') bracketView.panBy(-step, 0);
+            else if (key === 'ArrowUp') bracketView.panBy(0, step);
+            else if (key === 'ArrowDown') bracketView.panBy(0, -step);
+        } else if (key === '+' || key === '=' || key === '-') {
+            fontSize = Math.max(10, Math.min(48, fontSize + (key === '-' ? -2 : 2)));
+            try { localStorage.setItem('arena-screen-font', String(fontSize)); } catch (err) {}
+            Object.keys(editors).forEach(function (slot) { editors[slot].setFontSize(fontSize); });
+        } else if (key === 'Escape') { $('#sc-menu').prop('hidden', true); showOverlay(false); }
+    });
+    $('#sc-menu-button').on('click', function () { $('#sc-menu').prop('hidden', !$('#sc-menu').prop('hidden')); });
+
+    // Hide the cursor and the menu button when nobody touches the projector laptop.
+    var idleTimer = null;
+    function awake() {
+        document.body.classList.remove('sc-idle-cursor');
+        $('#sc-menu-button').css('opacity', 1);
+        clearTimeout(idleTimer);
+        idleTimer = setTimeout(function () {
+            document.body.classList.add('sc-idle-cursor');
+            $('#sc-menu-button').css('opacity', 0);
+        }, 3000);
+    }
+    $(document).on('mousemove keydown', awake);
+    awake();
+
+    // Keep the projector awake while the page is open.
+    var lock = null;
+    function wake() {
+        if (navigator.wakeLock && document.visibilityState === 'visible' && !lock) {
+            navigator.wakeLock.request('screen').then(function (sentinel) {
+                lock = sentinel;
+                sentinel.addEventListener('release', function () { lock = null; });
+            }).catch(function () {});
+        }
+    }
+    document.addEventListener('visibilitychange', wake);
+    $(document).one('click keydown', wake);
+    wake();
+
+    window.arenaScreenDebug = {state: function () { return state; }, editors: function () { return editors; },
+                               view: function () { return view; }, bracket: function () { return bracketView; }};
+    applyTheme();
+    buildMenu();
+    render();
+    pollState();
+    pollCode();
+});
+</script>
+{% include "arena/_mathjax.html" %}
+{% endblock %}
+
+{% block body %}
+<div class="sc-app ar-page">
+    <header class="sc-top">
+        <img class="site-logo" src="{{ static('icons/logo.png') }}" alt="{{ SITE_NAME }}">
+        <span class="sc-divider"></span>
+        <div>
+            <div class="sc-title" id="sc-title"></div>
+            <div class="sc-sub" id="sc-sub"></div>
+        </div>
+        <span class="sc-clock" id="sc-clock"></span>
+        <button type="button" class="ar-btn ar-btn-plain" id="sc-menu-button" aria-label="Menu"><i class="fa fa-bars"></i></button>
+    </header>
+    <main class="sc-main" id="sc-main"></main>
+</div>
+<div class="sc-menu" id="sc-menu" hidden></div>
+<div class="sc-banner" id="sc-banner" hidden>
+    <h2 id="sc-banner-title"></h2>
+    <div id="sc-banner-sub"></div>
+</div>
+<div class="sc-verdicts" id="sc-verdicts" aria-live="polite"></div>
+<div class="ar-offline" id="ar-offline" hidden>{{ _('Connection lost. Retrying...') }}</div>
+<div class="ar-offline" id="ar-revoked" hidden>{{ _('This screen link is no longer valid. Open the new link from the battle panel.') }}</div>
+{% endblock %}

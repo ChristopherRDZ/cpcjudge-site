@@ -13,6 +13,7 @@ from django.urls import Resolver404, resolve, reverse
 from django.utils.encoding import force_bytes
 from requests.exceptions import HTTPError
 
+from judge.arena.lock import locked_response as arena_locked_response
 from judge.models import MiscConfig
 
 try:
@@ -90,6 +91,10 @@ class ContestMiddleware(object):
             profile.update_contest()
             request.participation = profile.current_contest
             request.in_contest = request.participation is not None
+            # While their arena battle lasts, players are sent back to it. Never raises: see judge/arena/lock.py.
+            response = arena_locked_response(request)
+            if response is not None:
+                return response
         else:
             request.in_contest = False
             request.participation = None

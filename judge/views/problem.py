@@ -787,6 +787,14 @@ class ProblemSubmit(LoginRequiredMixin, ProblemMixin, TitleMixin, SingleObjectFo
             return HttpResponseForbidden(format_html('<h1>{0}</h1>', _('Do you want me to ban you?')))
 
     def dispatch(self, request, *args, **kwargs):
+        # During an arena game the player submits from the arena only: anywhere else would give free verdicts
+        # outside the game. Asked to the database, not to the cache the arena uses to send players back.
+        if request.user.is_authenticated:
+            from judge.arena.engine import is_live_arena_player
+            if is_live_arena_player(request.profile):
+                return generic_message(request, _('Battle in progress'),
+                                       _('You are playing an arena battle. Submit your code from the arena.'),
+                                       status=403)
         submission_id = kwargs.get('submission')
         if submission_id is not None:
             self.old_submission = get_object_or_404(

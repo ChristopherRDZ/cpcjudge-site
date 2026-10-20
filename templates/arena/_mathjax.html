@@ -1,0 +1,14 @@
+{# MathJax for the arena pages. Same configuration and same file as templates/mathjax-load.html, except that it
+   does not typeset the whole document on its own: these pages rebuild parts of themselves every second, and a
+   typeset running over nodes that have just been replaced fails. Statements are typeset one by one, when they
+   are inserted (Arena.typeset). #}
+{% if REQUIRE_JAX %}
+<script type="text/javascript">
+    window.MathJax = {
+        tex: {inlineMath: [['~', '~'], ['\\(', '\\)']]},
+        options: {enableMenu: false},
+        startup: {typeset: false}
+    };
+</script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.0/es5/tex-chtml.min.js"></script>
+{% endif %}

@@ -1,0 +1,295 @@
+{# Shared look of every arena page. Inline on purpose, like the rest of the site's newer pages: nothing under
+   resources/, so no collectstatic, no hashed copy and no compression manifest to rebuild. Same building blocks as
+   the site: the #3b3b3b bar, #ccc borders on #f8f8f8, the site font, 4 px corners and solid colours. The palette
+   lives in variables so the dark block only redefines them. #}
+<style>
+    :root {
+        --ar-fg: #000;
+        --ar-muted: #555;
+        --ar-bg: #fff;
+        --ar-page: #f8f8f8;
+        --ar-soft: #f3f3f3;
+        --ar-border: #ccc;
+        --ar-soft-border: #e3e3e3;
+        --ar-head-bg: #3b3b3b;
+        --ar-head-fg: #fff;
+        --ar-blue: #2980b9;
+        --ar-blue-dark: #265a88;
+        --ar-ok-bg: #ded;
+        --ar-ok-fg: #173;
+        --ar-ok-border: #adb;
+        --ar-ok-solid: #1d9a44;
+        --ar-bad-bg: #edd;
+        --ar-bad-fg: #944;
+        --ar-bad-border: #dbb;
+        --ar-bad-solid: #c62828;
+        --ar-warn-bg: #ffd;
+        --ar-warn-fg: #863;
+        --ar-warn-border: #feb;
+        --ar-warn-solid: #e69500;
+        --ar-info-bg: #def;
+        --ar-info-fg: #368;
+        --ar-info-border: #bdf;
+        --ar-a: #2969b0;
+        --ar-b: #c0392b;
+        --ar-shadow: rgba(0, 0, 0, .18);
+    }
+    .ar-dark-forced {
+        --ar-fg: #f8f8f8;
+        --ar-muted: #aaa;
+        --ar-bg: #1d1d1d;
+        --ar-page: #141414;
+        --ar-soft: #242424;
+        --ar-border: #3b3b3b;
+        --ar-soft-border: #2e2e2e;
+        --ar-head-bg: #ccc;
+        --ar-head-fg: #0f0f0f;
+        --ar-blue: #3d8fd1;
+        --ar-blue-dark: #2c6fa6;
+        --ar-ok-bg: #031;
+        --ar-ok-fg: #6f8;
+        --ar-ok-border: #172;
+        --ar-ok-solid: #25a552;
+        --ar-bad-bg: #311;
+        --ar-bad-fg: #f99;
+        --ar-bad-border: #822;
+        --ar-bad-solid: #d84343;
+        --ar-warn-bg: #320;
+        --ar-warn-fg: #fd6;
+        --ar-warn-border: #960;
+        --ar-warn-solid: #e69500;
+        --ar-info-bg: #023;
+        --ar-info-fg: #7df;
+        --ar-info-border: #068;
+        --ar-a: #5b9be0;
+        --ar-b: #e5675a;
+        --ar-shadow: rgba(0, 0, 0, .5);
+    }
+    .ar-light-forced { color-scheme: light; }
+
+    .ar-page { color: var(--ar-fg); }
+    .ar-panel {
+        background: var(--ar-bg);
+        border: 1px solid var(--ar-border);
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    .ar-panel-head {
+        display: flex;
+        align-items: center;
+        gap: .5em;
+        flex-wrap: wrap;
+        background: var(--ar-head-bg);
+        color: var(--ar-head-fg);
+        padding: 6px 10px;
+        margin: 0;
+        font-size: 1.05em;
+        font-weight: 400;
+    }
+    .ar-panel-head .ar-spacer { margin-left: auto; }
+    .ar-panel-body { padding: .8em; }
+    .ar-muted { color: var(--ar-muted); }
+    .ar-row { display: flex; align-items: center; gap: .6em; flex-wrap: wrap; }
+    .ar-grow { flex: 1 1 auto; min-width: 0; }
+    [hidden] { display: none !important; }
+
+    /* Buttons: the site's blue for the main action, a plain one for the reversible, red for the destructive. */
+    .ar-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .4em;
+        padding: 6px 12px;
+        border-radius: 4px;
+        border: 1px solid #245580;
+        background: #337ab7;
+        color: #fff !important;
+        font: inherit;
+        line-height: 1.3;
+        cursor: pointer;
+        text-decoration: none !important;
+        white-space: nowrap;
+    }
+    .ar-btn:hover { background: #286090; }
+    .ar-btn[disabled] { opacity: .5; cursor: default; }
+    .ar-btn-big { font-size: 1.15em; padding: 10px 18px; }
+    .ar-btn-plain {
+        background: var(--ar-bg) !important;
+        color: var(--ar-fg) !important;
+        border-color: var(--ar-border);
+    }
+    .ar-btn-plain:hover { background: var(--ar-soft) !important; border-color: var(--ar-muted); }
+    .ar-btn-red { background: #b52b27 !important; border-color: #8c1f1c; color: #fff !important; }
+    .ar-btn-red:hover { background: #962420 !important; }
+    .ar-btn-green { background: #2b8a3e !important; border-color: #1f6b2f; color: #fff !important; }
+    .ar-btn-green:hover { background: #237533 !important; }
+
+    .ar-input, .ar-select, .ar-textarea {
+        font: inherit;
+        padding: 5px 8px;
+        border: 1px solid var(--ar-border);
+        border-radius: 4px;
+        background: var(--ar-bg);
+        color: var(--ar-fg);
+        box-sizing: border-box;
+    }
+    .ar-textarea {
+        font-family: Consolas, "DejaVu Sans Mono", "Courier New", monospace;
+        font-size: 13px;
+        white-space: pre;
+        overflow-wrap: normal;
+        overflow-x: auto;
+    }
+
+    .ar-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: .3em;
+        font-size: .8em;
+        font-weight: bold;
+        border-radius: 4px;
+        padding: .15em .5em;
+        border: 1px solid transparent;
+        white-space: nowrap;
+    }
+    .ar-ok { background: var(--ar-ok-bg); color: var(--ar-ok-fg); border-color: var(--ar-ok-border); }
+    .ar-bad { background: var(--ar-bad-bg); color: var(--ar-bad-fg); border-color: var(--ar-bad-border); }
+    .ar-warn { background: var(--ar-warn-bg); color: var(--ar-warn-fg); border-color: var(--ar-warn-border); }
+    .ar-info { background: var(--ar-info-bg); color: var(--ar-info-fg); border-color: var(--ar-info-border); }
+    .ar-none { background: var(--ar-soft); color: var(--ar-muted); border-color: var(--ar-soft-border); }
+
+    .ar-alert {
+        border: 1px solid var(--ar-bad-fg);
+        border-left-width: 4px;
+        border-radius: 4px;
+        background: var(--ar-bad-bg);
+        color: var(--ar-bad-fg);
+        padding: .6em .9em;
+        line-height: 1.5;
+    }
+    .ar-alert.ar-alert-warn { border-color: var(--ar-warn-fg); background: var(--ar-warn-bg); color: var(--ar-warn-fg); }
+    .ar-alert.ar-alert-info { border-color: var(--ar-info-fg); background: var(--ar-info-bg); color: var(--ar-info-fg); }
+
+    .ar-avatar { width: 48px; height: 48px; border-radius: 4px; object-fit: cover; background: var(--ar-soft); }
+    .ar-dot { display: inline-block; width: .7em; height: .7em; border-radius: 50%; background: #999; }
+    .ar-dot.ar-on { background: var(--ar-ok-solid); }
+    .ar-mono { font-family: Consolas, "DejaVu Sans Mono", "Courier New", monospace; }
+    .ar-num { font-variant-numeric: tabular-nums; }
+
+    .ar-toasts {
+        position: fixed;
+        right: 16px;
+        bottom: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        z-index: 9000;
+        max-width: min(420px, 90vw);
+    }
+    .ar-toast {
+        padding: 10px 14px;
+        border-radius: 4px;
+        border: 1px solid var(--ar-border);
+        border-left-width: 5px;
+        background: var(--ar-bg);
+        color: var(--ar-fg);
+        box-shadow: 0 2px 8px var(--ar-shadow);
+        font-size: 1.05em;
+    }
+    .ar-toast.ar-ok { border-left-color: var(--ar-ok-solid); }
+    .ar-toast.ar-bad { border-left-color: var(--ar-bad-solid); }
+    .ar-toast.ar-warn { border-left-color: var(--ar-warn-solid); }
+    .ar-toast.ar-info { border-left-color: var(--ar-blue); }
+
+    .ar-offline {
+        position: fixed;
+        top: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 9500;
+        background: var(--ar-bad-solid);
+        color: #fff;
+        padding: 6px 16px;
+        border-radius: 0 0 4px 4px;
+        font-weight: bold;
+    }
+    .ar-offline a { color: #fff; text-decoration: underline; margin-left: .5em; }
+    .ar-modal-back {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, .45);
+        z-index: 9200;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    }
+    .ar-modal {
+        background: var(--ar-bg);
+        color: var(--ar-fg);
+        border: 1px solid var(--ar-border);
+        border-radius: 4px;
+        width: min(900px, 100%);
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 6px 24px var(--ar-shadow);
+    }
+    .ar-modal .ar-panel-body { overflow: auto; }
+    .ar-pre {
+        margin: 0;
+        padding: .7em;
+        border: 1px solid #111;
+        border-radius: 4px;
+        background: #1e1e1e;
+        color: #d4d4d4;
+        font-family: Consolas, "DejaVu Sans Mono", "Courier New", monospace;
+        font-size: 12.5px;
+        line-height: 1.5;
+        white-space: pre;
+        overflow: auto;
+        tab-size: 4;
+    }
+    table.ar-table { border-collapse: collapse; width: 100%; }
+    table.ar-table th, table.ar-table td { border-bottom: 1px solid var(--ar-soft-border); padding: 5px 8px; text-align: left; }
+    table.ar-table th { background: var(--ar-soft); font-weight: 600; }
+</style>
+{% if SITE_THEME_NAME != 'light' %}
+    {% set ar_dark_palette %}
+        --ar-fg: #f8f8f8;
+        --ar-muted: #aaa;
+        --ar-bg: #1d1d1d;
+        --ar-page: #141414;
+        --ar-soft: #242424;
+        --ar-border: #3b3b3b;
+        --ar-soft-border: #2e2e2e;
+        --ar-head-bg: #ccc;
+        --ar-head-fg: #0f0f0f;
+        --ar-blue: #3d8fd1;
+        --ar-blue-dark: #2c6fa6;
+        --ar-ok-bg: #031;
+        --ar-ok-fg: #6f8;
+        --ar-ok-border: #172;
+        --ar-ok-solid: #25a552;
+        --ar-bad-bg: #311;
+        --ar-bad-fg: #f99;
+        --ar-bad-border: #822;
+        --ar-bad-solid: #d84343;
+        --ar-warn-bg: #320;
+        --ar-warn-fg: #fd6;
+        --ar-warn-border: #960;
+        --ar-info-bg: #023;
+        --ar-info-fg: #7df;
+        --ar-info-border: #068;
+        --ar-a: #5b9be0;
+        --ar-b: #e5675a;
+        --ar-shadow: rgba(0, 0, 0, .5);
+    {% endset %}
+    <style>
+        {% if SITE_THEME_NAME == 'dark' %}
+        :root { {{ ar_dark_palette }} }
+        {% else %}
+        @media (prefers-color-scheme: dark) { :root:not(.ar-light-forced) { {{ ar_dark_palette }} } }
+        {% endif %}
+    </style>
+{% endif %}

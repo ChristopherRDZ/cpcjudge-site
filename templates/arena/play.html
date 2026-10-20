@@ -1,0 +1,1641 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('Arena') }} - {{ SITE_LONG_NAME }}{% endblock %}
+{% block title_row %}{% endblock %}
+{% block title_ruler %}{% endblock %}
+
+{% block media %}
+{% include "arena/_style.html" %}
+{% include "arena/_chrome.html" %}
+{# Held in a battle: known before anything is drawn, so the tabs of the site never flash (see .ar-nav-battle). #}
+<script>document.documentElement.classList.toggle('ar-locked', {{ (state.locked or False)|tojson }});</script>
+<style>
+    /* The page sits under the navigation bar of the site, the same as every other page (2026-10-19): same logo for
+       each theme, same colours, height, letters and tabs. --ar-nav is its height, measured on load and on resize;
+       47 px on a computer and 36 px on a phone until then. */
+    :root { --ar-nav: 47px; }
+    @media (max-width: 760px) { :root { --ar-nav: 36px; } }
+    /* The room for the fixed bar is the top padding of the page, not a margin of .ar-app: that one would fall through
+       to the page and push it a bar's height past the window. */
+    #page-container { min-height: 100vh; box-sizing: border-box; padding-top: var(--ar-nav) !important; }
+    .ar-app { min-height: calc(100vh - var(--ar-nav)); display: flex; flex-direction: column; color: var(--ar-fg); }
+
+    /* While held in a battle, the tabs of the site would only send the player back here: the battle takes their place
+       in the same bar, with its title, game and clock. */
+    html.ar-locked #nav-list > li:not(.home-nav-element):not(.ar-nav-battle), html.ar-locked #navicon {
+        display: none !important;
+    }
+    #nav-list > li.ar-nav-battle { display: none !important; }
+    html.ar-locked #nav-list > li.ar-nav-battle {
+        display: inline-flex !important;
+        align-items: center;
+        gap: .9em;
+        height: 44px;
+        padding: 0 8px;
+        vertical-align: middle;
+        text-transform: none;
+        white-space: nowrap;
+    }
+    .ar-nav-battle .ar-nav-title { font-size: 15px; font-weight: 600; max-width: 36vw; overflow: hidden;
+                                   text-overflow: ellipsis; }
+    .ar-nav-battle .ar-nav-sub { font-size: 13px; opacity: .75; }
+    .ar-nav-battle .ar-nav-timer { font-size: 22px; font-weight: bold; font-variant-numeric: tabular-nums; }
+    .ar-nav-battle .ar-nav-timer.ar-low { color: var(--ar-bad-solid); }
+
+    /* The battle under the bar, in the colours of the page: on a phone (its bar has no room), and on a computer when
+       the player is not held, for the result and the review. Nothing when there is no battle. */
+    .ar-top {
+        display: flex;
+        align-items: center;
+        gap: 1em;
+        min-height: 40px;
+        padding: 0 16px;
+        background: var(--ar-bg);
+        color: var(--ar-fg);
+        border-bottom: 1px solid var(--ar-border);
+    }
+    .ar-top[hidden] { display: none; }
+    @media (min-width: 761px) { html.ar-locked .ar-top { display: none; } }
+    .ar-top .ar-title { font-size: 1.1em; font-weight: 600; }
+    .ar-top .ar-sub { color: var(--ar-muted); font-size: .9em; border: 0; }
+    .ar-top .ar-series { font-size: 1em; }
+    .ar-timer {
+        margin-left: auto;
+        font-size: 1.6em;
+        font-weight: bold;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: .02em;
+    }
+    .ar-timer.ar-low { color: var(--ar-bad-solid); }
+
+    .ar-center {
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1.2em;
+        padding: 3em 1em;
+        text-align: center;
+    }
+    .ar-big-icon { font-size: 4em; color: var(--ar-muted); }
+    .ar-lead { font-size: 1.5em; }
+    .ar-help { color: var(--ar-muted); max-width: 40em; line-height: 1.5; font-size: 1.05em; }
+
+    .ar-versus { display: flex; align-items: center; gap: 2.5em; flex-wrap: wrap; justify-content: center; }
+    .ar-fighter { display: flex; flex-direction: column; align-items: center; gap: .6em; min-width: 12em; }
+    .ar-fighter img { width: 128px; height: 128px; border-radius: 4px; border: 3px solid var(--ar-border); }
+    .ar-fighter .ar-name { font-size: 1.6em; font-weight: 600; }
+    .ar-fighter.ar-me img { border-color: var(--ar-a); }
+    .ar-fighter.ar-rival img { border-color: var(--ar-b); }
+    .ar-vs { font-size: 2.6em; font-weight: bold; color: var(--ar-muted); }
+    .ar-rules { display: flex; gap: .5em; flex-wrap: wrap; justify-content: center; }
+
+    /* The countdown: the two players are what matters. Big photos, and the number between them, in the place of
+       "VS", still large enough to read at a glance. */
+    .ar-count {
+        font-size: min(18vh, 11vw);
+        line-height: 1;
+        font-weight: bold;
+        font-variant-numeric: tabular-nums;
+        color: var(--ar-blue);
+        min-width: 1.4em;
+        text-align: center;
+    }
+    #ar-countdown .ar-versus { flex-wrap: nowrap; gap: 2em; }
+    #ar-countdown .ar-fighter { min-width: 0; }
+    #ar-countdown .ar-fighter img { width: min(36vh, 24vw); height: min(36vh, 24vw); border-width: 4px; }
+    #ar-countdown .ar-fighter .ar-name { font-size: 2em; max-width: min(36vh, 24vw); overflow-wrap: anywhere; }
+
+    /* ---- Play ---- */
+    .ar-play { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+    .ar-strip {
+        display: flex;
+        align-items: center;
+        gap: 1em;
+        flex-wrap: wrap;
+        padding: 8px 16px;
+        background: var(--ar-bg);
+        border-bottom: 1px solid var(--ar-border);
+    }
+    .ar-score { display: flex; align-items: center; gap: .5em; }
+    .ar-score .ar-who { font-weight: 600; }
+    .ar-score .ar-points { font-size: 1.4em; font-weight: bold; font-variant-numeric: tabular-nums; }
+    .ar-score.ar-me .ar-who { color: var(--ar-a); }
+    .ar-score.ar-rival .ar-who { color: var(--ar-b); }
+    .ar-chips { display: flex; gap: .3em; flex-wrap: wrap; }
+    .ar-chip {
+        min-width: 2.2em;
+        padding: .15em .4em;
+        border-radius: 4px;
+        border: 1px solid var(--ar-soft-border);
+        background: var(--ar-soft);
+        color: var(--ar-muted);
+        text-align: center;
+        font-weight: bold;
+        font-size: .9em;
+    }
+    .ar-chip.ar-ok, .ar-chip.ar-bad, .ar-chip.ar-warn, .ar-chip.ar-info { border-style: solid; }
+    .ar-banner {
+        padding: 8px 16px;
+        font-weight: bold;
+        text-align: center;
+        background: var(--ar-warn-bg);
+        color: var(--ar-warn-fg);
+        border-bottom: 1px solid var(--ar-warn-border);
+    }
+
+    .ar-banner.ar-review-banner {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 1em;
+        flex-wrap: wrap;
+        background: var(--ar-info-bg);
+        color: var(--ar-info-fg);
+        border-bottom-color: var(--ar-info-border);
+    }
+
+    /* The two columns share the width through the divider between them (--ar-left / --ar-right, in fr), and the
+       code column shares its height through the one under the editor (--ar-editor / --ar-side, flex grow). The
+       defaults are the old fixed layout: 5 to 6 across, 60 to 40 down. While playing, the page is exactly the
+       window and the grid takes whatever the header and the score strip leave, however tall they turn out. */
+    .ar-grid {
+        flex: 1 1 0;
+        display: grid;
+        grid-template-columns: minmax(0, var(--ar-left, 5fr)) 12px minmax(0, var(--ar-right, 6fr));
+        row-gap: 12px;
+        padding: 12px 16px;
+        min-height: 320px;
+    }
+    @media (min-width: 1001px) {
+        .ar-app.ar-playing { height: calc(100vh - var(--ar-nav)); height: calc(100dvh - var(--ar-nav)); min-height: 0; }
+    }
+    .ar-col { display: flex; flex-direction: column; gap: 0; min-height: 0; }
+    .ar-splitter { position: relative; touch-action: none; user-select: none; }
+    .ar-splitter::after { content: ''; position: absolute; border-radius: 2px; background: var(--ar-border); }
+    .ar-splitter:hover::after, .ar-splitter:focus-visible::after, .ar-splitter.ar-dragging::after { background: var(--ar-blue); }
+    .ar-splitter:focus { outline: none; }
+    .ar-splitter-col { cursor: col-resize; }
+    .ar-splitter-col::after { top: 50%; left: 4px; width: 4px; height: 48px; margin-top: -24px; }
+    .ar-splitter-row { flex: 0 0 12px; cursor: row-resize; }
+    .ar-splitter-row::after { left: 50%; top: 4px; height: 4px; width: 48px; margin-left: -24px; }
+    .ar-dragging-now, .ar-dragging-now * { cursor: inherit !important; user-select: none !important; }
+
+    /* "Expand": one panel takes the whole grid; Esc or "Normal view" brings the other back. */
+    .ar-grid.ar-focus-statement, .ar-grid.ar-focus-editor { grid-template-columns: minmax(0, 1fr); }
+    .ar-focus-statement > .ar-col-code, .ar-focus-statement > .ar-splitter-col,
+    .ar-focus-editor > .ar-col-statement, .ar-focus-editor > .ar-splitter-col { display: none; }
+
+    /* Small tools in a panel head or in the problem tabs: text size and expand. */
+    .ar-tools { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; }
+    /* The site styles every button; like .ar-btn in _style.html, these say their colors with !important. */
+    .ar-tool {
+        border: 1px solid var(--ar-border) !important;
+        background: var(--ar-bg) !important;
+        color: var(--ar-fg) !important;
+        border-radius: 4px;
+        padding: 2px 8px;
+        font: inherit;
+        font-size: .88em;
+        line-height: 1.4;
+        cursor: pointer;
+        white-space: nowrap;
+        text-shadow: none;
+        box-shadow: none;
+    }
+    .ar-tool:hover { background: var(--ar-soft) !important; }
+    .ar-panel-head .ar-tool { background: transparent !important; color: var(--ar-head-fg) !important;
+                              border-color: var(--ar-head-fg) !important; opacity: .85; }
+    .ar-panel-head .ar-tool:hover { opacity: 1; background: rgba(127, 127, 127, .25) !important; }
+    .ar-tabs-row { display: flex; align-items: flex-start; gap: 6px; background: var(--ar-soft); border-bottom: 1px solid var(--ar-soft-border); }
+    .ar-tabs-row .ar-tabs { flex: 1 1 auto; border-bottom: 0; }
+    .ar-tabs-row .ar-tools { padding: 6px 6px 6px 0; }
+    .ar-col > .ar-panel { display: flex; flex-direction: column; min-height: 0; }
+    .ar-tabs { display: flex; gap: 4px; flex-wrap: wrap; padding: 6px; background: var(--ar-soft); border-bottom: 1px solid var(--ar-soft-border); }
+    .ar-tab {
+        border: 1px solid var(--ar-border);
+        background: var(--ar-bg);
+        color: var(--ar-fg);
+        border-radius: 4px;
+        padding: 4px 10px;
+        cursor: pointer;
+        font: inherit;
+        display: inline-flex;
+        align-items: center;
+        gap: .4em;
+    }
+    .ar-tab.ar-active { background: var(--ar-blue); border-color: var(--ar-blue-dark); color: #fff; }
+    .ar-tab .ar-mark { font-size: .85em; }
+    .ar-statements { flex: 1 1 auto; overflow: auto; padding: 4px 14px 14px; background: var(--ar-bg);
+                     font-size: calc(1em * var(--ar-text-scale, 1)); }
+    .ar-statement-head { display: flex; align-items: baseline; gap: .6em; margin: .6em 0 .2em; }
+    .ar-statement-label {
+        font-weight: bold;
+        font-size: 1.3em;
+        background: var(--ar-head-bg);
+        color: var(--ar-head-fg);
+        border-radius: 4px;
+        padding: 0 .45em;
+    }
+    .ar-statement-title { font-size: 1.35em; font-weight: 600; }
+    .ar-statement-limits { display: flex; gap: 1.2em; flex-wrap: wrap; margin-bottom: .4em; font-size: .92em; }
+    .ar-statements.ar-all .ar-statement { border-bottom: 2px solid var(--ar-border); padding-bottom: 1em; margin-bottom: 1em; }
+
+    .ar-editor-panel { flex: var(--ar-editor, 60) 1 0; min-height: 10em; }
+    #ar-editor { flex: 1 1 auto; width: 100%; min-height: 6em; }
+    .ar-editor-foot {
+        display: flex;
+        align-items: center;
+        gap: .8em;
+        flex-wrap: wrap;
+        padding: .6em .8em;
+        background: var(--ar-soft);
+        border-top: 1px solid var(--ar-soft-border);
+    }
+    .ar-lock-note { font-size: .85em; color: var(--ar-muted); }
+    .ar-side { flex: var(--ar-side, 40) 1 0; display: flex; flex-direction: column; min-height: 6em; }
+    .ar-side-panels { flex: 1 1 auto; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; min-height: 0; }
+    .ar-side-panels > .ar-panel { display: flex; flex-direction: column; min-height: 0; }
+    /* "Join in tabs": one panel at a time, full width, chosen from a strip of tabs over them. */
+    .ar-side-tabs { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; padding: 4px; margin-bottom: 6px;
+                    background: var(--ar-soft); border: 1px solid var(--ar-soft-border); border-radius: 4px; }
+    .ar-side-tabs .ar-tab .ar-new { width: .55em; height: .55em; border-radius: 50%; background: var(--ar-warn-solid); display: inline-block; }
+    .ar-side.ar-tabbed .ar-side-panels { grid-template-columns: minmax(0, 1fr); }
+    .ar-side.ar-tabbed .ar-side-panels > .ar-panel > .ar-panel-head { display: none; }
+    .ar-side.ar-tabbed .ar-side-panels > .ar-panel:not(.ar-shown) { display: none; }
+    .ar-run-body { display: flex; flex-direction: column; gap: .5em; flex: 1 1 auto; min-height: 0; padding: .6em; }
+    #ar-run-input { flex: 1 1 40%; min-height: 4em; resize: none; width: 100%; }
+    #ar-run-output { flex: 1 1 60%; min-height: 4em; }
+    /* "Use as input" over each example of the statements: it goes into "Try with input", ready to run. */
+    .ar-use-input-row { display: flex; justify-content: flex-end; margin: .5em 0 .2em; }
+    #ar-run-input.ar-filled { box-shadow: 0 0 0 3px var(--ar-ok-solid); }
+    #ar-run-input { transition: box-shadow .3s; }
+    .ar-subs { flex: 1 1 auto; overflow: auto; }
+    .ar-sub {
+        display: flex;
+        align-items: center;
+        gap: .5em;
+        padding: 6px 10px;
+        border-bottom: 1px solid var(--ar-soft-border);
+        cursor: pointer;
+    }
+    .ar-sub:hover { background: var(--ar-soft); }
+    .ar-sub .ar-label { font-weight: bold; min-width: 1.5em; }
+    .ar-empty { padding: 1em; color: var(--ar-muted); text-align: center; }
+
+    /* ---- Result ---- */
+    .ar-result-back {
+        position: fixed;
+        inset: 0;
+        z-index: 8000;
+        background: rgba(0, 0, 0, .55);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    }
+    .ar-result {
+        background: var(--ar-bg);
+        color: var(--ar-fg);
+        border-radius: 4px;
+        border-top: 8px solid var(--ar-blue);
+        padding: 2em 2.5em;
+        min-width: min(560px, 100%);
+        text-align: center;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, .4);
+    }
+    .ar-result.ar-win { border-top-color: var(--ar-ok-solid); }
+    .ar-result.ar-lose { border-top-color: var(--ar-bad-solid); }
+    .ar-result h2 { font-size: 2.4em; margin: 0 0 .3em; }
+    .ar-result .ar-reason { font-size: 1.15em; color: var(--ar-muted); }
+    .ar-result .ar-series-big { font-size: 2.2em; font-weight: bold; margin: .5em 0; font-variant-numeric: tabular-nums; }
+
+    .ar-result .ar-explain { color: var(--ar-muted); margin: -.2em 0 .6em; }
+    .ar-result .ar-games { list-style: none; padding: 0; margin: .4em auto .8em; max-width: 34em; text-align: left; }
+    .ar-result .ar-games li { padding: .3em .6em; border-bottom: 1px solid var(--ar-soft-border); }
+    .ar-result .ar-games li:last-child { border-bottom: 0; }
+    .ar-result .ar-games .ar-me-won { color: var(--ar-ok-fg); }
+    .ar-result .ar-games .ar-rival-won { color: var(--ar-bad-fg); }
+
+    /* Short screens (a 15.6" laptop with the browser bars): a slimmer header and strip leave more for the work. */
+    @media (max-height: 820px) {
+        .ar-top { min-height: 36px; gap: .8em; }
+        .ar-timer { font-size: 1.4em; }
+        .ar-strip { padding: 4px 12px; }
+        .ar-banner { padding: 5px 12px; }
+        .ar-grid { padding: 8px 12px; row-gap: 8px; }
+        .ar-splitter-row { flex-basis: 8px; }
+        .ar-splitter-row::after { top: 2px; }
+    }
+
+    @media (max-width: 1000px) {
+        .ar-grid { grid-template-columns: minmax(0, 1fr); flex: 0 0 auto; min-height: 0; }
+        .ar-splitter { display: none; }
+        .ar-col-statement { margin-bottom: 12px; }
+        .ar-statements { max-height: 60vh; }
+        .ar-editor-panel { height: 60vh; flex: 0 0 auto; }
+        .ar-side { flex: 0 0 auto; margin-top: 12px; }
+        .ar-side-panels { grid-template-columns: minmax(0, 1fr); }
+        .ar-side-panels > .ar-panel { min-height: 14em; }
+        /* Stacked, the expanded panel takes the whole height of the window instead. */
+        .ar-focus-statement .ar-statements { max-height: none; height: calc(100vh - 160px - var(--ar-nav)); }
+        .ar-focus-editor .ar-editor-panel { height: calc(100vh - 160px - var(--ar-nav)); }
+    }
+</style>
+{% endblock %}
+
+{% block js_media %}
+<script type="text/javascript" src="{{ ACE_URL }}/ace.js"></script>
+{% include "arena/_js.html" %}
+{{ state|json_script('ar-initial') }}
+<script type="text/javascript">
+$(function () {
+    var TEXT = {
+        battle: {{ _('Battle')|tojson }},
+        game: {{ _('Game')|tojson }},
+        of: {{ _('of')|tojson }},
+        you: {{ _('You')|tojson }},
+        rival: {{ _('Rival')|tojson }},
+        points: {{ _('points')|tojson }},
+        all: {{ _('All')|tojson }},
+        submitTo: {{ _('Submit')|tojson }},
+        sending: {{ _('Sending...')|tojson }},
+        sent: {{ _('Submission sent for problem')|tojson }},
+        empty: {{ _('Write some code before submitting.')|tojson }},
+        pasteBlocked: {{ _('In this battle you can only paste your own code. Type the rest.')|tojson }},
+        dropBlocked: {{ _('Dropping text is disabled in this battle.')|tojson }},
+        offline: {{ _('Connection lost. Retrying...')|tojson }},
+        loading: {{ _('Loading statement...')|tojson }},
+        loadError: {{ _('The statement could not be loaded. Retrying...')|tojson }},
+        noSubs: {{ _('Your submissions will appear here.')|tojson }},
+        queued: {{ _('Queued')|tojson }},
+        judging: {{ _('Judging')|tojson }},
+        caseN: {{ _('case')|tojson }},
+        attempts: {{ _('attempts')|tojson }},
+        attemptsLeft: {{ _('attempts left')|tojson }},
+        solvedAt: {{ _('solved at')|tojson }},
+        winGame: {{ _('You won this game!')|tojson }},
+        loseGame: {{ _('You lost this game')|tojson }},
+        tieGame: {{ _('This game is a tie')|tojson }},
+        voidGame: {{ _('This game was cancelled')|tojson }},
+        winMatch: {{ _('You won the battle!')|tojson }},
+        loseMatch: {{ _('You lost the battle')|tojson }},
+        cancelled: {{ _('The organizer cancelled this battle.')|tojson }},
+        nextGame: {{ _('Waiting for the next game...')|tojson }},
+        tieNext: {{ _('The organizer will decide or start a tiebreak game.')|tojson }},
+        canLeave: {{ _('The battle is over. You can leave the arena.')|tojson }},
+        close: {{ _('Close')|tojson }},
+        verifying: {{ _('Time is up. Waiting for the last verdicts...')|tojson }},
+        closed: {{ _('Submissions are closed.')|tojson }},
+        go: {{ _('Go!')|tojson }},
+        run: {{ _('Run')|tojson }},
+        running: {{ _('Running...')|tojson }},
+        runEmpty: {{ _('Write some code before running it.')|tojson }},
+        useInput: {{ _('Use as input')|tojson }},
+        useInputHelp: {{ _('Puts this example in Try with input. Then press Run.')|tojson }},
+        runQueued: {{ _('Queued, waiting for a judge...')|tojson }},
+        runNoOutput: {{ _('The program printed nothing.')|tojson }},
+        runCE: {{ _('Compilation error')|tojson }},
+        runRTE: {{ _('The program ended abnormally.')|tojson }},
+        runTLE: {{ _('Time limit exceeded.')|tojson }},
+        runMLE: {{ _('Memory limit exceeded.')|tojson }},
+        runIE: {{ _('Internal error of the judging system.')|tojson }},
+        runOK: {{ _('Executed')|tojson }},
+        details: {{ _('Submission details')|tojson }},
+        compileLog: {{ _('Compiler output')|tojson }},
+        testCase: {{ _('Test case')|tojson }},
+        time: {{ _('Time')|tojson }},
+        memory: {{ _('Memory')|tojson }},
+        verdict: {{ _('Verdict')|tojson }},
+        minutes: {{ _('min')|tojson }},
+        duration: {{ _('Duration')|tojson }},
+        partialOn: {{ _('Partial points')|tojson }},
+        partialOff: {{ _('All or nothing')|tojson }},
+        penalty: {{ _('Penalty per failed attempt')|tojson }},
+        noPenalty: {{ _('No penalty')|tojson }},
+        maxAttempts: {{ _('Maximum attempts per problem')|tojson }},
+        pasteOff: {{ _('Only your own code can be pasted')|tojson }},
+        bestOf: {{ _('Best of')|tojson }},
+        reasons: {
+            all_solved: {{ _('Solved every problem first')|tojson }},
+            unreachable: {{ _('The rival could no longer catch up')|tojson }},
+            more_points: {{ _('More points when time ran out')|tojson }},
+            earlier: {{ _('Same points, reached first')|tojson }},
+            organizer: {{ _('Decided by the organizer')|tojson }},
+            walkover: {{ _('Won by walkover')|tojson }},
+            games: {{ _('Won the series')|tojson }},
+            bye: {{ _('Bye')|tojson }}
+        },
+        // How a game or a battle ended, told to each player with the name of the other: {rival}, {mine}, ... are
+        // filled in by the page.
+        outcome: {
+            all_solved: {win: {{ _('You solved every problem first.')|tojson }},
+                         lose: {{ _('%(rival)s solved every problem before you.', rival='{rival}')|tojson }}},
+            unreachable: {win: {{ _('%(rival)s could no longer catch up with you.', rival='{rival}')|tojson }},
+                          lose: {{ _('You could no longer catch up with %(rival)s.', rival='{rival}')|tojson }}},
+            more_points: {win: {{ _('You had more points when time ran out.')|tojson }},
+                          lose: {{ _('%(rival)s had more points when time ran out.', rival='{rival}')|tojson }}},
+            earlier: {win: {{ _('Same points, but you got there first.')|tojson }},
+                      lose: {{ _('Same points, but %(rival)s got there first.', rival='{rival}')|tojson }}},
+            organizer: {win: {{ _('The organizer gave you this game.')|tojson }},
+                        lose: {{ _('The organizer gave this game to %(rival)s.', rival='{rival}')|tojson }}}
+        },
+        matchOutcome: {
+            organizer: {win: {{ _('The organizer decided this battle in your favor.')|tojson }},
+                        lose: {{ _('The organizer decided this battle in favor of %(rival)s.', rival='{rival}')|tojson }}},
+            walkover: {win: {{ _('The organizer gave you the whole battle.')|tojson }},
+                       lose: {{ _('The organizer gave the whole battle to %(rival)s.', rival='{rival}')|tojson }}},
+            games: {win: {{ _('You won the series %(mine)s to %(theirs)s.', mine='{mine}', theirs='{theirs}')|tojson }},
+                    lose: {{ _('%(rival)s won the series %(theirs)s to %(mine)s.', rival='{rival}', mine='{mine}', theirs='{theirs}')|tojson }}}
+        },
+        seriesExplain: {{ _('Best of %(best)s: the first to win %(needed)s games wins the battle.', best='{best}', needed='{needed}')|tojson }},
+        tieShort: {{ _('Tie.')|tojson }},
+        voidShort: {{ _('Voided by the organizer.')|tojson }},
+        reviewFoot: {{ _('The battle is over. You can stay to look over your code and your submissions; nothing counts anymore. Leave whenever you want.')|tojson }},
+        reviewBetween: {{ _('Meanwhile you can look over this game.')|tojson }},
+        reviewGame: {{ _('Review the game')|tojson }},
+        leave: {{ _('Leave the arena')|tojson }},
+        backToSite: {{ _('Back to the site')|tojson }},
+        submittedCode: {{ _('Submitted code')|tojson }},
+        expand: {{ _('Expand')|tojson }},
+        normalView: {{ _('Normal view')|tojson }},
+        normalTitle: {{ _('Back to the normal view (Esc)')|tojson }},
+        verdicts: {
+            AC: {{ _('Accepted')|tojson }}, WA: {{ _('Wrong answer')|tojson }},
+            TLE: {{ _('Time limit exceeded')|tojson }}, MLE: {{ _('Memory limit exceeded')|tojson }},
+            OLE: {{ _('Output limit exceeded')|tojson }}, RTE: {{ _('Runtime error')|tojson }},
+            IR: {{ _('Invalid return')|tojson }}, CE: {{ _('Compilation error')|tojson }},
+            IE: {{ _('Internal error')|tojson }}, SC: {{ _('Short circuited')|tojson }},
+            AB: {{ _('Aborted')|tojson }}, PARTIAL: {{ _('Partial')|tojson }}
+        }
+    };
+    var URLS = {
+        state: {{ url('arena_state')|tojson }},
+        template: {{ url('language_template_ajax')|tojson }},
+        run: {{ url('custom_test_run')|tojson }},
+        game: {{ url('arena_home')|tojson }} + 'game/'
+    };
+    var CONF = {
+        aceTheme: {{ (ace_theme or '')|tojson }},
+        light: {{ ace_light_theme|tojson }},
+        dark: {{ ace_dark_theme|tojson }},
+        defaultLanguage: {{ default_language_key|tojson }}
+    };
+    var A = window.Arena;
+    // The battle in the site's own bar, where its tabs were, while the player is held (see .ar-nav-battle). Same
+    // colour as those tabs, whatever the theme gives them.
+    var navBattle = {title: A.el('span', {'class': 'ar-nav-title'}), sub: A.el('span', {'class': 'ar-nav-sub'}),
+                     timer: A.el('span', {'class': 'ar-nav-timer'})};
+    (function () {
+        var list = document.getElementById('nav-list');
+        if (!list) return;
+        var item = A.el('li', {'class': 'ar-nav-battle'}, [navBattle.title, navBattle.sub, navBattle.timer]);
+        var tab = list.querySelector('li:not(.home-nav-element) > a');
+        if (tab) item.style.color = getComputedStyle(tab).color;
+        list.appendChild(item);
+        var nav = document.getElementById('navigation');
+        function measure() {
+            if (nav && nav.offsetHeight) document.documentElement.style.setProperty('--ar-nav', nav.offsetHeight + 'px');
+        }
+        measure();
+        window.addEventListener('resize', measure);
+    })();
+    var state = JSON.parse(document.getElementById('ar-initial').textContent);
+    var pollTimer = null, failures = 0, countdownFired = false;
+
+    var game = null;            // the game whose editor and statements are set up
+    var sessions = {};          // order -> Ace EditSession
+    var languages = {};         // order -> selected language key
+    var problems = [];
+    var tab = 0, showAll = false;
+    var known = {};             // submission id -> pending?
+    var firstRender = true;
+    var counters = {paste: 0, blur: 0};
+    var copied = [];            // what the player copied or cut in the editor during this game (see ownCode)
+    var dirty = false, lastSent = 0, sendTimer = null, sendReason = '', sending = false, held = null;
+    var resultShownFor = null, resultDismissed = null;
+    var reviewing = false;      // the battle is over and the player stays to look it over (own account only)
+
+    var editor = ace.edit('ar-editor');
+    editor.setFontSize(15);
+    editor.setShowPrintMargin(false);
+    editor.$blockScrolling = Infinity;
+    A.aceTheme(editor, CONF.aceTheme, CONF.light, CONF.dark);
+
+    // ---------------------------------------------------------------- layout
+    // Everything here is the player's choice and stays in this browser: how the width is shared, the height of the
+    // editor, the text sizes and whether the two panels under the editor go side by side or in tabs. Nothing
+    // changes until the player asks: the defaults are the layout of always, on any screen.
+    var LAYOUT_KEY = 'arena:layout';
+    var layout = {};
+    try { layout = JSON.parse(localStorage.getItem(LAYOUT_KEY) || '{}') || {}; } catch (err) { layout = {}; }
+    function saveLayout() { try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout)); } catch (err) {} }
+    var grid = document.getElementById('ar-grid');
+    var side = document.getElementById('ar-side');
+    var focus = '';             // '', 'statement' or 'editor'
+    var sideTab = 'run';
+    var newVerdicts = false;
+    var resizeEditor = (function () {
+        var pending = false;
+        return function () {
+            if (pending) return;
+            pending = true;
+            requestAnimationFrame(function () { pending = false; editor.resize(); });
+        };
+    })();
+
+    function applyLayout() {
+        var left = layout.left;
+        if (left) {
+            grid.style.setProperty('--ar-left', (left * 100).toFixed(2) + 'fr');
+            grid.style.setProperty('--ar-right', ((1 - left) * 100).toFixed(2) + 'fr');
+        } else {
+            grid.style.removeProperty('--ar-left');
+            grid.style.removeProperty('--ar-right');
+        }
+        var share = layout.editor;
+        if (share) {
+            grid.style.setProperty('--ar-editor', String(Math.round(share * 100)));
+            grid.style.setProperty('--ar-side', String(Math.round((1 - share) * 100)));
+        } else {
+            grid.style.removeProperty('--ar-editor');
+            grid.style.removeProperty('--ar-side');
+        }
+        grid.style.setProperty('--ar-text-scale', String(layout.text || 1));
+        editor.setFontSize(layout.code || 15);
+        applySide();
+        resizeEditor();
+    }
+
+    // Ace has to be told when its box changes size: dividers, "Expand", the window, a taller score strip...
+    if (window.ResizeObserver) new ResizeObserver(resizeEditor).observe(document.getElementById('ar-editor'));
+
+    function setFocus(which) {
+        focus = which === focus ? '' : which;
+        grid.classList.toggle('ar-focus-statement', focus === 'statement');
+        grid.classList.toggle('ar-focus-editor', focus === 'editor');
+        $('.ar-focus-toggle').each(function () {
+            var on = focus === this.getAttribute('data-focus');
+            A.clear(this).appendChild(A.el('i', {'class': 'fa ' + (on ? 'fa-compress' : 'fa-expand'), 'aria-hidden': 'true'}));
+            this.appendChild(document.createTextNode(' ' + (on ? TEXT.normalView : TEXT.expand)));
+            this.setAttribute('aria-pressed', on ? 'true' : 'false');
+            if (on) this.setAttribute('title', TEXT.normalTitle);
+            else this.setAttribute('title', this.getAttribute('data-title') || this.getAttribute('title'));
+        });
+        if (focus !== 'statement') resizeEditor();
+        if (focus === 'editor') editor.focus();
+    }
+    $('.ar-focus-toggle').each(function () { this.setAttribute('data-title', this.getAttribute('title')); })
+        .on('click', function () { setFocus(this.getAttribute('data-focus')); });
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && focus && !document.querySelector('.ar-modal-back')) setFocus(focus);
+    });
+
+    $('[data-text]').on('click', function () {
+        var value = Math.round(((layout.text || 1) + 0.1 * parseInt(this.getAttribute('data-text'), 10)) * 100) / 100;
+        layout.text = Math.max(0.85, Math.min(1.5, value));
+        if (Math.abs(layout.text - 1) < 0.001) delete layout.text;
+        saveLayout();
+        applyLayout();
+    });
+    $('[data-code]').on('click', function () {
+        layout.code = Math.max(11, Math.min(24, (layout.code || 15) + parseInt(this.getAttribute('data-code'), 10)));
+        if (layout.code === 15) delete layout.code;
+        saveLayout();
+        applyLayout();
+    });
+
+    // Dividers: drag, double click for the usual size, or the arrow keys when focused.
+    function divider(node, axis, key, low, high) {
+        function share(event) {
+            var box = (axis === 'x' ? grid : node.parentNode).getBoundingClientRect();
+            if (axis === 'x') {
+                var style = getComputedStyle(grid);
+                var inner = box.width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) - node.offsetWidth;
+                return (event.clientX - box.left - parseFloat(style.paddingLeft) - node.offsetWidth / 2) / inner;
+            }
+            var editorBox = node.previousElementSibling.getBoundingClientRect();
+            var total = box.bottom - editorBox.top - node.offsetHeight;
+            return (event.clientY - editorBox.top - node.offsetHeight / 2) / total;
+        }
+        function set(value) {
+            layout[key] = Math.max(low, Math.min(high, value));
+            applyLayout();
+        }
+        node.addEventListener('pointerdown', function (event) {
+            if (event.button !== 0) return;
+            event.preventDefault();
+            node.setPointerCapture(event.pointerId);
+            node.classList.add('ar-dragging');
+            document.body.classList.add('ar-dragging-now');
+            document.body.style.cursor = axis === 'x' ? 'col-resize' : 'row-resize';
+        });
+        node.addEventListener('pointermove', function (event) {
+            if (node.hasPointerCapture && node.hasPointerCapture(event.pointerId)) set(share(event));
+        });
+        function stop(event) {
+            if (!node.classList.contains('ar-dragging')) return;
+            node.classList.remove('ar-dragging');
+            document.body.classList.remove('ar-dragging-now');
+            document.body.style.cursor = '';
+            if (event && node.hasPointerCapture && node.hasPointerCapture(event.pointerId)) node.releasePointerCapture(event.pointerId);
+            saveLayout();
+        }
+        node.addEventListener('pointerup', stop);
+        node.addEventListener('pointercancel', stop);
+        node.addEventListener('dblclick', function () { delete layout[key]; saveLayout(); applyLayout(); });
+        node.addEventListener('keydown', function (event) {
+            var step = {ArrowLeft: -0.02, ArrowUp: -0.02, ArrowRight: 0.02, ArrowDown: 0.02}[event.key];
+            if (step === undefined) return;
+            event.preventDefault();
+            set((layout[key] || (axis === 'x' ? 5 / 11 : 0.6)) + step);
+            saveLayout();
+        });
+    }
+    divider(document.getElementById('ar-split-col'), 'x', 'left', 0.25, 0.75);
+    divider(document.getElementById('ar-split-row'), 'y', 'editor', 0.35, 0.85);
+
+    // "Try with input" and "My submissions": side by side, or one at a time with tabs. Until the player chooses,
+    // tabs when the code column is too narrow for two readable panels.
+    function tabbed() { return layout.side ? layout.side === 'tabs' : side.clientWidth > 0 && side.clientWidth < 640; }
+    function applySide() {
+        var tabs = tabbed();
+        side.classList.toggle('ar-tabbed', tabs);
+        $('#ar-side-tabs').prop('hidden', !tabs);
+        $(side).find('.ar-side-panels > .ar-panel').each(function () {
+            this.classList.toggle('ar-shown', this.getAttribute('data-side') === sideTab);
+        });
+        $('#ar-side-tabs .ar-tab').each(function () { this.classList.toggle('ar-active', this.getAttribute('data-side') === sideTab); });
+        if (sideTab === 'subs') newVerdicts = false;
+        $('#ar-subs-new').prop('hidden', !(tabs && newVerdicts));
+    }
+    $('#ar-side-tabs .ar-tab').on('click', function () { sideTab = this.getAttribute('data-side'); applySide(); });
+    $('.ar-side-toggle').on('click', function () { layout.side = tabbed() ? 'side' : 'tabs'; saveLayout(); applySide(); });
+    if (window.ResizeObserver) new ResizeObserver(function () { if (!layout.side) applySide(); }).observe(side);
+
+    $(window).on('resize', resizeEditor);
+    setFocus('');
+    applyLayout();
+
+    // ---------------------------------------------------------------- polling
+    function schedule(ms) {
+        clearTimeout(pollTimer);
+        pollTimer = setTimeout(poll, ms);
+    }
+    function poll() {
+        A.get(URLS.state).then(function (data) {
+            if (!data || typeof data !== 'object' || !data.phase) throw new Error('bad state');
+            failures = 0;
+            $('#ar-offline').prop('hidden', true);
+            render(data);
+            schedule(data.poll || 2000);
+        }).catch(function (error) {
+            if (error && error.status === 401) {
+                // Signed out (here or in another tab): nothing more will come until the player signs in again.
+                $('#ar-offline').prop('hidden', true);
+                $('#ar-signed-out').prop('hidden', false);
+                return;
+            }
+            failures++;
+            if (failures >= 3) $('#ar-offline').prop('hidden', false);
+            schedule(Math.min(1000 * failures, 5000));
+        });
+    }
+
+    // ---------------------------------------------------------------- rendering
+    function show(id) {
+        ['ar-idle', 'ar-lobby', 'ar-countdown', 'ar-play', 'ar-cancelled'].forEach(function (name) {
+            $('#' + name).prop('hidden', name !== id);
+        });
+        document.querySelector('.ar-app').classList.toggle('ar-playing', id === 'ar-play');
+        if (id === 'ar-play') { applySide(); editor.resize(); }
+    }
+
+    // Review mode: when the battle is over, a player on their own account keeps the game on screen, with an editor
+    // that can be changed and run but no longer submits, until they leave or are called to another battle. On a
+    // club laptop (a name typed by the organizer) the game is cleared at once, as before, for the next guest.
+    function editorWritable() { return state.phase === 'live' || reviewing; }
+
+    function startReview() {
+        if (reviewing) return;
+        reviewing = true;
+        $('#ar-review').prop('hidden', false);
+        editor.setReadOnly(false);
+    }
+
+    function endReview() {
+        if (!reviewing) return;
+        reviewing = false;
+        $('#ar-review').prop('hidden', true);
+        forgetOtherGames(null);
+    }
+
+    function leaveArena(event) {
+        // The drafts of the game go with the player: nothing of it stays in this browser.
+        if (event) event.preventDefault();
+        forgetOtherGames(null);
+        window.location.href = {{ url('home')|tojson }};
+    }
+    $('#ar-review-leave').on('click', leaveArena);
+
+    function header(data) {
+        var match = data.match || {};
+        var parts = [];
+        if (match.tournament) parts.push(match.tournament);
+        if (match.round) parts.push(match.round);
+        if (match.title) parts.push(match.title);
+        var title = parts.length ? parts.join(' · ') : TEXT.battle;
+        var vs = data.me && data.rival ? data.me.name + ' vs ' + data.rival.name : '';
+        $('#ar-head-title').text(title);
+        if (vs) $('#ar-head-sub').text(vs);
+        var series = data.series, seriesText = '';
+        if (series && series.best_of > 1 && data.game) {
+            seriesText = TEXT.game + ' ' + data.game.number + ' · ' + TEXT.bestOf + ' ' + series.best_of;
+            $('#ar-head-series').text(seriesText).prop('hidden', false);
+        } else {
+            $('#ar-head-series').prop('hidden', true);
+        }
+        navBattle.title.textContent = title;
+        navBattle.sub.textContent = [vs, seriesText].filter(Boolean).join(' · ');
+    }
+
+    function fighter(card, cls) {
+        return A.el('div', {'class': 'ar-fighter ' + cls}, [
+            card.avatar ? A.el('img', {src: card.avatar, alt: ''}) : null,
+            A.el('div', {'class': 'ar-name', text: card.name}),
+            card.username && card.username !== card.name ? A.el('div', {'class': 'ar-muted', text: card.username}) : null
+        ]);
+    }
+
+    // `middle` goes between the two players: "VS" in the waiting room, the countdown number once it runs. Built
+    // again only when the players change, so the photos do not flicker on every poll.
+    function versus(container, data, middle) {
+        var key = JSON.stringify([data.me, data.rival]);
+        if (container.dataset.players === key && (!middle || middle.parentNode === container)) return;
+        container.dataset.players = key;
+        A.clear(container);
+        container.appendChild(fighter(data.me, 'ar-me'));
+        container.appendChild(middle || A.el('div', {'class': 'ar-vs', text: 'VS'}));
+        container.appendChild(fighter(data.rival, 'ar-rival'));
+    }
+
+    function rulesList(container, rules, series) {
+        A.clear(container);
+        if (!rules) return;
+        var items = [TEXT.duration + ': ' + rules.duration + ' ' + TEXT.minutes,
+                     rules.partial ? TEXT.partialOn : TEXT.partialOff,
+                     rules.penalty ? TEXT.penalty + ': ' + rules.penalty + ' ' + TEXT.minutes : TEXT.noPenalty];
+        if (rules.max_attempts) items.push(TEXT.maxAttempts + ': ' + rules.max_attempts);
+        if (rules.block_paste) items.push(TEXT.pasteOff);
+        if (series && series.best_of > 1) items.push(TEXT.bestOf + ' ' + series.best_of);
+        items.forEach(function (text) { container.appendChild(A.el('span', {'class': 'ar-badge ar-none', text: text})); });
+    }
+
+    function render(data) {
+        // Half an hour after the battle the server stops showing it; a player still looking it over keeps it here
+        // until they leave. Only another battle (waiting room, countdown...) takes its place.
+        if (reviewing && data.phase === 'idle') {
+            state = Object.assign({}, state, {now: data.now, poll: data.poll});
+            return;
+        }
+        if (reviewing && (!data.match || !state.match || data.match.id !== state.match.id ||
+                          (data.phase !== 'decided' && data.phase !== 'between'))) endReview();
+        state = data;
+        header(data);
+        var phase = data.phase;
+        document.documentElement.classList.toggle('ar-locked', !!data.locked);
+        $('#ar-top').prop('hidden', phase === 'idle' || phase === 'cancelled');
+        var g = data.game;
+        if (phase === 'idle') {
+            show('ar-idle');
+            hideResult();
+        } else if (phase === 'cancelled') {
+            show('ar-cancelled');
+            hideResult();
+        } else if (phase === 'countdown') {
+            show('ar-countdown');
+            hideResult();
+            countdownFired = false;
+            versus(document.getElementById('ar-count-versus'), data, document.getElementById('ar-count'));
+        } else if (g && g.started && g.problems) {
+            show('ar-play');
+        } else {
+            show('ar-lobby');
+            versus(document.getElementById('ar-lobby-versus'), data);
+            rulesList(document.getElementById('ar-lobby-rules'), g && g.rules, data.series);
+        }
+        // A finished battle leaves nothing behind on a club laptop for whoever sits there next. A player on their
+        // own account keeps the drafts of this game while reviewing it.
+        if (phase === 'idle' || phase === 'cancelled' || (phase === 'decided' && !data.review)) forgetOtherGames(null);
+        if (g && g.started && g.problems) {
+            setupGame(g);
+            if (data.review && (phase === 'decided' || phase === 'between')) startReview();
+            scores(data, g);
+            submissions(g.submissions || []);
+            var open = phase === 'live';
+            editor.setReadOnly(!editorWritable());
+            $('#ar-submit').prop('disabled', !open);
+            $('#ar-verifying').prop('hidden', phase !== 'verifying');
+            $('#ar-closed').prop('hidden', open || reviewing || phase === 'verifying' || phase === 'lobby');
+        }
+        result(data);
+        firstRender = false;
+    }
+
+    // ---------------------------------------------------------------- game set-up
+    function storageKey(gameId, order) { return 'arena:code:' + gameId + ':' + order; }
+
+    function forgetOtherGames(keep) {
+        try {
+            var doomed = [];
+            for (var i = 0; i < localStorage.length; i++) {
+                var key = localStorage.key(i);
+                if (key && key.indexOf('arena:code:') === 0 && (keep === null || key.split(':')[2] !== String(keep)))
+                    doomed.push(key);
+            }
+            doomed.forEach(function (key) { localStorage.removeItem(key); });
+        } catch (err) { /* private mode */ }
+    }
+
+    function setupGame(g) {
+        if (game && game.id === g.id) {
+            problems = g.problems;
+            markTabs(g);
+            var current = problems.filter(function (p) { return p.order === tab; })[0];
+            var left = current ? current.attempts_left : null;
+            $('#ar-attempts-left').text(left === null || left === undefined ? '' : left + ' ' + TEXT.attemptsLeft);
+            return;
+        }
+        game = g;
+        // Each game starts in the normal view; sizes and dividers stay as the player left them.
+        if (focus) setFocus(focus);
+        problems = g.problems;
+        sessions = {};
+        languages = {};
+        known = {};
+        counters = {paste: 0, blur: 0};
+        // A new game, maybe a new guest on a club laptop: nothing copied before can be pasted into it.
+        copied = [];
+        tab = 0;
+        showAll = false;
+        forgetOtherGames(g.id);
+        buildTabs();
+        loadStatements();
+        // Drafts: this browser first, then the server (another laptop), then the language template.
+        A.get(URLS.game + g.id + '/code/mine').catch(function () { return {drafts: {}}; }).then(function (data) {
+            problems.forEach(function (problem) {
+                var saved = null;
+                try { saved = JSON.parse(localStorage.getItem(storageKey(g.id, problem.order)) || 'null'); }
+                catch (err) { saved = null; }
+                var draft = saved || (data.drafts || {})[String(problem.order)] || null;
+                var key = pickLanguage(problem, draft && draft.language);
+                languages[problem.order] = key;
+                var session = ace.createEditSession(draft ? draft.text : '', 'ace/mode/' + aceMode(problem, key));
+                session.setUseWrapMode(false);
+                session.setTabSize(4);
+                sessions[problem.order] = session;
+                if (!draft) loadTemplate(problem, key, session);
+            });
+            selectTab(0);
+        });
+        if (g.rules && g.rules.block_paste) protectEditor();
+    }
+
+    function pickLanguage(problem, wanted) {
+        var keys = problem.languages.map(function (lang) { return lang.key; });
+        if (wanted && keys.indexOf(wanted) !== -1) return wanted;
+        if (CONF.defaultLanguage && keys.indexOf(CONF.defaultLanguage) !== -1) return CONF.defaultLanguage;
+        return keys[0];
+    }
+
+    function aceMode(problem, key) {
+        var found = problem.languages.filter(function (lang) { return lang.key === key; })[0];
+        return found ? found.ace : 'text';
+    }
+
+    function loadTemplate(problem, key, session) {
+        var found = problem.languages.filter(function (lang) { return lang.key === key; })[0];
+        if (!found) return;
+        $.get(URLS.template, {id: found.id}).done(function (template) {
+            if (!session.getValue()) {
+                session.setValue(template || '');
+                if (sessions[tab] === session) { sendReason = 'template'; queueSend(); }
+            }
+        });
+    }
+
+    function buildTabs() {
+        var bar = A.clear(document.getElementById('ar-tabs'));
+        problems.forEach(function (problem) {
+            bar.appendChild(A.el('button', {type: 'button', 'class': 'ar-tab', 'data-order': problem.order,
+                                            onclick: function () { selectTab(problem.order); }}, [
+                A.el('b', {text: problem.label}),
+                A.el('span', {text: problem.name}),
+                A.el('span', {'class': 'ar-mark'})
+            ]));
+        });
+        if (problems.length > 1) {
+            bar.appendChild(A.el('button', {type: 'button', 'class': 'ar-tab', id: 'ar-tab-all',
+                                            onclick: function () { showAll = !showAll; selectTab(tab); }}, [TEXT.all]));
+        }
+    }
+
+    function markTabs(g) {
+        var mine = (g.standing && g.standing.me && g.standing.me.problems) || {};
+        problems.forEach(function (problem) {
+            var row = mine[String(problem.order)] || {};
+            var mark = $('#ar-tabs .ar-tab[data-order="' + problem.order + '"] .ar-mark');
+            mark.attr('class', 'ar-mark');
+            if (row.full) mark.text('✓').addClass('ar-badge ar-ok');
+            else if (row.best > 0) mark.text(A.points(row.best)).addClass('ar-badge ar-warn');
+            else if (row.attempts) mark.text('✗' + row.attempts).addClass('ar-badge ar-bad');
+            else mark.text('');
+        });
+    }
+
+    function selectTab(order) {
+        if (sessions[tab] && tab !== order) flushSend();
+        tab = order;
+        $('#ar-tabs .ar-tab').removeClass('ar-active');
+        $('#ar-tabs .ar-tab[data-order="' + order + '"]').addClass('ar-active');
+        $('#ar-tab-all').toggleClass('ar-active', showAll);
+        var box = $('#ar-statements').toggleClass('ar-all', showAll);
+        box.children('.ar-statement-slot').each(function () {
+            $(this).prop('hidden', !showAll && String($(this).data('order')) !== String(order));
+        });
+        if (sessions[order]) editor.setSession(sessions[order]);
+        editor.setReadOnly(!editorWritable());
+        var problem = problems.filter(function (p) { return p.order === order; })[0];
+        if (problem) {
+            var select = A.clear(document.getElementById('ar-language'));
+            problem.languages.forEach(function (lang) {
+                var option = A.el('option', {value: lang.key, text: lang.name});
+                if (lang.key === languages[order]) option.selected = true;
+                select.appendChild(option);
+            });
+            $('#ar-submit-label').text(TEXT.submitTo + ' ' + problem.label);
+            var left = problem.attempts_left;
+            $('#ar-attempts-left').text(left === null || left === undefined ? '' : left + ' ' + TEXT.attemptsLeft);
+        }
+        editor.focus();
+    }
+
+    $('#ar-language').on('change', function () {
+        var key = this.value;
+        var problem = problems.filter(function (p) { return p.order === tab; })[0];
+        if (!problem || !sessions[tab]) return;
+        languages[tab] = key;
+        sessions[tab].setMode('ace/mode/' + aceMode(problem, key));
+        if (!sessions[tab].getValue().trim()) loadTemplate(problem, key, sessions[tab]);
+        remember();
+        queueSend();
+    });
+
+    function loadStatements() {
+        var box = A.clear(document.getElementById('ar-statements'));
+        problems.forEach(function (problem) {
+            var slot = A.el('div', {'class': 'ar-statement-slot', 'data-order': problem.order},
+                            [A.el('p', {'class': 'ar-muted', text: TEXT.loading})]);
+            box.appendChild(slot);
+            fetchStatement(problem.order, slot, 0);
+        });
+    }
+
+    function fetchStatement(order, slot, attempt) {
+        var gameId = game.id;
+        A.get(URLS.game + gameId + '/statement/' + order).then(function (html) {
+            if (!game || game.id !== gameId) return;
+            // Server-rendered with the same trusted markdown pipeline as the problem page.
+            slot.innerHTML = html;
+            A.typeset(slot);
+            addInputButtons(slot);
+        }).catch(function () {
+            A.clear(slot).appendChild(A.el('p', {'class': 'ar-muted', text: TEXT.loadError}));
+            setTimeout(function () { if (game && game.id === gameId) fetchStatement(order, slot, attempt + 1); },
+                       Math.min(2000 * (attempt + 1), 8000));
+        });
+    }
+
+    // Every example of a statement gets a button that puts it into "Try with input", without the clipboard (pasting
+    // into the editor stays blocked). In a table of samples only the inputs get one, in the corner where the problem
+    // page has its copy icon, and with the same look (the markup of add_code_copy_buttons, whose room in the cell
+    // the table keeps). In a statement written the usual way nothing says which block is the input, so every block
+    // gets a labelled button above it, where it covers no text.
+    function addInputButtons(container) {
+        Array.prototype.forEach.call(container.querySelectorAll('.content-description pre > code'), function (code) {
+            var pre = code.parentNode;
+            var cell = pre.closest('.sample-table td');
+            if (cell && !cell.classList.contains('sample-input')) return;
+            var use = function () { useAsInput(code.textContent); };
+            if (cell) {
+                var icon = A.el('span', {'class': 'btn-clipboard ar-use-input', role: 'button', tabindex: '0',
+                                         title: TEXT.useInput + '. ' + TEXT.useInputHelp, 'aria-label': TEXT.useInput},
+                                [TEXT.useInput]);
+                icon.addEventListener('click', use);
+                icon.addEventListener('keydown', function (event) {
+                    if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); use(); }
+                });
+                pre.parentNode.insertBefore(A.el('div', {'class': 'copy-clipboard'}, [icon]), pre);
+                return;
+            }
+            var button = A.el('button', {type: 'button', 'class': 'ar-tool ar-use-input', title: TEXT.useInputHelp}, [
+                A.el('i', {'class': 'fa fa-level-down', 'aria-hidden': 'true'}), ' ' + TEXT.useInput]);
+            button.addEventListener('click', use);
+            pre.parentNode.insertBefore(A.el('div', {'class': 'ar-use-input-row'}, [button]), pre);
+        });
+    }
+
+    var filledTimer = null;
+    function useAsInput(text) {
+        var input = document.getElementById('ar-run-input');
+        // Like a test file: ending in a line break.
+        text = text.replace(/\r\n/g, '\n');
+        input.value = text && text.slice(-1) !== '\n' ? text + '\n' : text;
+        // With the panels in tabs, show the one with the input.
+        sideTab = 'run';
+        applySide();
+        input.scrollTop = 0;
+        // Stacked on a narrow screen, the box is further down the page.
+        var box = input.getBoundingClientRect();
+        if (box.top < 0 || box.bottom > window.innerHeight) input.scrollIntoView({block: 'nearest'});
+        input.classList.add('ar-filled');
+        clearTimeout(filledTimer);
+        filledTimer = setTimeout(function () { input.classList.remove('ar-filled'); }, 1200);
+    }
+
+    // ---------------------------------------------------------------- scores and submissions
+    function chip(row, label, mine) {
+        var cls = 'ar-chip', text = label;
+        if (row) {
+            if (row.full) { cls += ' ar-ok'; text = label + ' ✓'; }
+            else if (row.pending) { cls += ' ar-info'; text = label + ' …'; }
+            else if (row.best > 0) { cls += ' ar-warn'; text = label + ' ' + A.points(row.best); }
+            else if (row.attempts) { cls += ' ar-bad'; text = label + ' ✗' + row.attempts; }
+        }
+        return A.el('span', {'class': cls, text: text});
+    }
+
+    function scoreBox(id, standing, who, cls) {
+        var box = A.clear(document.getElementById(id));
+        if (!standing) { box.hidden = true; return; }
+        box.hidden = false;
+        box.appendChild(A.el('span', {'class': 'ar-who', text: who}));
+        box.appendChild(A.el('span', {'class': 'ar-points', text: A.points(standing.score)}));
+        var chips = A.el('span', {'class': 'ar-chips'});
+        problems.forEach(function (problem) {
+            chips.appendChild(chip((standing.problems || {})[String(problem.order)], problem.label));
+        });
+        box.appendChild(chips);
+    }
+
+    function scores(data, g) {
+        var standing = g.standing || {};
+        scoreBox('ar-score-me', standing.me, TEXT.you, 'ar-me');
+        scoreBox('ar-score-rival', standing.rival, data.rival.name, 'ar-rival');
+        markTabs(g);
+    }
+
+    function verdictText(row) {
+        if (row.pending) {
+            if (row.status === 'QU') return TEXT.queued;
+            return TEXT.judging + (row.case ? ' · ' + TEXT.caseN + ' ' + row.case : '');
+        }
+        if (row.status === 'CE') return TEXT.verdicts.CE;
+        if (row.status === 'IE') return TEXT.verdicts.IE;
+        if (row.status === 'AB') return TEXT.verdicts.AB;
+        if (row.result === 'AC' && row.points >= row.full - 1e-9) return TEXT.verdicts.AC;
+        if (row.points > 0) return TEXT.verdicts.PARTIAL + ' · ' + A.points(row.points);
+        return TEXT.verdicts[row.result] || row.result || '?';
+    }
+
+    function submissions(rows) {
+        var box = A.clear(document.getElementById('ar-subs'));
+        if (!rows.length) box.appendChild(A.el('div', {'class': 'ar-empty', text: TEXT.noSubs}));
+        rows.forEach(function (row) {
+            var kind = A.verdictKind(row);
+            box.appendChild(A.el('div', {'class': 'ar-sub', onclick: function () { details(row.id); }}, [
+                A.el('span', {'class': 'ar-label', text: row.label}),
+                A.el('span', {'class': 'ar-badge ar-' + kind, text: verdictText(row)}),
+                A.el('span', {'class': 'ar-grow ar-muted', text: row.language}),
+                row.time !== null && row.time !== undefined && !row.pending
+                    ? A.el('span', {'class': 'ar-muted ar-num', text: row.time.toFixed(2) + ' s'}) : null
+            ]));
+            var before = known[row.id];
+            if (!firstRender && !row.pending && before !== false) {
+                A.toast(row.label + ': ' + verdictText(row), kind === 'ok' ? 'ok' : (kind === 'warn' ? 'warn' : 'bad'),
+                        kind === 'ok' ? 7000 : 5000);
+                // With the panels in tabs the list may be out of sight: its tab gets a mark until it is opened.
+                if (sideTab !== 'subs') newVerdicts = true;
+            }
+            known[row.id] = row.pending;
+        });
+        $('#ar-subs-count').text(rows.length ? '(' + rows.length + ')' : '');
+        $('#ar-subs-new').prop('hidden', !(side.classList.contains('ar-tabbed') && newVerdicts));
+    }
+
+    function details(id) {
+        if (!game) return;
+        A.get(URLS.game + game.id + '/submission/' + id).then(function (data) {
+            var body = A.el('div', {'class': 'ar-panel-body'});
+            body.appendChild(A.el('p', {}, [A.el('b', {text: TEXT.verdict + ': '}),
+                                            (TEXT.verdicts[data.result] || data.result || data.status)]));
+            if (data.error) {
+                body.appendChild(A.el('h4', {text: TEXT.compileLog}));
+                body.appendChild(A.el('pre', {'class': 'ar-pre', text: data.error}));
+            }
+            // Only for a player on their own account: on a club laptop the next guest must not read it.
+            if (data.source) {
+                body.appendChild(A.el('h4', {text: TEXT.submittedCode + (data.language ? ' · ' + data.language : '')}));
+                body.appendChild(A.el('pre', {'class': 'ar-pre', style: 'max-height: 40vh; overflow: auto;', text: data.source}));
+            }
+            if (data.cases && data.cases.length) {
+                var table = A.el('table', {'class': 'ar-table'}, [A.el('tr', {}, [
+                    A.el('th', {text: TEXT.testCase}), A.el('th', {text: TEXT.verdict}),
+                    A.el('th', {text: TEXT.time}), A.el('th', {text: TEXT.memory})])]);
+                data.cases.forEach(function (c) {
+                    table.appendChild(A.el('tr', {}, [
+                        A.el('td', {text: (c.batch ? c.batch + '.' : '') + c.case}),
+                        A.el('td', {}, [A.el('span', {'class': 'ar-badge ar-' + (c.status === 'AC' ? 'ok' : 'bad'),
+                                                      text: TEXT.verdicts[c.status] || c.status})]),
+                        A.el('td', {'class': 'ar-num', text: c.time !== null ? c.time.toFixed(3) + ' s' : '—'}),
+                        A.el('td', {'class': 'ar-num', text: c.memory !== null ? (c.memory / 1024).toFixed(1) + ' MB' : '—'})
+                    ]));
+                });
+                body.appendChild(table);
+            }
+            modal(TEXT.details, body);
+        }).catch(function (error) { A.toast(error.message, 'bad'); });
+    }
+
+    function modal(title, body) {
+        var back = A.el('div', {'class': 'ar-modal-back', onclick: function (ev) { if (ev.target === back) close(); }});
+        var close = function () { if (back.parentNode) back.parentNode.removeChild(back); };
+        back.appendChild(A.el('div', {'class': 'ar-modal'}, [
+            A.el('h3', {'class': 'ar-panel-head'}, [title, A.el('span', {'class': 'ar-spacer'}),
+                A.el('button', {type: 'button', 'class': 'ar-btn ar-btn-plain', text: TEXT.close, onclick: close})]),
+            body
+        ]));
+        document.body.appendChild(back);
+    }
+
+    // ---------------------------------------------------------------- results
+    function hideResult() { $('#ar-result-back').prop('hidden', true); }
+
+    function fill(template, values) {
+        return String(template || '').replace(/\{(\w+)\}/g, function (all, name) {
+            return values[name] !== undefined ? String(values[name]) : all;
+        });
+    }
+
+    function wins(data) {
+        var count = {me: 0, rival: 0};
+        (data.series.games || []).forEach(function (row) { if (count[row.winner] !== undefined) count[row.winner]++; });
+        return count;
+    }
+
+    // How one game ended, told from this player's side and naming the rival.
+    function gameOutcome(data, row) {
+        if (row.status === 'tie') return TEXT.tieShort;
+        if (row.status === 'cancelled') return TEXT.voidShort;
+        var texts = TEXT.outcome[row.reason];
+        if (!texts || !row.winner) return TEXT.reasons[row.reason] || '';
+        return fill(row.winner === 'me' ? texts.win : texts.lose, {rival: data.rival.name});
+    }
+
+    function result(data) {
+        var phase = data.phase, g = data.game;
+        var key = null, title = '', cls = '', reason = '', foot = '';
+        var series = data.series || {};
+        var isSeries = series.best_of > 1;
+        if (phase === 'decided') {
+            key = 'm' + data.match.id;
+            var won = data.match.winner === 'me';
+            title = won ? TEXT.winMatch : TEXT.loseMatch;
+            cls = won ? 'ar-win' : 'ar-lose';
+            var count = wins(data);
+            if (data.match.reason === 'games' && !isSeries && g) {
+                // A single game: how that game was won.
+                reason = gameOutcome(data, g);
+            } else {
+                var texts = TEXT.matchOutcome[data.match.reason];
+                reason = texts ? fill(won ? texts.win : texts.lose, {rival: data.rival.name, mine: count.me, theirs: count.rival})
+                    : (TEXT.reasons[data.match.reason] || '');
+            }
+            foot = data.review ? TEXT.reviewFoot : TEXT.canLeave;
+        } else if (phase === 'between' && g) {
+            key = 'g' + g.id;
+            if (g.status === 'tie') { title = TEXT.tieGame; foot = TEXT.tieNext; }
+            else if (g.status === 'cancelled') { title = TEXT.voidGame; foot = TEXT.nextGame; }
+            else {
+                title = g.winner === 'me' ? TEXT.winGame : TEXT.loseGame;
+                cls = g.winner === 'me' ? 'ar-win' : 'ar-lose';
+                reason = gameOutcome(data, g);
+                foot = TEXT.nextGame;
+            }
+            if (data.review) foot += ' ' + TEXT.reviewBetween;
+        }
+        if (!key) { hideResult(); return; }
+        if (resultDismissed === key) return;
+        var box = document.getElementById('ar-result');
+        box.className = 'ar-result ' + cls;
+        $('#ar-result-title').text(title);
+        $('#ar-result-reason').text(reason);
+        $('#ar-result-series').text(isSeries ? seriesText(data) : '');
+        $('#ar-result-explain').text(isSeries ? fill(TEXT.seriesExplain, {best: series.best_of, needed: series.needed}) : '');
+        // In a series, every game so far and how it went, so "won the series" says what it means.
+        var list = A.clear(document.getElementById('ar-result-games'));
+        if (isSeries) {
+            (series.games || []).filter(function (row) { return row.status !== 'prepared'; }).forEach(function (row) {
+                list.appendChild(A.el('li', {'class': row.winner === 'me' ? 'ar-me-won' : (row.winner === 'rival' ? 'ar-rival-won' : '')},
+                                      [A.el('b', {text: TEXT.game + ' ' + row.number + ': '}), gameOutcome(data, row)]));
+            });
+        }
+        list.hidden = !list.children.length;
+        $('#ar-result-foot').text(foot);
+        // Over: review it (own account) or leave. A club laptop keeps the plain close and back to the site.
+        $('#ar-result-close').text(data.review ? TEXT.reviewGame : TEXT.close).toggleClass('ar-btn-plain', !data.review);
+        $('#ar-result-home').text(data.review ? TEXT.leave : TEXT.backToSite)
+            .toggleClass('ar-btn-plain', !!data.review).prop('hidden', phase !== 'decided');
+        $('#ar-result-back').prop('hidden', false);
+        resultShownFor = key;
+    }
+
+    function seriesText(data) {
+        var count = wins(data);
+        return data.me.name + ' ' + count.me + ' – ' + count.rival + ' ' + data.rival.name;
+    }
+
+    $('#ar-result-close').on('click', function () {
+        resultDismissed = resultShownFor;
+        hideResult();
+    });
+    $('#ar-result-home').on('click', function (event) { if (state.review) leaveArena(event); });
+
+    // ---------------------------------------------------------------- clock
+    setInterval(function () {
+        var g = state.game;
+        var timer = $('#ar-timer');
+        if (state.phase === 'countdown' && g && g.started_at) {
+            var left = g.started_at - A.now();
+            $('#ar-count').text(left > 0 ? Math.ceil(left) : TEXT.go);
+            timer.text('');
+            navBattle.timer.textContent = '';
+            if (left <= 0 && !countdownFired) { countdownFired = true; schedule(50); }
+        } else if (state.phase === 'live' && g && g.ends_at) {
+            var rest = g.ends_at - A.now();
+            timer.text(A.clock(rest)).toggleClass('ar-low', rest < 60);
+            navBattle.timer.textContent = A.clock(rest);
+            navBattle.timer.classList.toggle('ar-low', rest < 60);
+            if (rest <= 0) schedule(300);
+        } else {
+            timer.text('').removeClass('ar-low');
+            navBattle.timer.textContent = '';
+        }
+    }, 200);
+
+    // ---------------------------------------------------------------- live code
+    function remember() {
+        if (!game || !sessions[tab]) return;
+        try {
+            localStorage.setItem(storageKey(game.id, tab), JSON.stringify({language: languages[tab],
+                                                                             text: sessions[tab].getValue()}));
+        } catch (err) { /* quota or private mode */ }
+    }
+
+    // The screens show the code about three times a second while the player types (the server allows four), one
+    // request at a time so an older text never arrives after a newer one. After a slow answer the next one still
+    // waits a quarter of a second: the server counts arrivals, and a burst after a stall would go over its limit.
+    var SEND_EVERY = 350, SEND_GAP = 250, lastDone = 0;
+
+    function queueSend(delay) {
+        dirty = true;
+        if (sendTimer || sending) return;
+        var now = Date.now();
+        var wait = delay !== undefined ? delay : Math.max(60, SEND_EVERY - (now - lastSent), SEND_GAP - (now - lastDone));
+        sendTimer = setTimeout(sendCode, wait);
+    }
+
+    // Before switching problems: the code of the one being left goes now, or right after the one on its way.
+    function flushSend() {
+        if (sendTimer) { clearTimeout(sendTimer); sendTimer = null; }
+        if (!dirty || !game || state.phase !== 'live' || !sessions[tab]) return;
+        dirty = false;
+        if (sending) held = snapshot();
+        else post(snapshot());
+    }
+
+    function snapshot() {
+        var cursor = editor.getCursorPosition();
+        var reason = sendReason;
+        sendReason = '';
+        return {game: game.id, body: {problem: tab, language: languages[tab], text: sessions[tab].getValue(),
+                                      cursor: {row: cursor.row, column: cursor.column}, counters: counters, reason: reason}};
+    }
+
+    function sendCode() {
+        sendTimer = null;
+        if (!dirty || !game || state.phase !== 'live' || !sessions[tab]) return;
+        dirty = false;
+        post(snapshot());
+    }
+
+    function post(item) {
+        sending = true;
+        lastSent = Date.now();
+        A.post(URLS.game + item.game + '/code', item.body).then(function () { return true; }, function () { return false; })
+            .then(function (ok) {
+                sending = false;
+                lastDone = Date.now();
+                if (held) { var next = held; held = null; setTimeout(function () { post(next); }, SEND_GAP); return; }
+                // A failed send is retried a little later with whatever the editor has by then.
+                if (!ok) dirty = true;
+                if (dirty) queueSend(ok ? undefined : 2000);
+            });
+    }
+
+    var rememberTimer = null;
+    editor.on('change', function () {
+        clearTimeout(rememberTimer);
+        rememberTimer = setTimeout(remember, 400);
+        queueSend();
+    });
+    editor.getSelection().on('changeCursor', function () { if (state.phase === 'live') queueSend(); });
+
+    // With pasting blocked, the player can still paste their own code: anything already in their code of this game,
+    // in any problem, or anything they copied or cut in this editor (cutting takes it out of the code). Only text
+    // from outside is refused. Windows hands multi-line text back with \r\n, so line breaks are compared as \n.
+    function plainText(text) { return String(text || '').replace(/\r\n?/g, '\n'); }
+
+    function ownCode(text) {
+        var wanted = plainText(text);
+        if (!wanted || copied.indexOf(wanted) !== -1) return true;
+        return Object.keys(sessions).some(function (order) { return plainText(sessions[order].getValue()).indexOf(wanted) !== -1; });
+    }
+
+    function protectEditor() {
+        if (editor.__arenaProtected) return;
+        editor.__arenaProtected = true;
+        // Ace announces copying (and cutting, which copies first) with the text; its "cut" event only carries a range.
+        editor.on('copy', function (event) {
+            var text = plainText(typeof event === 'string' ? event : (event && event.text));
+            if (!text || copied.indexOf(text) !== -1) return;
+            copied.push(text);
+            if (copied.length > 50) copied.shift();
+        });
+        editor.on('paste', function (event) {
+            // Once the battle is over the editor is only for practice: pasting is allowed again.
+            if (!game || !game.rules || !game.rules.block_paste || reviewing) return;
+            if (ownCode(event.text)) return;
+            event.text = '';
+            counters.paste++;
+            A.toast(TEXT.pasteBlocked, 'warn');
+            queueSend();
+        });
+        var container = editor.container;
+        ['dragenter', 'dragover', 'drop'].forEach(function (name) {
+            container.addEventListener(name, function (event) {
+                if (!game || !game.rules || !game.rules.block_paste || reviewing) return;
+                event.preventDefault();
+                event.stopPropagation();
+                if (name === 'drop') { counters.paste++; A.toast(TEXT.dropBlocked, 'warn'); queueSend(); }
+            }, true);
+        });
+    }
+
+    var hiddenSince = null;
+    document.addEventListener('visibilitychange', function () {
+        if (state.phase !== 'live') return;
+        if (document.hidden) { counters.blur++; queueSend(); }
+    });
+    window.addEventListener('blur', function () {
+        if (state.phase === 'live' && !document.hidden) { counters.blur++; queueSend(); }
+    });
+
+    // ---------------------------------------------------------------- submit
+    $('#ar-submit').on('click', function () {
+        if (!game || state.phase !== 'live' || !sessions[tab]) return;
+        var source = sessions[tab].getValue();
+        if (!source.trim()) { A.toast(TEXT.empty, 'warn'); return; }
+        var button = $(this).prop('disabled', true);
+        $('#ar-submit-label').text(TEXT.sending);
+        var problem = problems.filter(function (p) { return p.order === tab; })[0];
+        A.post(URLS.game + game.id + '/submit', {
+            problem: tab, language: languages[tab], source: source,
+            nonce: Date.now().toString(36) + Math.random().toString(36).slice(2, 10)
+        }).then(function () {
+            A.toast(TEXT.sent + ' ' + (problem ? problem.label : ''), 'info', 3000);
+            schedule(200);
+        }).catch(function (error) {
+            A.toast(error.message, 'bad', 6000);
+        }).then(function () {
+            setTimeout(function () {
+                button.prop('disabled', state.phase !== 'live');
+                $('#ar-submit-label').text(TEXT.submitTo + ' ' + (problem ? problem.label : ''));
+            }, 1500);
+        });
+    });
+
+    // ---------------------------------------------------------------- run with input
+    var runPoll = null;
+    function runOutput(text, idle) { $('#ar-run-output').text(text).toggleClass('ar-muted', !!idle); }
+    function runVerdict(text, kind) {
+        $('#ar-run-verdict, #ar-run-verdict-tab').attr('class', 'ar-badge ar-' + kind).text(text).prop('hidden', !text);
+    }
+    function runDone() { $('#ar-run').prop('disabled', false).text(TEXT.run); }
+    function runShow(data) {
+        runDone();
+        var r = data.result;
+        if (r === 'AC' || r === 'WA') { runVerdict(TEXT.runOK, 'ok'); runOutput(data.output || TEXT.runNoOutput, !data.output); }
+        else if (r === 'CE') { runVerdict(TEXT.runCE, 'bad'); runOutput(data.error || ''); }
+        else if (r === 'TLE') { runVerdict('TLE', 'warn'); runOutput(TEXT.runTLE); }
+        else if (r === 'MLE' || r === 'OLE') { runVerdict(r, 'warn'); runOutput(TEXT.runMLE); }
+        else if (r === 'RTE' || r === 'IR') { runVerdict('RTE', 'bad'); runOutput(TEXT.runRTE + (data.error ? '\n\n' + data.error : '')); }
+        else if (r === 'IE') { runVerdict('IE', 'bad'); runOutput(TEXT.runIE); }
+        else { runVerdict(r || '?', 'info'); runOutput(data.output || data.error || TEXT.runNoOutput); }
+    }
+    function run() {
+        if (!game || !sessions[tab] || $('#ar-run').prop('disabled')) return;
+        var source = sessions[tab].getValue();
+        if (!source.trim()) { A.toast(TEXT.runEmpty, 'warn'); return; }
+        if (runPoll) { clearTimeout(runPoll); runPoll = null; }
+        $('#ar-run').prop('disabled', true).text(TEXT.running);
+        runVerdict('', 'info');
+        runOutput(TEXT.runQueued, true);
+        A.post(URLS.run, {source: source, language: languages[tab], input: $('#ar-run-input').val()})
+            .then(function (data) {
+                var id = data.submission_id;
+                runPoll = setTimeout(function again() {
+                    A.get(URLS.run + '?id=' + id).then(function (row) {
+                        if (row.status === 'grading') runPoll = setTimeout(again, 1000);
+                        else runShow(row);
+                    }).catch(function (error) { runDone(); runOutput(error.message); });
+                }, 700);
+            }).catch(function (error) { runDone(); runOutput(error.message); });
+    }
+    $('#ar-run').on('click', run);
+    editor.commands.addCommand({name: 'arenaRun', bindKey: {win: 'Ctrl-Enter', mac: 'Command-Enter'}, exec: run});
+    $('#ar-run-input').on('keydown', function (event) {
+        if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); run(); }
+    });
+
+    window.arenaDebug = {state: function () { return state; }, editor: editor, counters: function () { return counters; }};
+    render(state);
+    schedule(state.poll || 2000);
+});
+</script>
+{% include "arena/_mathjax.html" %}
+{% endblock %}
+
+{% block body %}
+<form id="ar-csrf" hidden>{% csrf_token %}</form>
+<div class="ar-app ar-page">
+    {# The logo and the way out are those of the site's own bar, above. During a battle the site sends the player
+       straight back here, so its logo cannot be used to leave the duels. Hidden until there is a battle. #}
+    <header class="ar-top" id="ar-top" hidden>
+        <div>
+            <div class="ar-title" id="ar-head-title">{{ _('Arena') }}</div>
+            <div class="ar-sub" id="ar-head-sub"></div>
+        </div>
+        <span class="ar-series ar-badge ar-none" id="ar-head-series" hidden></span>
+        <span class="ar-timer" id="ar-timer" aria-live="off"></span>
+    </header>
+
+    <section class="ar-center" id="ar-idle" hidden>
+        <i class="fa fa-bolt ar-big-icon" aria-hidden="true"></i>
+        <div class="ar-lead">{{ _('Your battle will appear here when you are called.') }}</div>
+        <div class="ar-help">{{ _('Keep this page open. When the organizer calls you, it moves on by itself to the waiting room and then to the countdown.') }}</div>
+        {% if can_manage %}
+            <a class="ar-btn" href="{{ url('arena_manage') }}"><i class="fa fa-cogs"></i> {{ _('Open the battle panel') }}</a>
+        {% endif %}
+        <a class="ar-muted" href="{{ url('home') }}">{{ _('Back to the site') }}</a>
+    </section>
+
+    <section class="ar-center" id="ar-lobby" hidden>
+        <div class="ar-versus" id="ar-lobby-versus"></div>
+        <div class="ar-lead">{{ _('Waiting for the organizer to start the game.') }}</div>
+        <div class="ar-help">{{ _('The problems will appear when the countdown ends. You will write and submit your code here, with the editor of the platform.') }}</div>
+        <div class="ar-rules" id="ar-lobby-rules"></div>
+    </section>
+
+    <section class="ar-center" id="ar-countdown" hidden>
+        <div class="ar-versus" id="ar-count-versus"></div>
+        <div class="ar-count" id="ar-count" aria-live="assertive"></div>
+    </section>
+
+    <section class="ar-center" id="ar-cancelled" hidden>
+        <i class="fa fa-ban ar-big-icon" aria-hidden="true"></i>
+        <div class="ar-lead">{{ _('The organizer cancelled this battle.') }}</div>
+        <a class="ar-btn ar-btn-plain" href="{{ url('home') }}">{{ _('Back to the site') }}</a>
+    </section>
+
+    <section class="ar-play" id="ar-play" hidden>
+        <div class="ar-strip">
+            <span class="ar-score ar-me" id="ar-score-me"></span>
+            <span class="ar-grow"></span>
+            <span class="ar-score ar-rival" id="ar-score-rival"></span>
+        </div>
+        <div class="ar-banner" id="ar-verifying" hidden>{{ _('Time is up. Waiting for the last verdicts...') }}</div>
+        <div class="ar-banner" id="ar-closed" hidden>{{ _('Submissions are closed.') }}</div>
+        <div class="ar-banner ar-review-banner" id="ar-review" hidden>
+            <span><i class="fa fa-search" aria-hidden="true"></i> {{ _('Review mode: you can edit your code and run it with your input. Nothing is submitted anymore.') }}</span>
+            <a class="ar-btn ar-btn-plain" id="ar-review-leave" href="{{ url('home') }}">{{ _('Leave the arena') }}</a>
+        </div>
+        <div class="ar-grid" id="ar-grid">
+            <div class="ar-col ar-col-statement">
+                <section class="ar-panel" style="flex: 1 1 auto;">
+                    <div class="ar-tabs-row">
+                        <div class="ar-tabs" id="ar-tabs"></div>
+                        <span class="ar-tools">
+                            <button type="button" class="ar-tool" data-text="-1" title="{{ _('Smaller text') }}">A−</button>
+                            <button type="button" class="ar-tool" data-text="1" title="{{ _('Larger text') }}">A+</button>
+                            <button type="button" class="ar-tool ar-focus-toggle" data-focus="statement"
+                                    title="{{ _('Show the statement on the whole screen') }}"></button>
+                        </span>
+                    </div>
+                    <div class="ar-statements" id="ar-statements"></div>
+                </section>
+            </div>
+            <div class="ar-splitter ar-splitter-col" id="ar-split-col" role="separator" aria-orientation="vertical" tabindex="0"
+                 title="{{ _('Drag to change the width; double click to go back to the usual one') }}"></div>
+            <div class="ar-col ar-col-code">
+                <section class="ar-panel ar-editor-panel">
+                    <h3 class="ar-panel-head">
+                        <i class="fa fa-code" aria-hidden="true"></i> {{ _('Code') }}
+                        <span class="ar-spacer"></span>
+                        <label for="ar-language" class="ar-muted" style="color: inherit; opacity: .85;">{{ _('Language') }}</label>
+                        <select id="ar-language" class="ar-select" style="max-width: 14em;"></select>
+                        <span class="ar-tools" style="margin-left: 0;">
+                            <button type="button" class="ar-tool" data-code="-1" title="{{ _('Smaller text') }}">A−</button>
+                            <button type="button" class="ar-tool" data-code="1" title="{{ _('Larger text') }}">A+</button>
+                            <button type="button" class="ar-tool ar-focus-toggle" data-focus="editor"
+                                    title="{{ _('Show the editor on the whole screen') }}"></button>
+                        </span>
+                    </h3>
+                    <div id="ar-editor"></div>
+                    <div class="ar-editor-foot">
+                        <button type="button" class="ar-btn ar-btn-big" id="ar-submit">
+                            <i class="fa fa-paper-plane" aria-hidden="true"></i> <span id="ar-submit-label">{{ _('Submit') }}</span>
+                        </button>
+                        <span class="ar-muted" id="ar-attempts-left"></span>
+                        <span class="ar-grow"></span>
+                        <span class="ar-lock-note"><kbd>Ctrl</kbd> + <kbd>Enter</kbd>: {{ _('run with your input') }}</span>
+                    </div>
+                </section>
+                <div class="ar-splitter ar-splitter-row" id="ar-split-row" role="separator" aria-orientation="horizontal" tabindex="0"
+                     title="{{ _('Drag to change the height; double click to go back to the usual one') }}"></div>
+                <div class="ar-side" id="ar-side">
+                <div class="ar-side-tabs" id="ar-side-tabs" hidden>
+                    <button type="button" class="ar-tab" data-side="run"><i class="fa fa-terminal" aria-hidden="true"></i>
+                        {{ _('Try with input') }} <span class="ar-badge" id="ar-run-verdict-tab" hidden></span></button>
+                    <button type="button" class="ar-tab" data-side="subs"><i class="fa fa-list" aria-hidden="true"></i>
+                        {{ _('My submissions') }} <span id="ar-subs-count"></span> <span class="ar-new" id="ar-subs-new" hidden></span></button>
+                    <span class="ar-grow"></span>
+                    <button type="button" class="ar-tool ar-side-toggle" title="{{ _('Show both panels side by side') }}">
+                        <i class="fa fa-columns" aria-hidden="true"></i> {{ _('Side by side') }}</button>
+                </div>
+                <div class="ar-side-panels">
+                    <section class="ar-panel" data-side="run">
+                        <h3 class="ar-panel-head">
+                            <i class="fa fa-terminal" aria-hidden="true"></i> {{ _('Try with input') }}
+                            <span class="ar-spacer"></span>
+                            <span class="ar-badge" id="ar-run-verdict" hidden></span>
+                            <button type="button" class="ar-tool ar-side-toggle" title="{{ _('Show one panel at a time, with tabs') }}">
+                                <i class="fa fa-folder-o" aria-hidden="true"></i> {{ _('Join in tabs') }}</button>
+                        </h3>
+                        <div class="ar-run-body">
+                            <textarea id="ar-run-input" class="ar-textarea" spellcheck="false" wrap="off"
+                                      placeholder="{{ _('Input for your program') }}"></textarea>
+                            <div><button type="button" class="ar-btn ar-btn-plain" id="ar-run">{{ _('Run') }}</button></div>
+                            <pre class="ar-pre" id="ar-run-output" aria-live="polite"></pre>
+                        </div>
+                    </section>
+                    <section class="ar-panel" data-side="subs">
+                        <h3 class="ar-panel-head"><i class="fa fa-list" aria-hidden="true"></i> {{ _('My submissions') }}</h3>
+                        <div class="ar-subs" id="ar-subs"></div>
+                    </section>
+                </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<div class="ar-result-back" id="ar-result-back" hidden>
+    <div class="ar-result" id="ar-result" role="alertdialog" aria-labelledby="ar-result-title">
+        <h2 id="ar-result-title"></h2>
+        <div class="ar-reason" id="ar-result-reason"></div>
+        <div class="ar-series-big" id="ar-result-series"></div>
+        <div class="ar-explain" id="ar-result-explain"></div>
+        <ul class="ar-games" id="ar-result-games" hidden></ul>
+        <p class="ar-muted" id="ar-result-foot"></p>
+        <div class="ar-row" style="justify-content: center;">
+            <button type="button" class="ar-btn ar-btn-plain" id="ar-result-close">{{ _('Close') }}</button>
+            <a class="ar-btn" id="ar-result-home" href="{{ url('home') }}" hidden>{{ _('Back to the site') }}</a>
+        </div>
+    </div>
+</div>
+<div class="ar-offline" id="ar-offline" hidden>{{ _('Connection lost. Retrying...') }}</div>
+<div class="ar-offline" id="ar-signed-out" hidden>{{ _('Your session ended.') }}
+    <a href="{{ url('auth_login') }}?next={{ url('arena_home')|urlencode }}">{{ _('Sign in again') }}</a></div>
+{% endblock %}

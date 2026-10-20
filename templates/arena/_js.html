@@ -1,0 +1,184 @@
+{# Small helpers shared by every arena page. Plain script, no build step, nothing under resources/. #}
+<script type="text/javascript">
+window.Arena = (function () {
+    var offset = 0;
+    var csrf = null;
+
+    function token() {
+        if (csrf === null) {
+            var input = document.querySelector('#ar-csrf input[name="csrfmiddlewaretoken"]');
+            csrf = input ? input.value : '';
+        }
+        return csrf;
+    }
+
+    // Every JSON answer carries the server's `now`; the midpoint of the request is the best guess of when it
+    // was read, so every countdown runs on the server clock and not on the laptop's.
+    function sync(serverNow, sentAt) {
+        if (typeof serverNow !== 'number') return;
+        var receivedAt = Date.now();
+        offset = serverNow * 1000 - (sentAt + receivedAt) / 2;
+    }
+
+    function now() { return (Date.now() + offset) / 1000; }
+
+    function request(method, url, body, headers) {
+        var sentAt = Date.now();
+        var options = {method: method, credentials: 'same-origin', cache: 'no-store', headers: headers || {}};
+        options.headers['X-Requested-With'] = 'XMLHttpRequest';
+        if (method !== 'GET') {
+            options.headers['Content-Type'] = 'application/json';
+            options.headers['X-CSRFToken'] = token();
+            options.body = JSON.stringify(body || {});
+        }
+        return fetch(url, options).then(function (response) {
+            // A session that ended turns every answer into the login page: tell it apart from a network problem.
+            if (response.redirected && response.url.indexOf('/accounts/login/') !== -1) {
+                var login = new Error('login');
+                login.status = 401;
+                throw login;
+            }
+            var type = response.headers.get('content-type') || '';
+            var read = type.indexOf('application/json') !== -1 ? response.json() : response.text();
+            return read.then(function (data) {
+                if (data && typeof data === 'object' && 'now' in data) sync(data.now, sentAt);
+                if (!response.ok) {
+                    var error = new Error(data && data.error ? data.error : ('HTTP ' + response.status));
+                    error.status = response.status;
+                    error.data = data;
+                    throw error;
+                }
+                return data;
+            });
+        });
+    }
+
+    function clock(seconds) {
+        seconds = Math.max(0, Math.floor(seconds));
+        var h = Math.floor(seconds / 3600), m = Math.floor(seconds % 3600 / 60), s = seconds % 60;
+        var mm = (h && m < 10 ? '0' : '') + m, ss = (s < 10 ? '0' : '') + s;
+        return h ? h + ':' + mm + ':' + ss : mm + ':' + ss;
+    }
+
+    // DOM builder that only ever sets text, so nothing that comes from a user is parsed as HTML.
+    function el(tag, attrs, children) {
+        var node = document.createElement(tag);
+        attrs = attrs || {};
+        Object.keys(attrs).forEach(function (key) {
+            var value = attrs[key];
+            if (value === null || value === undefined || value === false) return;
+            if (key === 'text') node.textContent = value;
+            else if (key === 'class') node.className = value;
+            else if (key.indexOf('on') === 0 && typeof value === 'function') node.addEventListener(key.slice(2), value);
+            else node.setAttribute(key, value === true ? '' : value);
+        });
+        (children || []).forEach(function (child) {
+            if (child === null || child === undefined || child === false) return;
+            node.appendChild(typeof child === 'string' || typeof child === 'number'
+                ? document.createTextNode(String(child)) : child);
+        });
+        return node;
+    }
+
+    function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); return node; }
+
+    function toast(text, kind, ms) {
+        var box = document.getElementById('ar-toasts');
+        if (!box) {
+            box = el('div', {id: 'ar-toasts', 'class': 'ar-toasts', 'aria-live': 'polite'});
+            document.body.appendChild(box);
+        }
+        var item = el('div', {'class': 'ar-toast ar-' + (kind || 'info'), text: text});
+        box.appendChild(item);
+        setTimeout(function () { if (item.parentNode) item.parentNode.removeChild(item); }, ms || 5000);
+    }
+
+    function points(value) {
+        if (value === null || value === undefined) return '0';
+        return Math.abs(value - Math.round(value)) < 1e-9 ? String(Math.round(value)) : value.toFixed(2);
+    }
+
+    // Verdict codes → [css kind, label key]. Labels come translated from the page.
+    function verdictKind(row) {
+        if (row.pending) return 'info';
+        if (row.status === 'CE') return 'warn';
+        if (row.status === 'IE' || row.status === 'AB') return 'none';
+        if (row.result === 'AC' && row.points >= row.full - 1e-9) return 'ok';
+        if (row.points > 0) return 'warn';
+        return 'bad';
+    }
+
+    function aceTheme(editor, fixed, light, dark, forced) {
+        if (fixed && !forced) { editor.setTheme('ace/theme/' + fixed); return; }
+        if (forced) { editor.setTheme('ace/theme/' + (forced === 'dark' ? dark : light)); return; }
+        if (window.matchMedia) {
+            var query = window.matchMedia('(prefers-color-scheme: dark)');
+            var apply = function (isDark) { editor.setTheme('ace/theme/' + (isDark ? dark : light)); };
+            apply(query.matches);
+            try { query.addEventListener('change', function (ev) { apply(ev.matches); }); }
+            catch (err) { query.addListener(function (ev) { apply(ev.matches); }); }
+        } else {
+            editor.setTheme('ace/theme/' + light);
+        }
+    }
+
+    // Show what a player is typing in a read-only editor. Only the part that changed is replaced, so the code does
+    // not flash or jump back to the top, and the view only scrolls when the player's cursor leaves it.
+    function followCode(editor, text, cursor, markerClass) {
+        var session = editor.getSession(), Range = ace.require('ace/range').Range;
+        // Positions are counted with one character per line break, so the document must use the same.
+        if (session.getNewLineMode() !== 'unix') session.setNewLineMode('unix');
+        text = (text || '').replace(/\r\n?/g, '\n');
+        var old = session.getValue();
+        if (old !== text) {
+            var start = 0, shortest = Math.min(old.length, text.length);
+            while (start < shortest && old.charCodeAt(start) === text.charCodeAt(start)) start++;
+            var end = 0;
+            while (end < shortest - start &&
+                   old.charCodeAt(old.length - 1 - end) === text.charCodeAt(text.length - 1 - end)) end++;
+            var doc = session.getDocument();
+            var from = doc.indexToPosition(start, 0), to = doc.indexToPosition(old.length - end, 0);
+            session.replace(new Range(from.row, from.column, to.row, to.column), text.slice(start, text.length - end));
+        }
+        if (editor.__arenaMarker !== undefined && editor.__arenaMarker !== null) session.removeMarker(editor.__arenaMarker);
+        editor.__arenaMarker = null;
+        if (!cursor) return;
+        var row = Math.min(cursor.row, session.getLength() - 1), column = cursor.column;
+        if (markerClass) {
+            editor.__arenaMarker = session.addMarker(new Range(row, column, row, column + 1), markerClass, 'text', true);
+        }
+        var first = editor.getFirstVisibleRow(), last = editor.getLastVisibleRow();
+        if (row < first + 1 || row > last - 1) editor.scrollToLine(row, true, true, function () {});
+        // Sideways too, for long lines; the line above already put the cursor inside the view vertically.
+        editor.renderer.scrollCursorIntoView({row: row, column: column}, 0.5);
+    }
+
+    // One typeset at a time, as MathJax asks; a statement inserted before MathJax finished loading is typeset
+    // as soon as it is ready.
+    var typesetQueue = Promise.resolve();
+    function typeset(node) {
+        typesetQueue = typesetQueue.then(function () {
+            return new Promise(function (resolve) {
+                (function wait(tries) {
+                    if (window.MathJax && MathJax.typesetPromise) {
+                        MathJax.typesetPromise([node]).then(function () {
+                            $(node).find('.tex-image').hide();
+                            $(node).find('.tex-text').show();
+                        }).catch(function () {}).then(resolve);
+                    } else if (tries < 100) {
+                        setTimeout(function () { wait(tries + 1); }, 100);
+                    } else {
+                        resolve();
+                    }
+                })(0);
+            });
+        });
+        return typesetQueue;
+    }
+
+    return {request: request, get: function (url, headers) { return request('GET', url, null, headers); },
+            post: function (url, body, headers) { return request('POST', url, body, headers); },
+            now: now, sync: sync, clock: clock, el: el, clear: clear, toast: toast, points: points,
+            verdictKind: verdictKind, aceTheme: aceTheme, typeset: typeset, followCode: followCode};
+})();
+</script>

@@ -1,0 +1,365 @@
+{% extends "base.html" %}
+
+{% block media %}
+{% include "arena/_style.html" %}
+{% endblock %}
+
+{% block js_media %}
+{% include "arena/_js.html" %}
+{% include "arena/manage/_widgets.html" %}
+{{ state|json_script('am-state') }}
+{{ defaults|json_script('am-defaults') }}
+{{ languages|json_script('am-languages') }}
+{{ banks|json_script('am-banks') }}
+<script type="text/javascript">
+$(function () {
+    var A = window.Arena, W = window.ArenaWidgets;
+    var TEXT = {
+        game: {{ _('Game')|tojson }},
+        gameHint: {{ _('Optional: you can also choose these problems between games.')|tojson }},
+        needPlayers: {{ _('Choose both players.')|tojson }},
+        needProblems: {{ _('Choose the problems of the first game.')|tojson }},
+        noDuels: {{ _('No battles right now.')|tojson }},
+        noRecent: {{ _('Nothing yet.')|tojson }},
+        noTournaments: {{ _('No tournaments yet.')|tojson }},
+        open: {{ _('Open')|tojson }},
+        status: {
+            ready: {{ _('Ready')|tojson }}, called: {{ _('In the waiting room')|tojson }},
+            playing: {{ _('Playing')|tojson }}, decided: {{ _('Decided')|tojson }}, cancelled: {{ _('Cancelled')|tojson }},
+            draft: {{ _('Draft')|tojson }}, running: {{ _('In progress')|tojson }}, finished: {{ _('Finished')|tojson }}
+        },
+        live: {{ _('live')|tojson }},
+        winner: {{ _('winner')|tojson }},
+        participants: {{ _('participants')|tojson }},
+        views: {
+            combined: {{ _('Everything')|tojson }}, scoreboard: {{ _('Scoreboard')|tojson }},
+            'code-a': {{ _('Code A')|tojson }}, 'code-b': {{ _('Code B')|tojson }},
+            statements: {{ _('Statements')|tojson }}, bracket: {{ _('Bracket')|tojson }}
+        },
+        shows: {{ _('Shows')|tojson }},
+        modes: {
+            idle: {{ _('Waiting')|tojson }}, bracket: {{ _('Bracket')|tojson }}, match: {{ _('Match')|tojson }},
+            message: {{ _('Message')|tojson }}
+        },
+        rename: {{ _('Rename')|tojson }},
+        newLink: {{ _('Change the link')|tojson }},
+        newLinkConfirm: {{ _('The current link of this screen stops working. Every open tab will need the new one.')|tojson }},
+        newName: {{ _('Name of the screen')|tojson }},
+        message: {{ _('Show a message')|tojson }},
+        messagePrompt: {{ _('Text to show on the screen')|tojson }},
+        idle: {{ _('Show the waiting screen')|tojson }},
+        created: {{ _('Battle created. Opening it...')|tojson }},
+        needName: {{ _('Give the tournament a name.')|tojson }},
+        needTwo: {{ _('Add at least two participants.')|tojson }}
+    };
+    var defaults = JSON.parse(document.getElementById('am-defaults').textContent);
+    var languages = JSON.parse(document.getElementById('am-languages').textContent);
+    var state = JSON.parse(document.getElementById('am-state').textContent);
+
+    // ------------------------------------------------------------ quick battle form
+    var players = {a: null, b: null};
+    var pickerA = W.userPicker(document.getElementById('am-player-a'), function (u) { players.a = u; });
+    var pickerB = W.userPicker(document.getElementById('am-player-b'), function (u) { players.b = u; });
+    var rules = W.rulesEditor(document.getElementById('am-rules'), defaults, languages);
+    var games = [];
+
+    function context() { return {a: players.a && players.a.id, b: players.b && players.b.id}; }
+
+    function drawGames() {
+        var bestOf = parseInt($('#am-best-of').val(), 10) || 1;
+        var box = document.getElementById('am-games');
+        while (games.length < bestOf) {
+            var section = A.el('div', {'class': 'am-field'});
+            var title = A.el('div', {'class': 'am-label'});
+            var hint = A.el('div', {'class': 'am-hint'});
+            section.appendChild(title);
+            section.appendChild(hint);
+            box.appendChild(section);
+            games.push({node: section, title: title, hint: hint, list: W.problemList(section, {context: context})});
+        }
+        games.forEach(function (game, index) {
+            game.node.hidden = index >= bestOf;
+            game.title.textContent = TEXT.game + ' ' + (index + 1);
+            game.hint.textContent = index ? TEXT.gameHint : '';
+        });
+    }
+    $('#am-best-of').on('change', drawGames);
+    drawGames();
+
+    $('.am-preset').on('click', function () {
+        var preset = $(this).data('preset');
+        var values = {};
+        if (preset === 'one') { $('#am-best-of').val('1'); values = {duration: 15}; }
+        if (preset === 'three') { $('#am-best-of').val('1'); values = {duration: 30, partial: false}; }
+        if (preset === 'series') { $('#am-best-of').val('3'); values = {duration: 10}; }
+        rules.set(values);
+        drawGames();
+    });
+
+    function createDuel(call) {
+        if (!players.a || !players.b) { A.toast(TEXT.needPlayers, 'warn'); return; }
+        var bestOf = parseInt($('#am-best-of').val(), 10) || 1;
+        var lists = games.slice(0, bestOf).map(function (game) { return game.list.get(); });
+        while (lists.length > 1 && !lists[lists.length - 1].length) lists.pop();
+        if (!lists[0].length) { A.toast(TEXT.needProblems, 'warn'); return; }
+        $('.am-create').prop('disabled', true);
+        A.post({{ url('arena_manage_duel_create')|tojson }}, {
+            player_a: players.a.id, player_b: players.b.id,
+            display_a: $('#am-display-a').val(), display_b: $('#am-display-b').val(),
+            title: $('#am-title').val(), best_of: bestOf, rules: rules.get(), games: lists, call: call
+        }).then(function (data) {
+            A.toast(TEXT.created, 'ok');
+            window.location.href = data.url;
+        }).catch(function (error) {
+            W.fail(error);
+            $('.am-create').prop('disabled', false);
+        });
+    }
+    $('#am-create-call').on('click', function () { createDuel(true); });
+    $('#am-create-later').on('click', function () { createDuel(false); });
+
+    // ------------------------------------------------------------ tournament form
+    var participants = W.userList(document.getElementById('am-participants'), [], null);
+    $('#am-tournament-create').on('click', function () {
+        var name = $('#am-tournament-name').val().trim();
+        if (!name) { A.toast(TEXT.needName, 'warn'); return; }
+        var list = participants.get();
+        if (list.length < 2) { A.toast(TEXT.needTwo, 'warn'); return; }
+        $(this).prop('disabled', true);
+        var button = $(this);
+        A.post({{ url('arena_manage_tournament_create')|tojson }}, {
+            name: name, participants: list.map(function (u) { return u.id; }), seeding: $('#am-seeding').val(),
+            third_place: $('#am-third-place').prop('checked')
+        }).then(function (data) { window.location.href = data.url; })
+          .catch(function (error) { W.fail(error); button.prop('disabled', false); });
+    });
+
+    // ------------------------------------------------------------ lists
+    function matchUrl(id) { return {{ url('arena_manage_match', 0)|tojson }}.replace('/0/', '/' + id + '/'); }
+    function tournamentUrl(slug) { return {{ url('arena_manage_tournament', 'x')|tojson }}.replace('/x/', '/' + slug + '/'); }
+    function screenUrl(token, view) { return {{ url('arena_screen', 'TOKEN')|tojson }}.replace('TOKEN', token) + '?view=' + view; }
+
+    function duelRow(row) {
+        var status = row.live ? [A.el('span', {'class': 'am-live-dot'}), ' ' + TEXT.live] :
+            [TEXT.status[row.status] || row.status];
+        var score = row.best_of > 1 || row.status === 'decided' ? row.wins.a + ' – ' + row.wins.b : '';
+        return A.el('tr', {}, [
+            A.el('td', {}, [A.el('a', {href: matchUrl(row.id)}, [
+                A.el('b', {text: row.a}), ' vs ', A.el('b', {text: row.b})
+            ]), row.title ? A.el('div', {'class': 'ar-muted', text: row.title}) : null]),
+            A.el('td', {}, status),
+            A.el('td', {'class': 'ar-num', text: score}),
+            A.el('td', {}, [A.el('a', {'class': 'ar-btn ar-btn-plain', href: matchUrl(row.id), text: TEXT.open})])
+        ]);
+    }
+
+    // Only what changed is redrawn (see W.painter): the buttons of a screen must not vanish under the mouse.
+    var paint = W.painter();
+    function drawLists() {
+        paint('lists', [state.duels, state.recent, state.tournaments], drawTables);
+        paint('screens', state.screens, drawScreens);
+    }
+
+    function drawTables() {
+        var duels = A.clear(document.getElementById('am-duels'));
+        if (!state.duels.length) duels.appendChild(A.el('tr', {}, [A.el('td', {'class': 'ar-muted', colspan: 4, text: TEXT.noDuels})]));
+        state.duels.forEach(function (row) { duels.appendChild(duelRow(row)); });
+        var recent = A.clear(document.getElementById('am-recent'));
+        if (!state.recent.length) recent.appendChild(A.el('tr', {}, [A.el('td', {'class': 'ar-muted', colspan: 4, text: TEXT.noRecent})]));
+        state.recent.forEach(function (row) { recent.appendChild(duelRow(row)); });
+        var tournaments = A.clear(document.getElementById('am-tournaments'));
+        if (!state.tournaments.length) tournaments.appendChild(A.el('tr', {}, [A.el('td', {'class': 'ar-muted', colspan: 3, text: TEXT.noTournaments})]));
+        state.tournaments.forEach(function (t) {
+            tournaments.appendChild(A.el('tr', {}, [
+                A.el('td', {}, [A.el('a', {href: tournamentUrl(t.slug)}, [A.el('b', {text: t.name})])]),
+                A.el('td', {}, [TEXT.status[t.status] || t.status, t.live ? A.el('span', {}, [' · ', A.el('span', {'class': 'am-live-dot'}), ' ' + t.live]) : null]),
+                A.el('td', {'class': 'ar-muted', text: t.participants + ' ' + TEXT.participants})
+            ]));
+        });
+    }
+
+    function screenAction(data) {
+        return A.post({{ url('arena_manage_screen_action')|tojson }}, data).then(function (result) {
+            state.screens = result.screens;
+            drawScreens();
+        }).catch(W.fail);
+    }
+
+    function drawScreens() {
+        var box = A.clear(document.getElementById('am-screens'));
+        state.screens.forEach(function (screen) {
+            var links = A.el('div', {'class': 'am-actions'});
+            ['combined', 'scoreboard', 'code-a', 'code-b', 'statements', 'bracket'].forEach(function (view) {
+                links.appendChild(A.el('a', {'class': 'ar-btn ar-btn-plain', href: screenUrl(screen.token, view), target: '_blank',
+                                             rel: 'noopener', text: TEXT.views[view]}));
+            });
+            box.appendChild(A.el('div', {'class': 'am-item', style: 'flex-direction: column; align-items: stretch;'}, [
+                A.el('div', {'class': 'ar-row'}, [
+                    A.el('i', {'class': 'fa fa-television'}), A.el('b', {text: screen.name}),
+                    A.el('span', {'class': 'ar-muted', text: TEXT.shows + ': ' + (TEXT.modes[screen.mode] || screen.mode) +
+                                  (screen.mode === 'message' && screen.message ? ' «' + screen.message + '»' : '')}),
+                    A.el('span', {'class': 'ar-grow'}),
+                    A.el('button', {type: 'button', 'class': 'am-icon-btn', text: TEXT.idle, onclick: function () {
+                        screenAction({action: 'show', screen: screen.id, mode: 'idle'});
+                    }}),
+                    A.el('button', {type: 'button', 'class': 'am-icon-btn', text: TEXT.message, onclick: function () {
+                        var text = window.prompt(TEXT.messagePrompt, screen.message || '');
+                        if (text !== null) screenAction({action: 'show', screen: screen.id, mode: 'message', message: text});
+                    }}),
+                    A.el('button', {type: 'button', 'class': 'am-icon-btn', text: TEXT.rename, onclick: function () {
+                        var name = window.prompt(TEXT.newName, screen.name);
+                        if (name) screenAction({action: 'rename', screen: screen.id, name: name});
+                    }}),
+                    A.el('button', {type: 'button', 'class': 'am-icon-btn', text: TEXT.newLink, onclick: function () {
+                        W.confirmBox(TEXT.newLink, [TEXT.newLinkConfirm], TEXT.newLink, function () {
+                            screenAction({action: 'regenerate', screen: screen.id});
+                        }, true);
+                    }})
+                ]),
+                links
+            ]));
+        });
+    }
+    $('#am-screen-new').on('click', function () {
+        var name = window.prompt(TEXT.newName, '');
+        if (name) screenAction({action: 'create', name: name});
+    });
+
+    drawLists();
+    setInterval(function () {
+        if (document.hidden) return;
+        A.get({{ url('arena_manage_overview')|tojson }}).then(function (data) {
+            state = data;
+            drawLists();
+        }).catch(function () {});
+    }, 3000);
+});
+</script>
+{% endblock %}
+
+{% block body %}
+<form id="ar-csrf" hidden>{% csrf_token %}</form>
+<div class="am-page">
+    <p class="ar-row am-guide-row"><span class="ar-muted">{{ _('First time organizing? Each part of this panel is explained step by step in the guide.') }}</span>
+        <a class="ar-btn ar-btn-plain" href="{{ url('arena_manage_guide') }}" target="_blank" rel="noopener"><i class="fa fa-question-circle"></i> {{ _('Guide for organizers') }}</a></p>
+    <div class="am-grid">
+        <div class="am-stack">
+            <section class="ar-panel">
+                <h3 class="ar-panel-head"><i class="fa fa-bolt" aria-hidden="true"></i> {{ _('New quick battle') }}</h3>
+                <div class="ar-panel-body">
+                    <div class="am-presets">
+                        <span class="ar-muted">{{ _('Quick start:') }}</span>
+                        <button type="button" class="ar-btn ar-btn-plain am-preset" data-preset="one">{{ _('One problem, 15 minutes') }}</button>
+                        <button type="button" class="ar-btn ar-btn-plain am-preset" data-preset="three">{{ _('Several problems, 30 minutes') }}</button>
+                        <button type="button" class="ar-btn ar-btn-plain am-preset" data-preset="series">{{ _('Best of three') }}</button>
+                    </div>
+                    <div class="am-two">
+                        <div>
+                            <div class="am-field">
+                                <span class="am-label" style="color: var(--ar-a);">{{ _('Player A') }}</span>
+                                <div id="am-player-a"></div>
+                            </div>
+                            <div class="am-field">
+                                <label for="am-display-a">{{ _('Name to show (optional)') }}</label>
+                                <input class="ar-input" id="am-display-a" maxlength="40">
+                            </div>
+                        </div>
+                        <div>
+                            <div class="am-field">
+                                <span class="am-label" style="color: var(--ar-b);">{{ _('Player B') }}</span>
+                                <div id="am-player-b"></div>
+                            </div>
+                            <div class="am-field">
+                                <label for="am-display-b">{{ _('Name to show (optional)') }}</label>
+                                <input class="ar-input" id="am-display-b" maxlength="40">
+                            </div>
+                        </div>
+                    </div>
+                    <p class="am-hint">{{ _('The name to show is for the club laptops: a trusted account is already signed in and you only type who is sitting there. Leave it empty when each player uses their own account.') }}</p>
+                    <div class="am-two">
+                        <div class="am-field">
+                            <label for="am-title">{{ _('Title (optional)') }}</label>
+                            <input class="ar-input" id="am-title" maxlength="100">
+                        </div>
+                        <div class="am-field">
+                            <label for="am-best-of">{{ _('Games per battle') }}</label>
+                            <select class="ar-select" id="am-best-of">
+                                <option value="1">{{ _('A single game') }}</option>
+                                <option value="3">{{ _('Best of 3') }}</option>
+                                <option value="5">{{ _('Best of 5') }}</option>
+                                <option value="7">{{ _('Best of 7') }}</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="am-games"></div>
+                    <details class="am-details">
+                        <summary>{{ _('Rules') }}</summary>
+                        <div id="am-rules" style="padding-top: .5em;"></div>
+                    </details>
+                    <div class="am-actions" style="margin-top: 1em;">
+                        <button type="button" class="ar-btn ar-btn-big am-create" id="am-create-call">
+                            <i class="fa fa-bullhorn" aria-hidden="true"></i> {{ _('Create and call to the waiting room') }}
+                        </button>
+                        <button type="button" class="ar-btn ar-btn-plain am-create" id="am-create-later">{{ _('Create, call later') }}</button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="ar-panel">
+                <h3 class="ar-panel-head"><i class="fa fa-sitemap" aria-hidden="true"></i> {{ _('New tournament') }}</h3>
+                <div class="ar-panel-body">
+                    <div class="am-field">
+                        <label for="am-tournament-name">{{ _('Name') }}</label>
+                        <input class="ar-input" id="am-tournament-name" maxlength="100">
+                    </div>
+                    <div class="am-field">
+                        <span class="am-label">{{ _('Participants (the first is the strongest)') }}</span>
+                        <div id="am-participants"></div>
+                        <span class="am-hint">{{ _('Every participant plays with their own account.') }}</span>
+                    </div>
+                    <div class="am-field">
+                        <label for="am-seeding">{{ _('Order in the bracket') }}</label>
+                        <select class="ar-select" id="am-seeding">
+                            <option value="manual">{{ _('As in the list') }}</option>
+                            <option value="random">{{ _('At random') }}</option>
+                            <option value="rating">{{ _('By rating') }}</option>
+                        </select>
+                    </div>
+                    <label><input type="checkbox" id="am-third-place"> {{ _('Play a match for third place (with 4 or more participants)') }}</label>
+                    <div class="am-actions" style="margin-top: 1em;">
+                        <button type="button" class="ar-btn" id="am-tournament-create">{{ _('Create tournament') }}</button>
+                        <span class="am-hint">{{ _('The bracket is built at once. On the next page you choose the games of each round and where the problems come from.') }}</span>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <div class="am-stack">
+            <section class="ar-panel">
+                <h3 class="ar-panel-head"><i class="fa fa-play-circle" aria-hidden="true"></i> {{ _('Battles now') }}</h3>
+                <table class="am-table"><tbody id="am-duels"></tbody></table>
+            </section>
+            <section class="ar-panel">
+                <h3 class="ar-panel-head"><i class="fa fa-trophy" aria-hidden="true"></i> {{ _('Tournaments') }}</h3>
+                <table class="am-table"><tbody id="am-tournaments"></tbody></table>
+            </section>
+            <section class="ar-panel">
+                <h3 class="ar-panel-head"><i class="fa fa-television" aria-hidden="true"></i> {{ _('Screens') }}
+                    <span class="ar-spacer"></span>
+                    <button type="button" class="ar-btn ar-btn-plain" id="am-screen-new" style="padding: 2px 8px;">{{ _('New screen') }}</button>
+                </h3>
+                <div class="ar-panel-body">
+                    <p class="am-hint">{{ _('Each button opens that view in a new tab: one projector can show everything, or several projectors one thing each. A new quick battle goes on a free screen by itself; a tournament is put on a screen from its page.') }}</p>
+                    <div class="am-list" id="am-screens"></div>
+                </div>
+            </section>
+            <section class="ar-panel">
+                <h3 class="ar-panel-head"><i class="fa fa-history" aria-hidden="true"></i> {{ _('Recent battles') }}</h3>
+                <table class="am-table"><tbody id="am-recent"></tbody></table>
+            </section>
+            <a class="ar-btn ar-btn-plain" href="{{ url('arena_manage_banks') }}"><i class="fa fa-book"></i> {{ _('Problem banks') }}</a>
+            <a class="ar-btn ar-btn-plain" href="{{ url('arena_home') }}" target="_blank" rel="noopener"><i class="fa fa-external-link"></i> {{ _('Open the player page') }}</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

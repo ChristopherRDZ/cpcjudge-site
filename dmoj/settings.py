@@ -223,6 +223,21 @@ else:
                         'judge.ContestTag',
                     ],
                 },
+                {
+                    # Opens the battle panel; the children are the lists, for looking things up.
+                    'model': 'judge.ArenaPanel',
+                    'icon': 'fa-bolt',
+                    'children': [
+                        'judge.ArenaPanel',
+                        'judge.ArenaMatch',
+                        'judge.ArenaGame',
+                        # The hidden contest of each game: left out of the list of contests, listed here.
+                        {'title': _('Duel contests'), 'url': '/admin/judge/contest/?duelos=si'},
+                        'judge.ArenaTournament',
+                        'judge.ArenaProblemBank',
+                        'judge.ArenaScreen',
+                    ],
+                },
                 ('judge.Ticket', 'fa-bell'),
                 {
                     'model': 'auth.User',

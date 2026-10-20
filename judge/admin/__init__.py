@@ -4,6 +4,8 @@ from django.contrib.auth.models import User
 from django.contrib.flatpages.models import FlatPage
 
 from judge.admin.announcement import AnnouncementAdmin
+from judge.admin.arena import ArenaGameAdmin, ArenaMatchAdmin, ArenaPanelAdmin, ArenaProblemBankAdmin, \
+    ArenaScreenAdmin, ArenaTournamentAdmin
 from judge.admin.clarification import ContestClarificationAdmin
 from judge.admin.comments import CommentAdmin
 from judge.admin.contest import ContestAdmin, ContestParticipationAdmin, ContestTagAdmin
@@ -17,12 +19,18 @@ from judge.admin.taxon import ProblemGroupAdmin, ProblemTypeAdmin
 from judge.admin.team import TeamAdmin, TeamInvitationAdmin
 from judge.admin.ticket import TicketAdmin
 from judge.admin_owner import install as install_delete_guard
-from judge.models import Announcement, BlogPost, Class, Comment, CommentLock, Contest, ContestClarification, \
-    ContestParticipation, ContestTag, Judge, Language, License, MiscConfig, NavigationBar, Organization, \
-    OrganizationRequest, Problem, ProblemGroup, ProblemPointsVote, ProblemType, Profile, Submission, Team, \
-    TeamInvitation, Ticket
+from judge.models import Announcement, ArenaGame, ArenaMatch, ArenaPanel, ArenaProblemBank, ArenaScreen, \
+    ArenaTournament, BlogPost, Class, Comment, CommentLock, Contest, ContestClarification, ContestParticipation, \
+    ContestTag, Judge, Language, License, MiscConfig, NavigationBar, Organization, OrganizationRequest, Problem, \
+    ProblemGroup, ProblemPointsVote, ProblemType, Profile, Submission, Team, TeamInvitation, Ticket
 
 admin.site.register(Announcement, AnnouncementAdmin)
+admin.site.register(ArenaGame, ArenaGameAdmin)
+admin.site.register(ArenaMatch, ArenaMatchAdmin)
+admin.site.register(ArenaPanel, ArenaPanelAdmin)
+admin.site.register(ArenaProblemBank, ArenaProblemBankAdmin)
+admin.site.register(ArenaScreen, ArenaScreenAdmin)
+admin.site.register(ArenaTournament, ArenaTournamentAdmin)
 admin.site.register(BlogPost, BlogPostAdmin)
 admin.site.register(ContestClarification, ContestClarificationAdmin)
 admin.site.register(Comment, CommentAdmin)

@@ -18,6 +18,8 @@ from judge.models.runtime import Judge, Language, RuntimeVersion
 from judge.models.submission import SUBMISSION_RESULT, Submission, SubmissionSource, SubmissionTestCase
 from judge.models.ticket import Ticket, TicketMessage
 from judge.models.team import Team, TeamMembership, TeamInvitation, ContestTeamMember, ContestTeamLocation
+from judge.models.arena import ArenaAction, ArenaBankProblem, ArenaGame, ArenaGameProblem, ArenaMatch, ArenaPanel, \
+    ArenaParticipant, ArenaProblemBank, ArenaRound, ArenaScreen, ArenaTournament
 
 revisions.register(Profile, exclude=['points', 'last_access', 'ip', 'rating'])
 revisions.register(Problem, follow=['language_limits'])

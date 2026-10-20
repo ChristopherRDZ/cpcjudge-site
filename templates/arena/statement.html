@@ -1,0 +1,18 @@
+{# The statement of one problem of a game, inserted by the arena pages. Same rendering and same cache entry as the
+   problem page, so editing the problem refreshes both. #}
+<div class="ar-statement" data-order="{{ game_problem.order }}">
+    <div class="ar-statement-head">
+        <span class="ar-statement-label">{{ game_problem.label }}</span>
+        <span class="ar-statement-title">{{ title }}</span>
+    </div>
+    <div class="ar-statement-limits ar-muted">
+        <span>{{ _('Time limit') }}: <b>{{ problem.time_limit }} s</b></span>
+        <span>{{ _('Memory limit') }}: <b>{{ (problem.memory_limit / 1024)|round(0)|int }} MB</b></span>
+        <span>{{ _('Points') }}: <b>{{ game_problem.points }}</b></span>
+    </div>
+    <div class="content-description screen">
+        {% cache 86400 'problem_html' problem.id MATH_ENGINE LANGUAGE_CODE %}
+            {{ description|markdown(problem.markdown_style, MATH_ENGINE)|reference|str|safe }}
+        {% endcache %}
+    </div>
+</div>

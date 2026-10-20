@@ -1,0 +1,737 @@
+{% extends "base.html" %}
+
+{% block media %}
+{% include "arena/_style.html" %}
+<style>
+    .mm-players { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 1em; align-items: center; }
+    .mm-player { display: flex; align-items: center; gap: .8em; padding: .8em; border-radius: 4px; background: var(--ar-bg);
+                 border: 1px solid var(--ar-border); border-top: 5px solid var(--side); }
+    .mm-player.mm-a { --side: var(--ar-a); }
+    .mm-player.mm-b { --side: var(--ar-b); }
+    .mm-player img { width: 64px; height: 64px; border-radius: 4px; }
+    .mm-player .mm-name { font-size: 1.4em; font-weight: 600; }
+    .mm-player .mm-wins { margin-left: auto; font-size: 2.2em; font-weight: bold; font-variant-numeric: tabular-nums; }
+    .mm-vs { font-size: 1.6em; font-weight: bold; color: var(--ar-muted); text-align: center; }
+    .mm-status { font-size: 1.15em; }
+    .mm-clock { font-size: 2em; font-weight: bold; font-variant-numeric: tabular-nums; }
+    .mm-columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1em; }
+    .mm-code { height: 22em; border-top: 1px solid var(--ar-soft-border); }
+    .mm-cursor { position: absolute; border-left: 3px solid var(--ar-a); }
+    #mm-code-b .mm-cursor { border-left-color: var(--ar-b); }
+    .mm-subs { max-height: 18em; overflow: auto; }
+    .mm-sub { display: flex; align-items: center; gap: .5em; padding: .35em .7em; border-bottom: 1px solid var(--ar-soft-border); cursor: pointer; }
+    .mm-sub:hover { background: var(--ar-soft); }
+    .mm-flags { display: flex; gap: .4em; flex-wrap: wrap; padding: .4em .7em; }
+    .mm-section { margin-top: 1em; }
+    .mm-log { max-height: 16em; overflow: auto; font-size: .92em; }
+    .mm-log div { padding: .25em .6em; border-bottom: 1px solid var(--ar-soft-border); }
+    .mm-game-row { padding: .8em 0; border-bottom: 1px solid var(--ar-soft-border); display: flex; flex-direction: column; gap: .5em; }
+    .mm-game-row:first-child { padding-top: 0; }
+    .mm-game-row:last-child { border-bottom: 0; padding-bottom: 0; }
+    @media (max-width: 900px) { .mm-columns, .mm-players { grid-template-columns: minmax(0, 1fr); } }
+</style>
+{% endblock %}
+
+{% block js_media %}
+<script type="text/javascript" src="{{ ACE_URL }}/ace.js"></script>
+{% include "arena/_js.html" %}
+{% include "arena/manage/_widgets.html" %}
+{{ state|json_script('mm-state') }}
+{{ languages|json_script('mm-languages') }}
+<script type="text/javascript">
+$(function () {
+    var A = window.Arena, W = window.ArenaWidgets;
+    var TEXT = {
+        status: {
+            pending: {{ _('Waiting for players')|tojson }}, ready: {{ _('Ready, not called yet')|tojson }},
+            called: {{ _('In the waiting room')|tojson }}, playing: {{ _('Playing')|tojson }},
+            decided: {{ _('Decided')|tojson }}, cancelled: {{ _('Cancelled')|tojson }}
+        },
+        gameStatus: {
+            prepared: {{ _('Prepared')|tojson }}, countdown: {{ _('Countdown')|tojson }}, live: {{ _('Live')|tojson }},
+            verifying: {{ _('Waiting for the last verdicts')|tojson }}, finished: {{ _('Finished')|tojson }},
+            tie: {{ _('Tie')|tojson }}, cancelled: {{ _('Cancelled')|tojson }}
+        },
+        game: {{ _('Game')|tojson }},
+        connected: {{ _('Has the arena open')|tojson }},
+        disconnected: {{ _('Does not have the arena open')|tojson }},
+        privileged: {{ _('Staff account: on a club laptop use an account without permissions')|tojson }},
+        call: {{ _('Call to the waiting room')|tojson }},
+        start: {{ _('Start the game')|tojson }},
+        startAnyway: {{ _('Start anyway')|tojson }},
+        startTitle: {{ _('Before starting')|tojson }},
+        saveProblems: {{ _('Save problems')|tojson }},
+        saved: {{ _('Saved')|tojson }},
+        points: {{ _('points')|tojson }},
+        toPlay: {{ _('Not played yet')|tojson }},
+        unsaved: {{ _('Unsaved changes')|tojson }},
+        suggest: {{ _('Suggest from the bank')|tojson }},
+        suggestTitle: {{ _('Fills the list with problems of the tournament bank that nobody has used yet. Nothing is saved until you press Save problems.')|tojson }},
+        suggested: {{ _('Suggested from the bank. Check them and press Save problems.')|tojson }},
+        noProblemsYet: {{ _('This game has no problems yet. Choose them below, in Problems of each game.')|tojson }},
+        fromBank: {{ _('This game will take its problems from the tournament bank when it starts. You can also choose them below.')|tojson }},
+        bankEmpty: {{ _('The bank did not have enough unused problems for this game. Choose them by hand.')|tojson }},
+        problemsHintHand: {{ _('Choose the problems of each game before starting it. A game that has not started can still change its problems.')|tojson }},
+        problemsHintBank: {{ _('This tournament takes the problems from its bank by itself when each game is called or started. If you choose some here, yours are used instead.')|tojson }},
+        pendingPlayers: {{ _('The players of this battle are not known yet: they come from the previous round. You can already choose its problems.')|tojson }},
+        tournamentNotStarted: {{ _('The tournament has not started yet. You can already choose the problems; the players are called once it starts.')|tojson }},
+        plus1: {{ _('+1 minute')|tojson }},
+        plus5: {{ _('+5 minutes')|tojson }},
+        cancelGame: {{ _('Void this game')|tojson }},
+        cancelGameConfirm: {{ _('The game counts for nobody and the next one is prepared.')|tojson }},
+        give: {{ _('Give the game to')|tojson }},
+        giveConfirm: {{ _('This game will count as won by this player.')|tojson }},
+        finalize: {{ _('Stop waiting for verdicts')|tojson }},
+        finalizeConfirm: {{ _('Submissions still being judged will count as failed.')|tojson }},
+        tie: {{ _('Tie. Give the game to one player or play a tiebreak game: choose its problems below and start it.')|tojson }},
+        walkover: {{ _('Give the whole battle to')|tojson }},
+        walkoverConfirm: {{ _('The whole battle goes to this player without playing on.')|tojson }},
+        cancelMatch: {{ _('Cancel the battle')|tojson }},
+        cancelMatchConfirm: {{ _('The battle is dropped and the players are released.')|tojson }},
+        correct: {{ _('Correct: the winner is')|tojson }},
+        correctConfirm: {{ _('The bracket moves the other player forward instead.')|tojson }},
+        noGame: {{ _('No game yet.')|tojson }},
+        noSubs: {{ _('No submissions yet.')|tojson }},
+        stuck: {{ _('Waiting too long for a judge')|tojson }},
+        paste: {{ _('pasting attempts')|tojson }},
+        blur: {{ _('left the page')|tojson }},
+        jumps: {{ _('sudden jumps in the code')|tojson }},
+        source: {{ _('Source code')|tojson }},
+        close: {{ _('Close')|tojson }},
+        winner: {{ _('Winner')|tojson }},
+        reason: {{ _('Reason')|tojson }},
+        show: {{ _('Show this battle on')|tojson }},
+        shown: {{ _('Now on the screen')|tojson }},
+        openView: {{ _('Open view')|tojson }},
+        settingsSaved: {{ _('Settings saved')|tojson }},
+        reasons: {
+            all_solved: {{ _('Solved every problem first')|tojson }},
+            unreachable: {{ _('The rival could no longer catch up')|tojson }},
+            more_points: {{ _('More points when time ran out')|tojson }},
+            earlier: {{ _('Same points, reached first')|tojson }},
+            organizer: {{ _('Decided by the organizer')|tojson }},
+            walkover: {{ _('Won by walkover')|tojson }},
+            games: {{ _('Won the series')|tojson }}, bye: {{ _('Bye')|tojson }}
+        },
+        views: {
+            combined: {{ _('Everything')|tojson }}, scoreboard: {{ _('Scoreboard')|tojson }},
+            'code-a': {{ _('Code A')|tojson }}, 'code-b': {{ _('Code B')|tojson }},
+            statements: {{ _('Statements')|tojson }}, bracket: {{ _('Bracket')|tojson }}
+        },
+        verdicts: {
+            AC: {{ _('Accepted')|tojson }}, WA: {{ _('Wrong answer')|tojson }},
+            TLE: {{ _('Time limit exceeded')|tojson }}, MLE: {{ _('Memory limit exceeded')|tojson }},
+            OLE: {{ _('Output limit exceeded')|tojson }}, RTE: {{ _('Runtime error')|tojson }},
+            IR: {{ _('Invalid return')|tojson }}, CE: {{ _('Compilation error')|tojson }},
+            IE: {{ _('Internal error')|tojson }}, AB: {{ _('Aborted')|tojson }}, PARTIAL: {{ _('Partial')|tojson }},
+            queued: {{ _('Queued')|tojson }}, judging: {{ _('Judging')|tojson }}
+        },
+        actionsLog: {
+            create: {{ _('created the battle')|tojson }}, call: {{ _('called the players')|tojson }},
+            start: {{ _('started a game')|tojson }}, finish: {{ _('game finished')|tojson }},
+            tie: {{ _('game tied')|tojson }}, verifying: {{ _('time up, verifying')|tojson }},
+            extend: {{ _('added time')|tojson }}, cancel_game: {{ _('voided a game')|tojson }},
+            decided: {{ _('battle decided')|tojson }}, finalize: {{ _('decided with the verdicts so far')|tojson }},
+            cancel: {{ _('cancelled the battle')|tojson }}, problems: {{ _('chose problems')|tojson }},
+            update: {{ _('changed settings')|tojson }}, replace: {{ _('replaced a player')|tojson }},
+            set_winner: {{ _('corrected the winner')|tojson }}, screen: {{ _('put it on a screen')|tojson }}
+        },
+        system: {{ _('system')|tojson }}
+    };
+    var languages = JSON.parse(document.getElementById('mm-languages').textContent);
+    var state = JSON.parse(document.getElementById('mm-state').textContent);
+    var ACTION = {{ url('arena_manage_match_action', state.match.id)|tojson }};
+    var STATE = {{ url('arena_manage_match_state', state.match.id)|tojson }};
+    var DRAW = {{ url('arena_manage_draw', state.match.id)|tojson }};
+    var CODE = {{ url('arena_manage')|tojson }} + 'game/';
+    var problemRows = {};   // game number -> {node, editor, saved, dirty()}
+    var rulesEditor = null;
+    var editors = {}, codeSeq = {a: 0, b: 0}, codeGame = null;
+    // How long a submission has waited, when a player was last seen and how far the code went move by themselves.
+    var paint = W.painter(['queued_for', 'seen_ago', 'code_seq']);
+
+    function current() {
+        return state.games.filter(function (g) { return g.id === state.current; })[0] || null;
+    }
+
+    function act(data, done) {
+        data.version = state.match.version;
+        return A.post(ACTION, data).then(function (result) {
+            if (result.warnings && result.warnings.length) {
+                W.confirmBox(TEXT.startTitle, result.warnings.map(function (w) { return w.message; }), TEXT.startAnyway, function () {
+                    act(Object.assign({}, data, {force: true}));
+                });
+            }
+            if (result.state) { state = result.state; render(); }
+            if (done) done(result);
+        }).catch(function (error) {
+            W.fail(error);
+            if (error.status === 409) refresh();
+        });
+    }
+
+    function confirmed(title, line, label, data, danger) {
+        W.confirmBox(title, [line], label, function () { act(data); }, danger);
+    }
+
+    // ------------------------------------------------------------ players and header
+    function playerCard(slot) {
+        var p = state.players[slot];
+        return A.el('div', {'class': 'mm-player mm-' + slot}, [
+            p.avatar ? A.el('img', {src: p.avatar, alt: ''}) : null,
+            A.el('div', {}, [
+                A.el('div', {'class': 'mm-name', text: p.name}),
+                p.username && p.username !== p.name ? A.el('div', {'class': 'ar-muted', text: p.username}) : null,
+                A.el('div', {}, [A.el('span', {'class': 'ar-dot' + (p.connected ? ' ar-on' : '')}), ' ',
+                                 p.connected ? TEXT.connected : TEXT.disconnected]),
+                p.privileged ? W.badge(TEXT.privileged, 'warn') : null
+            ]),
+            A.el('div', {'class': 'mm-wins', text: state.match.wins[slot]})
+        ]);
+    }
+
+    function render() {
+        var match = state.match, g = current();
+        paint('players', [state.players, match.wins, match.best_of], function () {
+            var head = A.clear(document.getElementById('mm-players'));
+            head.appendChild(playerCard('a'));
+            head.appendChild(A.el('div', {'class': 'mm-vs'}, ['VS', A.el('div', {'class': 'ar-muted', style: 'font-size: .6em;',
+                text: match.best_of > 1 ? '(' + match.best_of + ')' : ''})]));
+            head.appendChild(playerCard('b'));
+        });
+        var info = [];
+        if (match.tournament) info.push(match.tournament.name);
+        if (match.round) info.push(match.round);
+        if (match.title) info.push(match.title);
+        $('#mm-info').text(info.join(' · '));
+        $('#mm-status').text(TEXT.status[match.status] || match.status);
+        if (match.status === 'decided' && match.winner) {
+            $('#mm-status').text(TEXT.status.decided + ' · ' + TEXT.winner + ': ' + state.players[match.winner].name +
+                                 ' (' + (TEXT.reasons[match.reason] || match.reason) + ')');
+        }
+        $('#mm-released').prop('hidden', !((match.status === 'called' || match.status === 'playing') && !match.held));
+        paint('game', [g, state.players.a.name, state.players.b.name, match.status, match.draw.auto], renderGame);
+        // A game not started yet leaves the submissions and code of the previous one in view.
+        if (g && g.started) {
+            paint('submissions', [g.id, g.started_at, g.submissions, g.flags], function () { renderSubmissions(g); });
+            setupCode(g);
+        }
+        renderProblems();
+        renderControls();
+        paint('screens', [state.screens, match.id], renderScreens);
+        paint('log', state.log, renderLog);
+        if (!rulesEditor) {
+            rulesEditor = W.rulesEditor(document.getElementById('mm-rules'), match.rules, languages);
+            $('#mm-best-of').val(String(match.best_of));
+            $('#mm-title').val(match.title || '');
+            $('#mm-display-a').val(state.players.a.display_name || '');
+            $('#mm-display-b').val(state.players.b.display_name || '');
+            $('#mm-display').prop('hidden', !match.quick);
+        }
+    }
+
+    // ------------------------------------------------------------ the current game
+    function verdict(row) {
+        if (row.pending) return row.status === 'QU' ? TEXT.verdicts.queued : TEXT.verdicts.judging + (row.case ? ' #' + row.case : '');
+        if (row.status === 'CE') return TEXT.verdicts.CE;
+        if (row.status === 'IE' || row.status === 'AB') return TEXT.verdicts[row.status];
+        if (row.result === 'AC' && row.points >= row.full - 1e-9) return TEXT.verdicts.AC;
+        if (row.points > 0) return TEXT.verdicts.PARTIAL + ' ' + A.points(row.points);
+        return TEXT.verdicts[row.result] || row.result || '?';
+    }
+
+    function renderGame() {
+        var g = current();
+        var box = A.clear(document.getElementById('mm-game'));
+        if (!g) { box.appendChild(A.el('p', {'class': 'ar-muted', text: TEXT.noGame})); return; }
+        box.appendChild(A.el('div', {'class': 'ar-row'}, [
+            A.el('b', {text: TEXT.game + ' ' + g.number}),
+            W.badge(TEXT.gameStatus[g.status] || g.status, g.status === 'live' ? 'ok' : (g.status === 'verifying' ? 'warn' : 'none')),
+            A.el('span', {'class': 'ar-grow'}),
+            A.el('span', {'class': 'mm-clock', id: 'mm-clock'})
+        ]));
+        // Written at once: an empty clock until the next tick is what made the page jump.
+        tickClock();
+        if (g.status === 'prepared' && state.match.status !== 'decided' && state.match.status !== 'cancelled') {
+            // Only what is about to be played; the problems are chosen in "Problems of each game".
+            if (g.problems.length) {
+                box.appendChild(A.el('div', {'class': 'am-list mm-section'}, g.problems.map(function (p) {
+                    return A.el('div', {'class': 'am-item'}, [A.el('span', {'class': 'am-letter', text: p.label}),
+                        A.el('b', {text: p.code}), A.el('span', {'class': 'ar-grow', text: p.name}),
+                        A.el('span', {'class': 'ar-muted', text: p.points + ' ' + TEXT.points})]);
+                })));
+            } else {
+                box.appendChild(A.el('div', {'class': 'ar-alert ar-alert-' + (state.match.draw.auto ? 'info' : 'warn') + ' mm-section',
+                    text: state.match.draw.auto ? TEXT.fromBank : TEXT.noProblemsYet}));
+            }
+            return;
+        }
+        // Started: problems with both standings.
+        var table = A.el('table', {'class': 'ar-table mm-section'});
+        table.appendChild(A.el('tr', {}, [A.el('th', {text: ''}), A.el('th', {text: state.players.a.name}), A.el('th', {text: state.players.b.name})]));
+        var standing = g.standing || {};
+        g.problems.forEach(function (p) {
+            function cell(slot) {
+                var row = ((standing[slot] || {}).problems || {})[String(p.order)] || {};
+                var parts = [];
+                if (row.full) parts.push(W.badge('✓ ' + A.clock(row.solved_at || 0), 'ok'));
+                else if (row.best > 0) parts.push(W.badge(A.points(row.best), 'warn'));
+                if (row.attempts) parts.push(A.el('span', {'class': 'ar-muted', text: ' ' + row.attempts + '×'}));
+                if (row.pending) parts.push(W.badge('…', 'info'));
+                return A.el('td', {}, parts);
+            }
+            table.appendChild(A.el('tr', {}, [
+                A.el('td', {}, [A.el('b', {text: p.label + ' '}), A.el('a', {href: p.url, target: '_blank', rel: 'noopener', text: p.name}),
+                                A.el('span', {'class': 'ar-muted', text: ' · ' + p.points})]),
+                cell('a'), cell('b')
+            ]));
+        });
+        table.appendChild(A.el('tr', {}, [A.el('th', {text: 'Σ'}),
+            A.el('th', {text: A.points((standing.a || {}).score || 0)}), A.el('th', {text: A.points((standing.b || {}).score || 0)})]));
+        box.appendChild(table);
+        if (g.winner) {
+            box.appendChild(A.el('p', {'class': 'mm-section'}, [A.el('b', {text: TEXT.winner + ': ' + state.players[g.winner].name}),
+                ' · ' + (TEXT.reasons[g.reason] || g.reason)]));
+        }
+        if (g.status === 'tie') box.appendChild(A.el('div', {'class': 'ar-alert ar-alert-warn mm-section', text: TEXT.tie}));
+    }
+
+    // ------------------------------------------------------------ problems of each game of the series
+    // One row per game, from the first to the most the series can need. A game not started yet can get or change
+    // its problems at any time, even before the players are known; a started one only shows what was played.
+    function serverList(g) { return g ? g.problems.map(function (p) { return {id: p.id, points: p.points}; }) : []; }
+
+    function renderProblems() {
+        var match = state.match, over = match.status === 'decided' || match.status === 'cancelled';
+        var box = document.getElementById('mm-problems');
+        $('#mm-problems-hint').text(match.draw.auto ? TEXT.problemsHintBank : TEXT.problemsHintHand);
+        var numbers = state.games.map(function (g) { return g.number; });
+        var last = Math.max(match.max_games, numbers.length ? Math.max.apply(null, numbers) : 0);
+        var seen = {}, index = 0;
+        for (var n = 1; n <= last; n++) {
+            var g = state.games.filter(function (x) { return x.number === n; })[0] || null;
+            var editable = !over && (!g || g.status === 'prepared');
+            if (!editable && !g) continue;
+            seen[n] = true;
+            var row = problemRows[n];
+            if (!row || row.editable !== editable || row.bank !== !!match.draw.bank) {
+                if (row && row.node.parentNode) row.node.parentNode.removeChild(row.node);
+                row = problemRows[n] = buildRow(n, editable);
+            }
+            fillRow(row, g, n, editable);
+            // Only moved when it is not already in its place: moving a row would take the focus away from
+            // whoever is typing in it.
+            if (box.children[index] !== row.node) box.insertBefore(row.node, box.children[index] || null);
+            index++;
+        }
+        Object.keys(problemRows).forEach(function (key) {
+            if (!seen[key]) { var old = problemRows[key]; if (old.node.parentNode) old.node.parentNode.removeChild(old.node); delete problemRows[key]; }
+        });
+    }
+
+    function buildRow(n, editable) {
+        var row = {editable: editable, saved: '[]', bank: !!state.match.draw.bank};
+        row.title = A.el('b', {text: TEXT.game + ' ' + n});
+        row.badge = A.el('span');
+        row.note = A.el('div', {'class': 'ar-alert ar-alert-warn', hidden: true});
+        row.body = A.el('div');
+        row.node = A.el('div', {'class': 'mm-game-row'}, [A.el('div', {'class': 'ar-row'}, [row.title, row.badge]), row.note, row.body]);
+        if (!editable) return row;
+        var holder = A.el('div');
+        row.body.appendChild(holder);
+        row.editor = W.problemList(holder, {
+            context: function () { return {a: state.players.a.id, b: state.players.b.id, match: state.match.id}; },
+            // The Start button follows the list being edited: it turns on as soon as there is a problem.
+            onChange: function () { if (row.status) row.status(); renderControls(); }
+        });
+        row.dirty = function () { return JSON.stringify(row.editor.get()) !== row.saved; };
+        var unsaved = A.el('span', {'class': 'ar-badge ar-warn', text: TEXT.unsaved, hidden: true});
+        row.status = function () { unsaved.hidden = !row.dirty(); };
+        var tools = [
+            A.el('button', {type: 'button', 'class': 'ar-btn', text: TEXT.saveProblems, onclick: function () {
+                act({action: 'problems', number: n, problems: row.editor.get()}, function () { A.toast(TEXT.saved, 'ok', 2000); });
+            }})
+        ];
+        if (state.match.draw.bank) {
+            tools.push(A.el('button', {type: 'button', 'class': 'ar-btn ar-btn-plain', text: TEXT.suggest, title: TEXT.suggestTitle,
+                onclick: function () {
+                    A.post(DRAW, {number: n}).then(function (data) {
+                        row.editor.set(data.problems.map(function (p) {
+                            return {id: p.id, code: p.code, name: p.name, points: p.points, warnings: p.warnings};
+                        }));
+                        (data.warnings || []).forEach(function (w) { A.toast(w, 'warn'); });
+                        A.toast(TEXT.suggested, 'info', 4000);
+                    }).catch(W.fail);
+                }}));
+        }
+        tools.push(unsaved);
+        row.body.appendChild(A.el('div', {'class': 'am-actions mm-section'}, tools));
+        return row;
+    }
+
+    function fillRow(row, g, n, editable) {
+        var status = !g || g.status === 'prepared' ? 'prepared' : g.status;
+        var look = JSON.stringify([status, !!(g && g.bank_empty), editable ? null : g.problems]);
+        if (row.look !== look) {
+            row.look = look;
+            A.clear(row.badge).appendChild(W.badge(status === 'prepared' ? TEXT.toPlay : (TEXT.gameStatus[status] || status),
+                                                   status === 'live' ? 'ok' : 'none'));
+            row.note.hidden = !(g && g.bank_empty);
+            row.note.textContent = TEXT.bankEmpty;
+            if (!editable) {
+                A.clear(row.body).appendChild(A.el('div', {'class': 'am-list'}, g.problems.map(function (p) {
+                    return A.el('div', {'class': 'am-item'}, [A.el('span', {'class': 'am-letter', text: p.label}), A.el('b', {text: p.code}),
+                        A.el('a', {href: p.url, target: '_blank', rel: 'noopener', 'class': 'ar-grow', text: p.name}),
+                        A.el('span', {'class': 'ar-muted', text: p.points + ' ' + TEXT.points})]);
+                })));
+            }
+        }
+        if (editable) {
+            // Keep what the organizer is typing; follow the server (another organizer, the bank) otherwise.
+            var server = JSON.stringify(serverList(g));
+            if (server !== row.saved) {
+                var wasDirty = row.dirty();
+                row.saved = server;
+                if (!wasDirty) row.editor.set(g ? g.problems.map(function (p) {
+                    return {id: p.id, code: p.code, name: p.name, points: p.points};
+                }) : []);
+            }
+            row.status();
+        }
+    }
+
+    function renderSubmissions(g) {
+        ['a', 'b'].forEach(function (slot) {
+            var box = A.clear(document.getElementById('mm-subs-' + slot));
+            var rows = (g.submissions || {})[slot] || [];
+            if (!rows.length) box.appendChild(A.el('div', {'class': 'ar-empty', text: TEXT.noSubs}));
+            rows.forEach(function (row) {
+                var kind = A.verdictKind(row);
+                box.appendChild(A.el('div', {'class': 'mm-sub', onclick: function () { showSource(row.id); }}, [
+                    A.el('b', {text: row.label}),
+                    W.badge(verdict(row), kind),
+                    row.stuck ? W.badge(TEXT.stuck, 'bad') : null,
+                    A.el('span', {'class': 'ar-grow ar-muted', text: row.language}),
+                    A.el('span', {'class': 'ar-muted ar-num', text: A.clock(row.date - g.started_at)})
+                ]));
+            });
+            var flags = A.clear(document.getElementById('mm-flags-' + slot));
+            var f = (g.flags || {})[slot] || {};
+            [['paste', TEXT.paste], ['blur', TEXT.blur], ['jumps', TEXT.jumps]].forEach(function (pair) {
+                flags.appendChild(W.badge((f[pair[0]] || 0) + ' ' + pair[1], f[pair[0]] ? 'warn' : 'none'));
+            });
+        });
+    }
+
+    function showSource(id) {
+        A.get({{ url('arena_manage_submission', 0)|tojson }}.replace(/0$/, String(id))).then(function (data) {
+            var body = A.el('div', {'class': 'ar-panel-body'}, [
+                A.el('p', {}, [A.el('b', {text: data.language}), ' · ', TEXT.verdicts[data.result] || data.result || data.status]),
+                A.el('pre', {'class': 'ar-pre', text: data.source}),
+                data.error ? A.el('pre', {'class': 'ar-pre', style: 'margin-top: .6em;', text: data.error}) : null
+            ]);
+            var back = A.el('div', {'class': 'ar-modal-back'});
+            var close = function () { if (back.parentNode) back.parentNode.removeChild(back); };
+            back.addEventListener('click', function (event) { if (event.target === back) close(); });
+            back.appendChild(A.el('div', {'class': 'ar-modal'}, [
+                A.el('h3', {'class': 'ar-panel-head'}, [TEXT.source, A.el('span', {'class': 'ar-spacer'}),
+                    A.el('button', {type: 'button', 'class': 'ar-btn ar-btn-plain', text: TEXT.close, onclick: close})]),
+                body]));
+            document.body.appendChild(back);
+        }).catch(W.fail);
+    }
+
+    // ------------------------------------------------------------ live code of both players
+    function setupCode(g) {
+        $('#mm-code-panel').prop('hidden', !g.started);
+        if (!g.started) return;
+        if (codeGame !== g.id) {
+            codeGame = g.id;
+            codeSeq = {a: 0, b: 0};
+            ['a', 'b'].forEach(function (slot) {
+                if (!editors[slot]) {
+                    var editor = ace.edit('mm-code-' + slot);
+                    editor.setReadOnly(true);
+                    editor.setShowPrintMargin(false);
+                    editor.setFontSize(13);
+                    editor.$blockScrolling = Infinity;
+                    editor.setAnimatedScroll(true);
+                    A.aceTheme(editor, '', {{ ace_light_theme|tojson }}, {{ ace_dark_theme|tojson }});
+                    editors[slot] = editor;
+                }
+                editors[slot].setValue('', -1);
+            });
+        }
+    }
+
+    // About three times a second while the game is live, like the screens; see A.followCode.
+    function pollCode() {
+        var g = current();
+        if (!g || !g.started || document.hidden) { setTimeout(pollCode, 1500); return; }
+        A.get(CODE + g.id + '/code?a=' + codeSeq.a + '&b=' + codeSeq.b).then(function (data) {
+            ['a', 'b'].forEach(function (slot) {
+                var row = data[slot];
+                if (!row || !editors[slot]) return;
+                codeSeq[slot] = row.seq;
+                var session = editors[slot].getSession();
+                if (session.__mode !== row.ace) { session.setMode('ace/mode/' + (row.ace || 'text')); session.__mode = row.ace; }
+                A.followCode(editors[slot], row.text, row.cursor, 'mm-cursor');
+                $('#mm-code-label-' + slot).text(row.label + ' · ' + row.language);
+            });
+        }).catch(function () {}).then(function () { setTimeout(pollCode, g.status === 'live' ? 350 : 3000); });
+    }
+
+    // ------------------------------------------------------------ controls
+    function button(text, cls, onclick) { return A.el('button', {type: 'button', 'class': 'ar-btn ' + (cls || ''), text: text, onclick: onclick}); }
+
+    function renderControls() {
+        var match = state.match, g = current(), editing = g && problemRows[g.number];
+        paint('controls', [match.status, match.quick, match.winner, match.tournament, match.draw.auto,
+                           [state.players.a.id, state.players.a.name, state.players.b.id, state.players.b.name],
+                           g && [g.id, g.number, g.status, g.problems.length],
+                           editing && editing.editor ? editing.editor.get().length : 0], drawControls);
+    }
+
+    function drawControls() {
+        var match = state.match, g = current();
+        var box = A.clear(document.getElementById('mm-controls'));
+        var names = {a: state.players.a.name, b: state.players.b.name};
+        var waiting = match.tournament && match.tournament.status !== 'running';
+        var bothPlayers = !!(state.players.a.id && state.players.b.id);
+        // Why nothing can be played yet, said where the buttons would be.
+        if (match.status === 'pending' || (waiting && match.status === 'ready')) {
+            box.appendChild(A.el('div', {'class': 'ar-alert ar-alert-info', style: 'width: 100%;',
+                text: match.status === 'pending' ? TEXT.pendingPlayers : TEXT.tournamentNotStarted}));
+        }
+        if (match.status === 'ready' && !waiting) box.appendChild(button(TEXT.call, 'ar-btn-big', function () { act({action: 'call'}); }));
+        if (g && g.status === 'prepared' && ['ready', 'called', 'playing'].indexOf(match.status) !== -1 && !waiting) {
+            var start = button(TEXT.start, 'ar-btn-big ar-btn-green', function () {
+                // Unsaved problems of this game are saved first, so what is on the screen is what gets played.
+                var row = problemRows[g.number];
+                if (row && row.dirty()) {
+                    act({action: 'problems', number: g.number, problems: row.editor.get()}, function () {
+                        act({action: 'start', game: g.id});
+                    });
+                } else {
+                    act({action: 'start', game: g.id});
+                }
+            });
+            var row = problemRows[g.number];
+            start.disabled = !g.problems.length && !match.draw.auto && !(row && row.editor.get().length);
+            box.appendChild(start);
+        }
+        if (g && (g.status === 'live' || g.status === 'countdown')) {
+            box.appendChild(button(TEXT.plus1, 'ar-btn-plain', function () { act({action: 'extend', game: g.id, minutes: 1}); }));
+            box.appendChild(button(TEXT.plus5, 'ar-btn-plain', function () { act({action: 'extend', game: g.id, minutes: 5}); }));
+        }
+        if (g && g.status === 'verifying') {
+            box.appendChild(button(TEXT.finalize, '', function () {
+                confirmed(TEXT.finalize, TEXT.finalizeConfirm, TEXT.finalize, {action: 'finalize', game: g.id});
+            }));
+        }
+        if (g && ['countdown', 'live', 'verifying', 'tie'].indexOf(g.status) !== -1 && match.status === 'playing') {
+            ['a', 'b'].forEach(function (slot) {
+                box.appendChild(button(TEXT.give + ' ' + names[slot], 'ar-btn-plain', function () {
+                    confirmed(TEXT.give + ' ' + names[slot], TEXT.giveConfirm, TEXT.give + ' ' + names[slot],
+                              {action: 'declare', game: g.id, slot: slot});
+                }));
+            });
+            box.appendChild(button(TEXT.cancelGame, 'ar-btn-red', function () {
+                confirmed(TEXT.cancelGame, TEXT.cancelGameConfirm, TEXT.cancelGame, {action: 'cancel_game', game: g.id}, true);
+            }));
+        }
+        var danger = A.clear(document.getElementById('mm-danger'));
+        if (match.status !== 'decided' && match.status !== 'cancelled') {
+            (bothPlayers ? ['a', 'b'] : []).forEach(function (slot) {
+                danger.appendChild(button(TEXT.walkover + ' ' + names[slot], 'ar-btn-plain', function () {
+                    confirmed(TEXT.walkover + ' ' + names[slot], TEXT.walkoverConfirm, TEXT.walkover + ' ' + names[slot],
+                              {action: 'walkover', slot: slot}, true);
+                }));
+            });
+            if (match.quick) danger.appendChild(button(TEXT.cancelMatch, 'ar-btn-red', function () {
+                confirmed(TEXT.cancelMatch, TEXT.cancelMatchConfirm, TEXT.cancelMatch, {action: 'cancel'}, true);
+            }));
+        } else if (match.status === 'decided' && match.tournament && match.winner) {
+            var loser = match.winner === 'a' ? 'b' : 'a';
+            danger.appendChild(button(TEXT.correct + ' ' + names[loser], 'ar-btn-plain', function () {
+                confirmed(TEXT.correct + ' ' + names[loser], TEXT.correctConfirm, TEXT.correct + ' ' + names[loser],
+                          {action: 'set_winner', slot: loser}, true);
+            }));
+        }
+        // A panel with nothing to offer is not shown at all.
+        $(danger).closest('section').prop('hidden', !danger.children.length);
+    }
+
+    // ------------------------------------------------------------ screens
+    function screenUrl(token, view) { return {{ url('arena_screen', 'TOKEN')|tojson }}.replace('TOKEN', token) + '?view=' + view; }
+
+    function renderScreens() {
+        var box = A.clear(document.getElementById('mm-screens'));
+        state.screens.forEach(function (screen) {
+            var showing = screen.mode === 'match' && screen.match === state.match.id;
+            var links = ['combined', 'scoreboard', 'code-a', 'code-b', 'statements'].map(function (view) {
+                return A.el('a', {'class': 'ar-btn ar-btn-plain', href: screenUrl(screen.token, view), target: '_blank', rel: 'noopener',
+                                  text: TEXT.views[view]});
+            });
+            box.appendChild(A.el('div', {'class': 'am-item', style: 'flex-direction: column; align-items: stretch;'}, [
+                A.el('div', {'class': 'ar-row'}, [
+                    A.el('i', {'class': 'fa fa-television'}), A.el('b', {text: screen.name}), A.el('span', {'class': 'ar-grow'}),
+                    showing ? W.badge(TEXT.shown, 'ok') : button(TEXT.show + ' ' + screen.name, '', function () {
+                        A.post({{ url('arena_manage_screen_action')|tojson }}, {action: 'show', screen: screen.id, mode: 'match',
+                                                                                match: state.match.id})
+                            .then(function (data) { state.screens = data.screens; renderScreens(); }).catch(W.fail);
+                    })
+                ]),
+                A.el('div', {'class': 'am-actions'}, [A.el('span', {'class': 'ar-muted', text: TEXT.openView + ':'})].concat(links))
+            ]));
+        });
+    }
+
+    function renderLog() {
+        var box = A.clear(document.getElementById('mm-log'));
+        state.log.forEach(function (row) {
+            var when = new Date(row.time * 1000);
+            box.appendChild(A.el('div', {}, [
+                A.el('span', {'class': 'ar-muted ar-num', text: when.toLocaleTimeString() + ' '}),
+                A.el('b', {text: (row.actor || TEXT.system) + ' '}),
+                TEXT.actionsLog[row.action] || row.action
+            ]));
+        });
+    }
+
+    $('#mm-save-settings').on('click', function () {
+        act({action: 'update', best_of: parseInt($('#mm-best-of').val(), 10), rules: rulesEditor.get(),
+             title: $('#mm-title').val(), display_a: state.match.quick ? $('#mm-display-a').val() : undefined,
+             display_b: state.match.quick ? $('#mm-display-b').val() : undefined},
+            function () { A.toast(TEXT.settingsSaved, 'ok', 2000); });
+    });
+
+    // ------------------------------------------------------------ clock and refresh
+    function tickClock() {
+        var g = current();
+        var clock = document.getElementById('mm-clock');
+        if (!g || !clock) return;
+        var text = '';
+        if (g.status === 'countdown' && g.started_at) text = A.clock(g.started_at - A.now());
+        else if (g.status === 'live' && g.ends_at) text = A.clock(g.ends_at - A.now());
+        if (clock.textContent !== text) clock.textContent = text;
+    }
+    setInterval(tickClock, 250);
+
+    function refresh() {
+        return A.get(STATE).then(function (data) { state = data; render(); }).catch(function () {});
+    }
+    (function loop() {
+        var g = current();
+        var fast = g && ['countdown', 'live', 'verifying'].indexOf(g.status) !== -1;
+        setTimeout(function () { (document.hidden ? Promise.resolve() : refresh()).then(loop); }, fast ? 1000 : 2000);
+    })();
+    render();
+    pollCode();
+});
+</script>
+{% endblock %}
+
+{% block body %}
+<form id="ar-csrf" hidden>{% csrf_token %}</form>
+<div class="am-page">
+    <p class="ar-row"><a href="{{ url('arena_manage') }}"><i class="fa fa-arrow-left"></i> {{ _('Battle panel') }}</a>
+        <span class="ar-muted" id="mm-info"></span>
+        <span class="ar-grow"></span>
+        <a href="{{ url('arena_manage_guide') }}#batalla" target="_blank" rel="noopener"><i class="fa fa-question-circle"></i> {{ _('How does this page work?') }}</a></p>
+    <div class="mm-players" id="mm-players"></div>
+    <p class="mm-status"><b id="mm-status"></b></p>
+    <div class="ar-alert ar-alert-warn" id="mm-released" hidden>{{ _('The players are no longer kept in the arena: more than %(minutes)s minutes went by without anything happening in this battle. They are kept again when the next game starts.', minutes=state.match.idle_minutes) }}</div>
+    <div class="am-grid">
+        <div class="am-stack">
+            <section class="ar-panel">
+                <h3 class="ar-panel-head"><i class="fa fa-gamepad" aria-hidden="true"></i> {{ _('Current game') }}</h3>
+                <div class="ar-panel-body">
+                    <div id="mm-game"></div>
+                    <div class="am-actions mm-section" id="mm-controls"></div>
+                </div>
+            </section>
+            <section class="ar-panel" id="mm-problems-panel">
+                <h3 class="ar-panel-head"><i class="fa fa-list-ol" aria-hidden="true"></i> {{ _('Problems of each game') }}</h3>
+                <div class="ar-panel-body">
+                    <p class="am-hint" id="mm-problems-hint"></p>
+                    <div id="mm-problems"></div>
+                </div>
+            </section>
+            <section class="ar-panel" id="mm-code-panel" hidden>
+                <h3 class="ar-panel-head"><i class="fa fa-code" aria-hidden="true"></i> {{ _('Live code') }}</h3>
+                <div class="mm-columns">
+                    <div>
+                        <div class="ar-muted" style="padding: .3em .7em;" id="mm-code-label-a"></div>
+                        <div class="mm-code" id="mm-code-a"></div>
+                    </div>
+                    <div>
+                        <div class="ar-muted" style="padding: .3em .7em;" id="mm-code-label-b"></div>
+                        <div class="mm-code" id="mm-code-b"></div>
+                    </div>
+                </div>
+            </section>
+            <div class="mm-columns">
+                <section class="ar-panel">
+                    <h3 class="ar-panel-head" style="border-top: 4px solid var(--ar-a);">{{ _('Submissions of A') }}</h3>
+                    <div class="mm-flags" id="mm-flags-a"></div>
+                    <div class="mm-subs" id="mm-subs-a"></div>
+                </section>
+                <section class="ar-panel">
+                    <h3 class="ar-panel-head" style="border-top: 4px solid var(--ar-b);">{{ _('Submissions of B') }}</h3>
+                    <div class="mm-flags" id="mm-flags-b"></div>
+                    <div class="mm-subs" id="mm-subs-b"></div>
+                </section>
+            </div>
+        </div>
+        <div class="am-stack">
+            <section class="ar-panel">
+                <h3 class="ar-panel-head"><i class="fa fa-television" aria-hidden="true"></i> {{ _('Screens') }}</h3>
+                <div class="ar-panel-body"><div class="am-list" id="mm-screens"></div></div>
+            </section>
+            <section class="ar-panel">
+                <h3 class="ar-panel-head"><i class="fa fa-sliders" aria-hidden="true"></i> {{ _('Settings') }}</h3>
+                <div class="ar-panel-body">
+                    <p class="am-hint">{{ _('Changes apply from the next game on; a game already started keeps its rules.') }}</p>
+                    <div class="am-two">
+                        <div class="am-field">
+                            <label for="mm-best-of">{{ _('Games per battle') }}</label>
+                            <select class="ar-select" id="mm-best-of">
+                                <option value="1">{{ _('A single game') }}</option>
+                                <option value="3">{{ _('Best of 3') }}</option>
+                                <option value="5">{{ _('Best of 5') }}</option>
+                                <option value="7">{{ _('Best of 7') }}</option>
+                                <option value="9">{{ _('Best of 9') }}</option>
+                            </select>
+                        </div>
+                        <div class="am-field">
+                            <label for="mm-title">{{ _('Title (optional)') }}</label>
+                            <input class="ar-input" id="mm-title" maxlength="100">
+                        </div>
+                    </div>
+                    <div class="am-two" id="mm-display">
+                        <div class="am-field">
+                            <label for="mm-display-a">{{ _('Name to show for A') }}</label>
+                            <input class="ar-input" id="mm-display-a" maxlength="40">
+                        </div>
+                        <div class="am-field">
+                            <label for="mm-display-b">{{ _('Name to show for B') }}</label>
+                            <input class="ar-input" id="mm-display-b" maxlength="40">
+                        </div>
+                    </div>
+                    <div id="mm-rules"></div>
+                    <div class="am-actions mm-section"><button type="button" class="ar-btn" id="mm-save-settings">{{ _('Save settings') }}</button></div>
+                </div>
+            </section>
+            <section class="ar-panel">
+                <h3 class="ar-panel-head"><i class="fa fa-exclamation-triangle" aria-hidden="true"></i> {{ _('End the battle') }}</h3>
+                <div class="ar-panel-body"><div class="am-actions" id="mm-danger"></div></div>
+            </section>
+            <section class="ar-panel">
+                <h3 class="ar-panel-head"><i class="fa fa-history" aria-hidden="true"></i> {{ _('Log') }}</h3>
+                <div class="mm-log" id="mm-log"></div>
+            </section>
+        </div>
+    </div>
+</div>
+{% endblock %}

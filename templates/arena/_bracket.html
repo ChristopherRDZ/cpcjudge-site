@@ -1,0 +1,500 @@
+{# The tournament bracket, shared by the projector screen and the organizer page.
+
+   Every match is placed by calculation, exactly halfway between the two matches it comes from, and joined to them
+   by SVG lines. The whole thing sits in a viewport that is dragged to move around and zoomed with the wheel, a
+   pinch or the buttons. A bracket too big for the window is not shrunk until nobody can read it: it opens at its
+   normal size on what is being played, and "Show all" shows it whole for whoever wants the overview.
+   Plain script and inline CSS, nothing under resources/ and no compress block. #}
+<style>
+    .ab-viewport { position: relative; overflow: hidden; touch-action: none; user-select: none; cursor: grab;
+                   background: var(--ar-page); border: 1px solid var(--ar-soft-border); border-radius: 4px; }
+    .ab-viewport.ab-dragging { cursor: grabbing; }
+    .ab-stage { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; }
+    .ab-lines { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+    /* Grey lines come from the muted text colour, so they read on the light and on the dark theme alike. */
+    .ab-line { fill: none; stroke: var(--ar-muted); stroke-opacity: .45; stroke-width: 2; }
+    .ab-line.ab-done { stroke: var(--ar-blue); stroke-opacity: 1; stroke-width: 3; }
+    .ab-line.ab-live { stroke: var(--ar-bad-solid); stroke-opacity: 1; stroke-width: 3; }
+    .ab-card { position: absolute; box-sizing: border-box; background: var(--ar-bg); border: 1px solid var(--ar-border);
+               border-radius: 4px; box-shadow: 0 1px 2px var(--ar-shadow); }
+    .ab-card.ab-live { border: 2px solid var(--ar-bad-solid); }
+    /* A bye is not a match: one row, dashed, with the player and a note, where its match would have been. */
+    .ab-card.ab-bye { border-style: dashed; box-shadow: none; background: transparent; }
+    .ab-card.ab-bye .ab-name { color: var(--ar-fg); }
+    .ab-bye-note { color: var(--ar-muted); font-size: .8em; font-style: italic; flex: 0 0 auto; }
+    .ab-line.ab-bye-line { stroke-dasharray: 5 4; }
+    .ab-slot { display: flex; align-items: center; gap: .45em; padding: 0 .6em; box-sizing: border-box; overflow: hidden; }
+    .ab-slot + .ab-slot { border-top: 1px solid var(--ar-soft-border); }
+    .ab-slot img { width: 1.6em; height: 1.6em; border-radius: 3px; flex: 0 0 auto; }
+    .ab-seed { color: var(--ar-muted); min-width: 1.3em; text-align: right; font-size: .85em; flex: 0 0 auto; }
+    .ab-name { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ab-wins { font-weight: bold; font-variant-numeric: tabular-nums; flex: 0 0 auto; }
+    .ab-slot.ab-win { font-weight: bold; background: var(--ar-ok-bg); color: var(--ar-ok-fg); }
+    .ab-slot.ab-lose .ab-name, .ab-slot.ab-lose img { opacity: .55; }
+    .ab-slot.ab-empty { color: var(--ar-muted); font-style: italic; }
+    .ab-tag { position: absolute; top: -.75em; right: .6em; background: var(--ar-bad-solid); color: #fff;
+              font-size: .72em; font-weight: bold; padding: .05em .5em; border-radius: 3px; }
+    .ab-caption { position: absolute; color: var(--ar-muted); font-size: .85em; font-weight: 600; white-space: nowrap; }
+    .ab-champion { position: absolute; box-sizing: border-box; display: flex; flex-direction: column; align-items: center;
+                   justify-content: center; gap: .2em; text-align: center; border-radius: 4px; padding: .3em .6em;
+                   background: var(--ar-bg); border: 1px dashed var(--ar-border); color: var(--ar-muted); }
+    .ab-champion.ab-known { border: 2px solid var(--ar-warn-solid); background: var(--ar-warn-bg); color: var(--ar-warn-fg); }
+    .ab-champion .fa { font-size: 1.4em; }
+    .ab-champion b { color: var(--ar-fg); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ab-heads { position: absolute; left: 0; right: 0; top: 0; z-index: 2; pointer-events: none; overflow: hidden;
+                background: var(--ar-soft); border-bottom: 1px solid var(--ar-soft-border); }
+    .ab-head { position: absolute; top: 0; text-align: center; white-space: nowrap; font-weight: 600; color: var(--ar-muted);
+               transform: translateX(-50%); overflow: hidden; text-overflow: ellipsis; box-sizing: border-box; padding: 0 .3em; }
+    .ab-head small { font-weight: normal; margin-left: .4em; }
+    .ab-tools { position: absolute; right: .6em; bottom: .6em; z-index: 3; display: flex; align-items: center; gap: .3em;
+                transition: opacity .3s; }
+    .ab-tools .ar-btn { padding: 3px 9px; min-width: 2.2em; }
+    .ab-zoom { min-width: 3.4em; text-align: center; font-variant-numeric: tabular-nums; color: var(--ar-muted);
+               background: var(--ar-bg); border: 1px solid var(--ar-border); border-radius: 4px; padding: 3px 6px; }
+    .ab-hint { position: absolute; left: .6em; bottom: .6em; z-index: 3; font-size: .82em; color: var(--ar-muted);
+               background: var(--ar-bg); border: 1px solid var(--ar-soft-border); border-radius: 4px; padding: 2px 8px;
+               pointer-events: none; transition: opacity .3s; }
+    body.sc-idle-cursor .ab-tools, body.sc-idle-cursor .ab-hint { opacity: 0; }
+</style>
+<script type="text/javascript">
+window.ArenaBracket = (function () {
+    // Sizes in em of the viewport's own font, so the projector's larger letter makes everything larger alike.
+    var SIZES = {card: 15.5, slot: 2.4, foot: 2.3, gapX: 4.2, gapY: 1.3, pad: 1.2, head: 2.4, champion: 11};
+    var NS = 'http://www.w3.org/2000/svg';
+    var IDLE_FOLLOW_MS = 15000;
+    var TEXT = {
+        zoomIn: {{ _('Zoom in')|tojson }}, zoomOut: {{ _('Zoom out')|tojson }},
+        actual: '1:1', actualTitle: {{ _('Normal size')|tojson }},
+        fit: {{ _('Show all')|tojson }}, fitTitle: {{ _('Show the whole bracket')|tojson }},
+        focus: {{ _('Being played')|tojson }}, focusTitle: {{ _('Go to what is being played')|tojson }},
+        hintWheel: {{ _('Drag to move around, wheel to zoom')|tojson }},
+        hintCtrl: {{ _('Drag to move around, Ctrl and the wheel or a pinch to zoom')|tojson }},
+        live: {{ _('LIVE')|tojson }}, tbd: {{ _('To be decided')|tojson }}, bye: {{ _('Bye')|tojson }},
+        third: {{ _('Third place')|tojson }}, champion: {{ _('Champion')|tojson }}, bestOf: {{ _('Best of')|tojson }}
+    };
+
+    function mount(viewport, options) {
+        var A = window.Arena;
+        options = options || {};
+        var T = Object.assign({}, TEXT, options.text || {});
+        T.hint = T.hint || (options.wheel === 'ctrl' ? T.hintCtrl : T.hintWheel);
+        var unit = parseFloat(window.getComputedStyle(viewport).fontSize) || 16;
+        var minReadable = options.minReadable || 0.75;
+        var maxAuto = options.maxAuto || 1.6;
+        var footer = options.footer || null;
+        var view = {s: 1, tx: 0, ty: 0};
+        var layout = null, lastBracket = null, placed = false, movedAt = 0, tween = null;
+
+        viewport.classList.add('ab-viewport');
+        A.clear(viewport);
+        var stage = A.el('div', {'class': 'ab-stage'});
+        var heads = A.el('div', {'class': 'ab-heads'});
+        heads.style.height = (SIZES.head * unit) + 'px';
+        heads.style.lineHeight = (SIZES.head * unit) + 'px';
+        var zoomLabel = A.el('span', {'class': 'ab-zoom'});
+        function tool(text, title, onclick) {
+            return A.el('button', {type: 'button', 'class': 'ar-btn ar-btn-plain', text: text, title: title,
+                                   'aria-label': title, onclick: function (event) { event.stopPropagation(); onclick(); }});
+        }
+        var tools = A.el('div', {'class': 'ab-tools'}, [
+            tool('−', T.zoomOut, function () { zoomBy(1 / 1.25); }),
+            zoomLabel,
+            tool('+', T.zoomIn, function () { zoomBy(1.25); }),
+            tool(T.actual, T.actualTitle, function () { actualSize(); }),
+            tool(T.fit, T.fitTitle, function () { fit(); }),
+            tool(T.focus, T.focusTitle, function () { focus(); })
+        ]);
+        viewport.appendChild(stage);
+        viewport.appendChild(heads);
+        viewport.appendChild(tools);
+        if (T.hint) viewport.appendChild(A.el('div', {'class': 'ab-hint', text: T.hint}));
+
+        // ------------------------------------------------------------------ layout
+        function compute(bracket) {
+            // A page can ask for wider cards and a taller footer (the organizer page puts two rows under each match).
+            var U = unit, W = (options.cardWidth || SIZES.card) * U, SH = SIZES.slot * U;
+            var FH = footer ? (options.footHeight || SIZES.foot) * U : 0;
+            var H = 2 * SH + FH + 2, GX = SIZES.gapX * U, GY = SIZES.gapY * U, P = SIZES.pad * U;
+            var rounds = bracket.rounds.slice().sort(function (a, b) { return a.number - b.number; });
+            var boxes = {}, byPos = [], third = null, cards = [];
+            rounds.forEach(function (round, r) {
+                byPos[r] = {};
+                round.matches.forEach(function (m) {
+                    if (m.third_place) third = {match: m, round: r};
+                    else byPos[r][m.position] = m;
+                });
+            });
+            function x(r) { return P + r * (W + GX); }
+            function center(m) { return boxes[m.id].y + H / 2; }
+            rounds.forEach(function (round, r) {
+                Object.keys(byPos[r]).map(Number).sort(function (a, b) { return a - b; }).forEach(function (p) {
+                    var m = byPos[r][p], cy;
+                    var feeders = r ? [byPos[r - 1][2 * p], byPos[r - 1][2 * p + 1]].filter(Boolean) : [];
+                    if (feeders.length) {
+                        cy = feeders.reduce(function (sum, f) { return sum + center(f); }, 0) / feeders.length;
+                    } else {
+                        cy = P + H / 2 + p * (H + GY) * Math.pow(2, r) + (Math.pow(2, r) - 1) * (H + GY) / 2;
+                    }
+                    boxes[m.id] = {x: x(r), y: cy - H / 2, w: W, h: H, round: r, match: m};
+                    cards.push(boxes[m.id]);
+                });
+            });
+            var last = rounds.length - 1;
+            var final = last >= 0 ? byPos[last][0] : null;
+            var bottom = 0;
+            cards.forEach(function (box) { bottom = Math.max(bottom, box.y + box.h); });
+            var captions = [];
+            if (third && final) {
+                var fy = boxes[final.id].y + H + 3.2 * U;
+                boxes[third.match.id] = {x: x(last), y: fy, w: W, h: H, round: last, match: third.match, third: true};
+                cards.push(boxes[third.match.id]);
+                captions.push({x: x(last), y: fy - 1.6 * U, text: T.third});
+                bottom = Math.max(bottom, fy + H);
+            }
+            var champion = null;
+            if (final) {
+                var CW = SIZES.champion * U;
+                champion = {x: x(last) + W + GX, y: center(final) - H / 2, w: CW, h: H};
+            }
+            // Lines: from the middle of each match to the row of the player it sends forward.
+            var lines = [];
+            rounds.forEach(function (round, r) {
+                if (r === last) return;
+                Object.keys(byPos[r]).map(Number).forEach(function (p) {
+                    var m = byPos[r][p], target = byPos[r + 1][Math.floor(p / 2)];
+                    if (!target) return;
+                    var from = boxes[m.id], to = boxes[target.id], bye = m.reason === 'bye';
+                    // A bye is drawn as a single row centred where its match would be.
+                    var x1 = from.x + W, y1 = bye ? from.y + H / 2 : from.y + H / 2 - FH / 2;
+                    var y2 = to.y + 1 + (p % 2 === 0 ? SH / 2 : SH * 1.5);
+                    var xm = x1 + GX / 2;
+                    lines.push({d: 'M' + x1 + ' ' + y1 + 'H' + xm + 'V' + y2 + 'H' + to.x,
+                                cls: bye ? 'ab-bye-line' : (target.live ? 'ab-live' :
+                                                            (m.status === 'decided' && m.winner ? 'ab-done' : ''))});
+                });
+            });
+            if (final && champion) {
+                var fb = boxes[final.id];
+                lines.push({d: 'M' + (fb.x + W) + ' ' + (fb.y + H / 2 - FH / 2) + 'H' + champion.x,
+                            cls: final.status === 'decided' && final.winner ? 'ab-done' : ''});
+            }
+            var width = (champion ? champion.x + champion.w : P + rounds.length * (W + GX)) + P;
+            var height = Math.max(bottom, champion ? champion.y + champion.h : 0) + P;
+            var columns = rounds.map(function (round, r) {
+                return {x: x(r) + W / 2, name: round.name, best_of: round.best_of};
+            });
+            if (champion) columns.push({x: champion.x + champion.w / 2, name: T.champion, best_of: 1});
+            return {cards: cards, lines: lines, captions: captions, champion: champion, columns: columns,
+                    width: width, height: height, boxes: boxes, slot: SH, foot: FH, cardH: H, cardW: W};
+        }
+
+        function slotNode(m, slot, height) {
+            var p = m[slot];
+            var cls = 'ab-slot';
+            if (!p) cls += ' ab-empty';
+            else if (m.winner === slot) cls += ' ab-win';
+            else if (m.winner) cls += ' ab-lose';
+            var node = A.el('div', {'class': cls}, p ? [
+                A.el('span', {'class': 'ab-seed', text: p.seed || ''}),
+                p.avatar ? A.el('img', {src: p.avatar, alt: ''}) : null,
+                A.el('span', {'class': 'ab-name', text: p.name, title: p.name}),
+                m.reason !== 'bye' && (m.best_of > 1 || m.status === 'playing' || m.status === 'decided')
+                    ? A.el('span', {'class': 'ab-wins', text: String(m.wins[slot])}) : null
+            ] : [A.el('span', {'class': 'ab-name', text: m.reason === 'bye' ? T.bye : T.tbd})]);
+            node.style.height = height + 'px';
+            return node;
+        }
+
+        function draw(bracket) {
+            layout = compute(bracket);
+            A.clear(stage);
+            stage.style.width = layout.width + 'px';
+            stage.style.height = layout.height + 'px';
+            var svg = document.createElementNS(NS, 'svg');
+            svg.setAttribute('class', 'ab-lines');
+            svg.setAttribute('width', layout.width);
+            svg.setAttribute('height', layout.height);
+            layout.lines.forEach(function (line) {
+                var path = document.createElementNS(NS, 'path');
+                path.setAttribute('d', line.d);
+                path.setAttribute('class', 'ab-line' + (line.cls ? ' ' + line.cls : ''));
+                svg.appendChild(path);
+            });
+            stage.appendChild(svg);
+            layout.captions.forEach(function (c) {
+                var node = A.el('div', {'class': 'ab-caption', text: c.text});
+                node.style.left = c.x + 'px';
+                node.style.top = c.y + 'px';
+                stage.appendChild(node);
+            });
+            layout.cards.forEach(function (box) {
+                var m = box.match;
+                if (m.reason === 'bye') {
+                    // One row in the middle of the place the match would take; the player already shows up in the
+                    // next round, so a whole card here would only be noise in a big bracket.
+                    var slot = m.a ? 'a' : 'b', p = m[slot] || {}, row = layout.slot + 2;
+                    var pass = A.el('div', {'class': 'ab-card ab-bye', 'data-match': m.id}, [
+                        A.el('div', {'class': 'ab-slot'}, [
+                            A.el('span', {'class': 'ab-seed', text: p.seed || ''}),
+                            p.avatar ? A.el('img', {src: p.avatar, alt: ''}) : null,
+                            A.el('span', {'class': 'ab-name', text: p.name || '', title: p.name || ''}),
+                            A.el('span', {'class': 'ab-bye-note', text: T.bye})
+                        ])
+                    ]);
+                    pass.firstChild.style.height = layout.slot + 'px';
+                    pass.style.left = box.x + 'px';
+                    pass.style.top = (box.y + (box.h - row) / 2) + 'px';
+                    pass.style.width = box.w + 'px';
+                    pass.style.height = row + 'px';
+                    stage.appendChild(pass);
+                    return;
+                }
+                var card = A.el('div', {'class': 'ab-card' + (m.live ? ' ab-live' : ''), 'data-match': m.id});
+                card.style.left = box.x + 'px';
+                card.style.top = box.y + 'px';
+                card.style.width = box.w + 'px';
+                card.style.height = box.h + 'px';
+                if (m.live) card.appendChild(A.el('span', {'class': 'ab-tag', text: T.live}));
+                card.appendChild(slotNode(m, 'a', layout.slot));
+                card.appendChild(slotNode(m, 'b', layout.slot));
+                if (footer) {
+                    var foot = footer(m);
+                    if (foot) { foot.style.height = layout.foot + 'px'; card.appendChild(foot); }
+                }
+                stage.appendChild(card);
+            });
+            if (layout.champion) {
+                var c = layout.champion, known = bracket.champion;
+                var node = A.el('div', {'class': 'ab-champion' + (known ? ' ab-known' : '')}, [
+                    A.el('i', {'class': 'fa fa-trophy', 'aria-hidden': 'true'}),
+                    known ? A.el('b', {text: known.name, title: known.name}) : A.el('span', {text: T.tbd})
+                ]);
+                node.style.left = c.x + 'px';
+                node.style.top = c.y + 'px';
+                node.style.width = c.w + 'px';
+                node.style.height = c.h + 'px';
+                stage.appendChild(node);
+            }
+            A.clear(heads);
+            layout.columns.forEach(function (column) {
+                var node = A.el('div', {'class': 'ab-head', title: column.name}, [column.name,
+                    column.best_of > 1 ? A.el('small', {text: T.bestOf + ' ' + column.best_of}) : null]);
+                node.__x = column.x;
+                heads.appendChild(node);
+            });
+        }
+
+        function margin() { return Math.max(1.5 * unit, viewport.clientWidth * 0.03); }
+
+        // ------------------------------------------------------------------ the view
+        function area() {
+            var top = SIZES.head * unit;
+            return {w: viewport.clientWidth, h: viewport.clientHeight, top: top, inner: viewport.clientHeight - top};
+        }
+
+        function clamp(v) {
+            var a = area(), cw = layout.width * v.s, ch = layout.height * v.s, m = margin();
+            // Smaller than the window: centred. Larger: it moves up to its own edges, plus a small margin.
+            if (cw <= a.w) v.tx = (a.w - cw) / 2;
+            else v.tx = Math.min(m, Math.max(a.w - m - cw, v.tx));
+            if (ch <= a.inner) v.ty = a.top + (a.inner - ch) / 2;
+            else v.ty = Math.min(a.top + m, Math.max(a.top + a.inner - m - ch, v.ty));
+            return v;
+        }
+
+        function apply() {
+            if (!layout) return;
+            stage.style.transform = 'translate(' + view.tx + 'px,' + view.ty + 'px) scale(' + view.s + ')';
+            zoomLabel.textContent = Math.round(view.s * 100) + ' %';
+            // Round titles stay in a strip of their own, follow their column and never get wider than it, so
+            // zoomed far out they shrink and get cut short instead of running into each other.
+            var width = (layout.cardW + SIZES.gapX * unit * 0.6) * view.s;
+            var size = Math.max(0.7, Math.min(1, view.s * 1.2));
+            Array.prototype.forEach.call(heads.children, function (node) {
+                node.style.left = (node.__x * view.s + view.tx) + 'px';
+                node.style.width = width + 'px';
+                node.style.fontSize = size + 'em';
+            });
+        }
+
+        function fitScale() {
+            var a = area();
+            return Math.min((a.w - unit) / layout.width, (a.inner - unit) / layout.height);
+        }
+
+        function limits() { return {min: Math.min(0.2, fitScale()), max: 2.5}; }
+
+        function set(v, animate) {
+            if (!visible()) return;
+            var l = limits();
+            v.s = Math.max(l.min, Math.min(l.max, v.s));
+            v = clamp(v);
+            if (!animate) { stopTween(); view = v; apply(); return; }
+            var from = {s: view.s, tx: view.tx, ty: view.ty}, started = performance.now(), length = 450;
+            stopTween();
+            (function step(now) {
+                var t = Math.min(1, (now - started) / length), e = t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+                view = {s: from.s + (v.s - from.s) * e, tx: from.tx + (v.tx - from.tx) * e, ty: from.ty + (v.ty - from.ty) * e};
+                apply();
+                tween = t < 1 ? requestAnimationFrame(step) : null;
+            })(started);
+        }
+        function stopTween() { if (tween) { cancelAnimationFrame(tween); tween = null; } }
+
+        // Centred on `rect`; a rect bigger than the window starts at its top or left edge instead, so the first
+        // matches of a long column are what shows, not its middle. If that edge is close to the edge of the
+        // bracket, it starts at the bracket's edge, rather than leaving a card cut in half above or beside it.
+        function centeredOn(rect, s) {
+            var a = area(), m = margin();
+            var x0 = rect.x * s < a.w / 2 ? 0 : rect.x, y0 = rect.y * s < a.inner / 2 ? 0 : rect.y;
+            return {
+                s: s,
+                tx: rect.w * s > a.w - 2 * m ? m - x0 * s : a.w / 2 - (rect.x + rect.w / 2) * s,
+                ty: rect.h * s > a.inner - 2 * m ? a.top + m - y0 * s : a.top + a.inner / 2 - (rect.y + rect.h / 2) * s
+            };
+        }
+
+        // What is worth looking at: the matches being played, else the next ones to play, else the final.
+        function focusRect() {
+            var picked = layout.cards.filter(function (box) { return box.match.live; });
+            if (!picked.length) {
+                var open = layout.cards.filter(function (box) {
+                    return ['ready', 'called', 'playing'].indexOf(box.match.status) !== -1;
+                });
+                if (open.length) {
+                    var low = Math.min.apply(null, open.map(function (box) { return box.round; }));
+                    picked = open.filter(function (box) { return box.round === low; });
+                }
+            }
+            if (!picked.length) picked = layout.cards.filter(function (box) { return !box.third; }).slice(-1);
+            if (!picked.length) return {x: 0, y: 0, w: layout.width, h: layout.height};
+            var x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+            picked.forEach(function (box) {
+                x1 = Math.min(x1, box.x); y1 = Math.min(y1, box.y);
+                x2 = Math.max(x2, box.x + box.w); y2 = Math.max(y2, box.y + box.h);
+            });
+            return {x: x1, y: y1, w: x2 - x1, h: y2 - y1};
+        }
+
+        // Whole when it is readable that way; otherwise at its normal size, on what is being played.
+        function preferred() {
+            var whole = fitScale();
+            if (whole >= minReadable) {
+                return centeredOn({x: 0, y: 0, w: layout.width, h: layout.height}, Math.min(whole, maxAuto));
+            }
+            return centeredOn(focusRect(), 1);
+        }
+
+        function fit() { touched(); set(centeredOn({x: 0, y: 0, w: layout.width, h: layout.height}, fitScale()), true); }
+        function actualSize() { touched(); zoomAt(1 / view.s); }
+        function focus() { touched(); set(centeredOn(focusRect(), Math.max(view.s, minReadable)), true); }
+
+        function zoomAt(factor, px, py) {
+            var a = area();
+            px = px === undefined ? a.w / 2 : px;
+            py = py === undefined ? a.top + a.inner / 2 : py;
+            var l = limits(), s = Math.max(l.min, Math.min(l.max, view.s * factor));
+            var k = s / view.s;
+            set({s: s, tx: px - (px - view.tx) * k, ty: py - (py - view.ty) * k}, false);
+        }
+        function zoomBy(factor) { touched(); zoomAt(factor); }
+        function panBy(dx, dy) { touched(); set({s: view.s, tx: view.tx + dx, ty: view.ty + dy}, false); }
+        function touched() { movedAt = Date.now(); }
+
+        // ------------------------------------------------------------------ pointer: drag, pinch, wheel
+        var pointers = {}, drag = null;
+        function local(event) {
+            var r = viewport.getBoundingClientRect();
+            return {x: event.clientX - r.left, y: event.clientY - r.top};
+        }
+        viewport.addEventListener('pointerdown', function (event) {
+            if (event.target.closest('button, a, input, select, textarea')) return;
+            pointers[event.pointerId] = local(event);
+            try { viewport.setPointerCapture(event.pointerId); } catch (err) { /* old browser */ }
+            viewport.classList.add('ab-dragging');
+            drag = null;
+            stopTween();
+        });
+        viewport.addEventListener('pointermove', function (event) {
+            if (!(event.pointerId in pointers)) return;
+            var now = local(event), before = pointers[event.pointerId];
+            var ids = Object.keys(pointers);
+            if (ids.length === 1) {
+                panBy(now.x - before.x, now.y - before.y);
+            } else if (ids.length === 2) {
+                var otherId = ids[0] === String(event.pointerId) ? ids[1] : ids[0];
+                var other = pointers[otherId];
+                var d1 = Math.hypot(before.x - other.x, before.y - other.y);
+                var d2 = Math.hypot(now.x - other.x, now.y - other.y);
+                if (d1 > 0) { touched(); zoomAt(d2 / d1, (now.x + other.x) / 2, (now.y + other.y) / 2); }
+            }
+            pointers[event.pointerId] = now;
+        });
+        function release(event) {
+            delete pointers[event.pointerId];
+            if (!Object.keys(pointers).length) viewport.classList.remove('ab-dragging');
+        }
+        viewport.addEventListener('pointerup', release);
+        viewport.addEventListener('pointercancel', release);
+        viewport.addEventListener('wheel', function (event) {
+            // On the organizer page the wheel keeps scrolling the page unless Ctrl is held, like a map in a page.
+            if (options.wheel === 'ctrl' && !event.ctrlKey && !event.metaKey) return;
+            event.preventDefault();
+            touched();
+            var p = local(event);
+            zoomAt(Math.exp(-event.deltaY * 0.0015), p.x, p.y);
+        }, {passive: false});
+        viewport.addEventListener('dblclick', function (event) {
+            if (event.target.closest('button, a, input, select, textarea')) return;
+            touched();
+            var p = local(event);
+            zoomAt(1.6, p.x, p.y);
+        });
+        // Out of the page (another view is showing) it has no size: nothing to place until it is back.
+        function visible() { return layout && viewport.clientWidth > 0 && viewport.clientHeight > 0; }
+
+        window.addEventListener('resize', function () {
+            if (!visible()) return;
+            if (Date.now() - movedAt > IDLE_FOLLOW_MS) set(preferred(), false);
+            else set({s: view.s, tx: view.tx, ty: view.ty}, false);
+        });
+
+        // ------------------------------------------------------------------ updates
+        // `extra` is anything else the cards depend on (the organizer page passes the tournament status).
+        function update(bracket, extra) {
+            var json = JSON.stringify(bracket) + '|' + (extra || '');
+            if (json !== lastBracket) {
+                lastBracket = json;
+                draw(bracket);
+            } else if (placed) {
+                return;
+            }
+            refresh(true);
+        }
+
+        function refresh(changed) {
+            if (!visible()) return;
+            if (!placed) {
+                placed = true;
+                set(preferred(), false);
+            } else if (changed && options.follow && Date.now() - movedAt > IDLE_FOLLOW_MS) {
+                // The projector follows the play by itself, unless somebody moved it a moment ago.
+                set(preferred(), true);
+            } else {
+                set({s: view.s, tx: view.tx, ty: view.ty}, false);
+            }
+        }
+
+        return {
+            update: update, refresh: refresh, fit: fit, focus: focus, actualSize: actualSize, zoomBy: zoomBy,
+            panBy: panBy,
+            view: function () { return {s: view.s, tx: view.tx, ty: view.ty}; },
+            layout: function () { return layout; },
+            fitScale: function () { return layout ? fitScale() : null; },
+            element: viewport
+        };
+    }
+
+    return {mount: mount};
+})();
+</script>

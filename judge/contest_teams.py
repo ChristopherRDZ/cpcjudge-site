@@ -90,6 +90,10 @@ def join_attempt(contest_id, actor, selection, access_code='', member_ids=None):
     they neither type the access code again nor need their own access to the contest.
     """
     contest = Contest.objects.select_for_update().get(pk=contest_id)
+    # The contests behind arena games have exactly two participations, created by the arena itself.
+    from judge.models.arena import ArenaGame
+    if ArenaGame.objects.filter(contest_id=contest.pk).exists():
+        raise ValidationError(_('This contest belongs to an arena battle.'))
     # Asked separately on purpose: `editor_ids` is built with `union()`, and Django
     # refuses to combine a combined queryset with `|`, which turned an early join
     # into a 500 instead of the message below.

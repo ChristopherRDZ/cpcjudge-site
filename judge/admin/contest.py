@@ -32,6 +32,35 @@ class AdminHeavySelect2Widget(AdminHeavySelect2Widget):
         return False
 
 
+class DuelContestFilter(admin.SimpleListFilter):
+    """Every game of the duels runs on a hidden contest of its own (judge/arena), and they flooded these lists. They
+    have their own entry in the «Battles» section of the menu, which opens the list of contests with ?duelos=si;
+    otherwise the lists leave them out. `field` says where the contest is in the rows listed."""
+    title = _('duels')
+    parameter_name = 'duelos'
+    field = 'id'
+
+    def lookups(self, request, model_admin):
+        return (('si', _('Only duels')), ('todos', _('All')))
+
+    def choices(self, changelist):
+        yield {'selected': self.value() is None, 'display': _('Without duels'),
+               'query_string': changelist.get_query_string(remove=[self.parameter_name])}
+        for lookup, title in self.lookup_choices:
+            yield {'selected': self.value() == lookup, 'display': title,
+                   'query_string': changelist.get_query_string({self.parameter_name: lookup})}
+
+    def queryset(self, request, queryset):
+        if self.value() == 'todos':
+            return queryset
+        duels = {self.field + '__in': Contest.objects.filter(Contest.duel_contests()).values('id')}
+        return queryset.filter(**duels) if self.value() == 'si' else queryset.exclude(**duels)
+
+
+class DuelParticipationFilter(DuelContestFilter):
+    field = 'contest_id'
+
+
 class ContestTagForm(ModelForm):
     contests = ModelMultipleChoiceField(
         label=_('Included contests'),
@@ -175,6 +204,7 @@ class ContestAdmin(PurgeMixin, NoBatchDeleteMixin, SortableAdminBase, VersionAdm
     list_display = ('key', 'name', 'is_visible', 'is_rated', 'locked_after', 'start_time', 'end_time', 'time_limit',
                     'user_count', 'reveal_link')
     search_fields = ('key', 'name')
+    list_filter = (DuelContestFilter,)
     inlines = [ContestProblemInline]
     actions_on_top = True
     actions_on_bottom = True
@@ -464,6 +494,7 @@ class ContestParticipationAdmin(admin.ModelAdmin):
     actions = ['recalculate_results']
     actions_on_bottom = actions_on_top = True
     search_fields = ('contest__key', 'contest__name', 'user__user__username', 'team_name')
+    list_filter = (DuelParticipationFilter,)
     form = ContestParticipationForm
     date_hierarchy = 'real_start'
 

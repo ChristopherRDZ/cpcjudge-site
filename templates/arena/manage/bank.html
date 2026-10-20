@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block media %}
+{% include "arena/_style.html" %}
+{% endblock %}
+
+{% block js_media %}
+{% include "arena/_js.html" %}
+{% include "arena/manage/_widgets.html" %}
+{{ entries|json_script('bk-entries') }}
+<script type="text/javascript">
+$(function () {
+    var A = window.Arena, W = window.ArenaWidgets;
+    var ACTION = {{ url('arena_manage_bank_action')|tojson }};
+    var TEXT = {
+        saved: {{ _('Saved')|tojson }},
+        needName: {{ _('Give the bank a name.')|tojson }},
+        level: {{ _('Difficulty (1 to 5)')|tojson }},
+        note: {{ _('Note')|tojson }},
+        remove: {{ _('Remove')|tojson }},
+        empty: {{ _('This bank has no problems yet.')|tojson }}
+    };
+    var rows = JSON.parse(document.getElementById('bk-entries').textContent);
+
+    $('#bk-create').on('click', function () {
+        var name = $('#bk-name').val().trim();
+        if (!name) { A.toast(TEXT.needName, 'warn'); return; }
+        A.post(ACTION, {action: 'create', name: name, description: $('#bk-description').val()})
+            .then(function (data) { window.location.href = data.url; }).catch(W.fail);
+    });
+
+    var table = document.getElementById('bk-table');
+    if (!table) return;
+    function draw() {
+        var body = A.clear(document.getElementById('bk-rows'));
+        if (!rows.length) body.appendChild(A.el('tr', {}, [A.el('td', {colspan: 5, 'class': 'ar-muted', text: TEXT.empty})]));
+        rows.forEach(function (row, index) {
+            var level = A.el('select', {'class': 'ar-select'});
+            ['', 1, 2, 3, 4, 5].forEach(function (value) {
+                var option = A.el('option', {value: value, text: value === '' ? '—' : String(value)});
+                if (String(row.level || '') === String(value)) option.selected = true;
+                level.appendChild(option);
+            });
+            level.addEventListener('change', function () { row.level = level.value ? parseInt(level.value, 10) : null; });
+            var note = A.el('input', {'class': 'ar-input', value: row.note || '', maxlength: 200});
+            note.addEventListener('change', function () { row.note = note.value; });
+            body.appendChild(A.el('tr', {}, [
+                A.el('td', {}, [A.el('b', {text: row.code})]),
+                A.el('td', {}, [row.name, row['public'] ? ' ' : null, row['public'] ? W.badge({{ _('Public problem')|tojson }}, 'warn') : null]),
+                A.el('td', {}, [level]),
+                A.el('td', {}, [note]),
+                A.el('td', {}, [A.el('button', {type: 'button', 'class': 'am-icon-btn', text: '✕', title: TEXT.remove,
+                                                onclick: function () { rows.splice(index, 1); draw(); }})])
+            ]));
+        });
+    }
+    var adder = A.el('div');
+    document.getElementById('bk-add').appendChild(adder);
+    W.searchBox(adder, {
+        fetch: function (term) {
+            return A.get({{ url('arena_manage_problems')|tojson }} + '?term=' + encodeURIComponent(term)).then(function (d) { return d.results; });
+        },
+        allowEmpty: true,
+        row: function (p) { return A.el('div', {}, [A.el('b', {text: p.code}), A.el('span', {text: p.name})].concat(W.warningBadges(p.warnings))); },
+        pick: function (p) {
+            if (rows.some(function (r) { return r.id === p.id; })) return;
+            rows.push({id: p.id, code: p.code, name: p.name, level: null, note: '', 'public': (p.warnings || []).indexOf('public') !== -1});
+            draw();
+        }
+    });
+    $('#bk-save').on('click', function () {
+        A.post(ACTION, {action: 'problems', bank: {{ (selected.id if selected else 0)|tojson }},
+                        problems: rows.map(function (r) { return {id: r.id, level: r.level, note: r.note}; })})
+            .then(function () { A.toast(TEXT.saved, 'ok', 2000); }).catch(W.fail);
+    });
+    draw();
+});
+</script>
+{% endblock %}
+
+{% block body %}
+<form id="ar-csrf" hidden>{% csrf_token %}</form>
+<div class="am-page">
+    <p class="ar-row"><a href="{{ url('arena_manage') }}"><i class="fa fa-arrow-left"></i> {{ _('Battle panel') }}</a>
+        <span class="ar-grow"></span>
+        <a href="{{ url('arena_manage_guide') }}#bancos" target="_blank" rel="noopener"><i class="fa fa-question-circle"></i> {{ _('How do banks work?') }}</a></p>
+    <div class="am-grid">
+        <div class="am-stack">
+            {% if selected %}
+                <section class="ar-panel">
+                    <h3 class="ar-panel-head"><i class="fa fa-book" aria-hidden="true"></i> {{ selected.name }}</h3>
+                    <div class="ar-panel-body">
+                        {% if selected.description %}<p>{{ selected.description }}</p>{% endif %}
+                        <p class="am-hint">{{ _('A bank is a list of problems prepared in advance for tournaments. A tournament can give its battles problems from it by itself, or suggest them for you to check; it never repeats a problem in the tournament and avoids those the players already tried. Give each problem a difficulty so harder rounds can get harder problems.') }}</p>
+                        <div id="bk-add"></div>
+                        <table class="am-table" id="bk-table" style="margin-top: .8em;">
+                            <thead><tr><th>{{ _('Code') }}</th><th>{{ _('Problem') }}</th><th>{{ _('Difficulty (1 easy, 5 hard)') }}</th><th>{{ _('Note') }}</th><th></th></tr></thead>
+                            <tbody id="bk-rows"></tbody>
+                        </table>
+                        <div class="am-actions" style="margin-top: 1em;"><button type="button" class="ar-btn" id="bk-save">{{ _('Save bank') }}</button></div>
+                    </div>
+                </section>
+            {% else %}
+                <div class="ar-alert ar-alert-info">{{ _('Choose a bank on the right, or create one.') }}</div>
+            {% endif %}
+        </div>
+        <div class="am-stack">
+            <section class="ar-panel">
+                <h3 class="ar-panel-head">{{ _('Problem banks') }}</h3>
+                <table class="am-table">
+                    {% for bank in banks %}
+                        <tr><td><a href="?bank={{ bank.id }}">{% if selected and selected.id == bank.id %}<b>{{ bank.name }}</b>{% else %}{{ bank.name }}{% endif %}</a></td></tr>
+                    {% else %}
+                        <tr><td class="ar-muted">{{ _('No banks yet.') }}</td></tr>
+                    {% endfor %}
+                </table>
+            </section>
+            <section class="ar-panel">
+                <h3 class="ar-panel-head">{{ _('New bank') }}</h3>
+                <div class="ar-panel-body">
+                    <div class="am-field"><label for="bk-name">{{ _('Name') }}</label><input class="ar-input" id="bk-name" maxlength="100"></div>
+                    <div class="am-field"><label for="bk-description">{{ _('Description') }}</label>
+                        <textarea class="ar-input" id="bk-description" rows="2"></textarea></div>
+                    <button type="button" class="ar-btn" id="bk-create">{{ _('Create bank') }}</button>
+                </div>
+            </section>
+        </div>
+    </div>
+</div>
+{% endblock %}

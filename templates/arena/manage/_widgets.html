@@ -1,0 +1,379 @@
+{# Pieces shared by the organizer pages: user and problem pickers, the rules editor and small helpers. #}
+<style>
+    .am-page { color: var(--ar-fg); }
+    .am-grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 1em; align-items: start; }
+    .am-stack { display: flex; flex-direction: column; gap: 1em; min-width: 0; }
+    .am-field { display: flex; flex-direction: column; gap: .3em; margin-bottom: .8em; }
+    .am-field > label, .am-label { font-weight: 600; }
+    .am-hint { font-size: .88em; color: var(--ar-muted); }
+    .am-two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1em; }
+    .am-picker { position: relative; }
+    .am-results {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 100%;
+        z-index: 50;
+        background: var(--ar-bg);
+        border: 1px solid var(--ar-border);
+        border-radius: 0 0 4px 4px;
+        box-shadow: 0 4px 12px var(--ar-shadow);
+        max-height: 22em;
+        overflow: auto;
+    }
+    .am-result { display: flex; align-items: center; gap: .5em; padding: .45em .6em; cursor: pointer; flex-wrap: wrap; }
+    .am-result:hover, .am-result.am-active { background: var(--ar-soft); }
+    .am-result img, .am-chosen img { width: 28px; height: 28px; border-radius: 3px; }
+    .am-chosen { display: flex; align-items: center; gap: .5em; padding: .4em .6em; border: 1px solid var(--ar-border);
+                 border-radius: 4px; background: var(--ar-soft); flex-wrap: wrap; }
+    .am-list { display: flex; flex-direction: column; gap: .4em; margin-top: .4em; }
+    .am-item { display: flex; align-items: center; gap: .5em; padding: .4em .6em; border: 1px solid var(--ar-soft-border);
+               border-radius: 4px; background: var(--ar-bg); flex-wrap: wrap; }
+    .am-item .am-letter { font-weight: bold; min-width: 1.4em; }
+    .am-item input.am-points { width: 6em; }
+    .am-icon-btn { border: 1px solid var(--ar-border); background: var(--ar-bg); color: var(--ar-fg); border-radius: 4px;
+                   padding: 2px 7px; cursor: pointer; font: inherit; }
+    .am-icon-btn:hover { background: var(--ar-soft); }
+    .am-rules { display: grid; grid-template-columns: repeat(auto-fill, minmax(15em, 1fr)); gap: .6em 1em; }
+    .am-rules label { display: flex; align-items: center; gap: .4em; }
+    .am-rules input[type=number] { width: 6em; }
+    .am-languages { display: flex; flex-wrap: wrap; gap: .3em .9em; max-height: 9em; overflow: auto; padding: .4em;
+                    border: 1px solid var(--ar-soft-border); border-radius: 4px; }
+    .am-languages label { font-weight: normal; }
+    details.am-details > summary { cursor: pointer; font-weight: 600; padding: .3em 0; }
+    .am-presets { display: flex; gap: .5em; flex-wrap: wrap; margin-bottom: .8em; }
+    .am-table { width: 100%; border-collapse: collapse; }
+    .am-table th, .am-table td { padding: .45em .6em; border-bottom: 1px solid var(--ar-soft-border); text-align: left;
+                                 vertical-align: middle; }
+    .am-table th { background: var(--ar-soft); font-weight: 600; }
+    .am-actions { display: flex; gap: .5em; flex-wrap: wrap; align-items: center; }
+    .am-live-dot { display: inline-block; width: .65em; height: .65em; border-radius: 50%; background: var(--ar-bad-solid);
+                   animation: am-pulse 1.4s infinite; }
+    @keyframes am-pulse { 50% { opacity: .3; } }
+    @media (max-width: 900px) { .am-grid, .am-two { grid-template-columns: minmax(0, 1fr); } }
+</style>
+<script type="text/javascript">
+window.ArenaWidgets = (function () {
+    var A = window.Arena;
+    var W = {};
+    W.TEXT = {
+        search: {{ _('Search...')|tojson }},
+        none: {{ _('No results')|tojson }},
+        remove: {{ _('Remove')|tojson }},
+        up: {{ _('Move up')|tojson }},
+        down: {{ _('Move down')|tojson }},
+        points: {{ _('points')|tojson }},
+        privileged: {{ _('Staff account: on a club laptop use an account without permissions')|tojson }},
+        busy: {{ _('Already in another battle')|tojson }},
+        warnings: {
+            'public': {{ _('Public problem')|tojson }},
+            editorial: {{ _('Has a published editorial')|tojson }},
+            no_judge: {{ _('No judge online')|tojson }},
+            solved_a: {{ _('Player A already solved it')|tojson }},
+            solved_b: {{ _('Player B already solved it')|tojson }},
+            tried_a: {{ _('Player A already tried it')|tojson }},
+            tried_b: {{ _('Player B already tried it')|tojson }},
+            used: {{ _('Already used in this tournament')|tojson }}
+        },
+        rules: {
+            duration: {{ _('Duration (minutes)')|tojson }},
+            countdown: {{ _('Countdown (seconds)')|tojson }},
+            partial: {{ _('Partial points')|tojson }},
+            penalty: {{ _('Penalty per failed attempt (minutes, 0 = none)')|tojson }},
+            max_attempts: {{ _('Maximum attempts per problem (0 = unlimited)')|tojson }},
+            block_paste: {{ _('Block pasting in the editor')|tojson }},
+            show_rival: {{ _('Players see the progress of the rival')|tojson }},
+            screen_code: {{ _('Show the code on the screens')|tojson }},
+            languages: {{ _('Languages (none checked = whatever each problem allows)')|tojson }}
+        }
+    };
+
+    W.badge = function (text, kind) { return A.el('span', {'class': 'ar-badge ar-' + (kind || 'none'), text: text}); };
+
+    W.warningBadges = function (codes) {
+        return (codes || []).map(function (code) {
+            var serious = code === 'no_judge' || code.indexOf('solved_') === 0 || code === 'used';
+            return W.badge(W.TEXT.warnings[code] || code, serious ? 'bad' : 'warn');
+        });
+    };
+
+    // A search box with a dropdown of results. `fetch(term)` returns a promise of rows, `row(r)` builds a result.
+    W.searchBox = function (container, options) {
+        var wrap = A.el('div', {'class': 'am-picker'});
+        var input = A.el('input', {'class': 'ar-input', type: 'search', placeholder: options.placeholder || W.TEXT.search,
+                                   autocomplete: 'off', style: 'width: 100%;'});
+        var results = A.el('div', {'class': 'am-results', hidden: true});
+        wrap.appendChild(input);
+        wrap.appendChild(results);
+        container.appendChild(wrap);
+        var timer = null, serial = 0;
+        function close() { results.hidden = true; }
+        function search() {
+            var term = input.value.trim();
+            if (!term && !options.allowEmpty) { close(); return; }
+            var mine = ++serial;
+            options.fetch(term).then(function (rows) {
+                if (mine !== serial) return;
+                A.clear(results);
+                if (!rows.length) results.appendChild(A.el('div', {'class': 'am-result ar-muted', text: W.TEXT.none}));
+                rows.forEach(function (row) {
+                    var node = options.row(row);
+                    node.classList.add('am-result');
+                    node.addEventListener('mousedown', function (event) {
+                        event.preventDefault();
+                        options.pick(row);
+                        input.value = '';
+                        close();
+                    });
+                    results.appendChild(node);
+                });
+                results.hidden = false;
+            }).catch(function () {});
+        }
+        input.addEventListener('input', function () { clearTimeout(timer); timer = setTimeout(search, 200); });
+        input.addEventListener('focus', function () { if (input.value.trim() || options.allowEmpty) search(); });
+        input.addEventListener('blur', function () { setTimeout(close, 150); });
+        input.addEventListener('keydown', function (event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                var first = results.querySelector('.am-result');
+                if (first && !results.hidden) first.dispatchEvent(new MouseEvent('mousedown'));
+            } else if (event.key === 'Escape') { close(); }
+        });
+        return {input: input, close: close};
+    };
+
+    W.fetchUsers = function (term) {
+        return A.get({{ url('arena_manage_users')|tojson }} + '?term=' + encodeURIComponent(term))
+            .then(function (data) { return data.results; });
+    };
+
+    W.userRow = function (user) {
+        return A.el('div', {}, [
+            user.avatar ? A.el('img', {src: user.avatar, alt: ''}) : null,
+            A.el('b', {text: user.name}),
+            user.name !== user.username ? A.el('span', {'class': 'ar-muted', text: user.username}) : null,
+            user.rating ? A.el('span', {'class': 'ar-muted', text: '(' + user.rating + ')'}) : null,
+            user.privileged ? W.badge(W.TEXT.privileged, 'warn') : null,
+            user.busy ? W.badge(W.TEXT.busy, 'bad') : null
+        ]);
+    };
+
+    // One user, chosen from a search box. Returns {get(), set(user), onChange}.
+    W.userPicker = function (container, onChange) {
+        var chosen = null;
+        var holder = A.el('div');
+        container.appendChild(holder);
+        function draw() {
+            A.clear(holder);
+            if (chosen) {
+                holder.appendChild(A.el('div', {'class': 'am-chosen'}, [
+                    chosen.avatar ? A.el('img', {src: chosen.avatar, alt: ''}) : null,
+                    A.el('b', {text: chosen.name}),
+                    chosen.name !== chosen.username ? A.el('span', {'class': 'ar-muted', text: chosen.username}) : null,
+                    chosen.privileged ? W.badge(W.TEXT.privileged, 'warn') : null,
+                    chosen.busy ? W.badge(W.TEXT.busy, 'bad') : null,
+                    A.el('span', {'class': 'ar-grow'}),
+                    A.el('button', {type: 'button', 'class': 'am-icon-btn', title: W.TEXT.remove, text: '✕',
+                                    onclick: function () { chosen = null; draw(); if (onChange) onChange(null); }})
+                ]));
+            } else {
+                W.searchBox(holder, {fetch: W.fetchUsers, row: W.userRow,
+                                     pick: function (user) { chosen = user; draw(); if (onChange) onChange(user); }});
+            }
+        }
+        draw();
+        return {get: function () { return chosen; }, set: function (user) { chosen = user; draw(); }};
+    };
+
+    // Several users in order (tournament participants).
+    W.userList = function (container, initial, onChange) {
+        var users = (initial || []).slice();
+        var list = A.el('div', {'class': 'am-list'});
+        var search = A.el('div');
+        container.appendChild(search);
+        container.appendChild(list);
+        W.searchBox(search, {fetch: W.fetchUsers, row: W.userRow, pick: function (user) {
+            if (users.some(function (u) { return u.id === user.id; })) return;
+            users.push(user); draw();
+        }});
+        function move(index, delta) {
+            var target = index + delta;
+            if (target < 0 || target >= users.length) return;
+            var item = users[index]; users[index] = users[target]; users[target] = item; draw();
+        }
+        function draw() {
+            A.clear(list);
+            users.forEach(function (user, index) {
+                list.appendChild(A.el('div', {'class': 'am-item'}, [
+                    A.el('span', {'class': 'am-letter', text: String(index + 1)}),
+                    user.avatar ? A.el('img', {src: user.avatar, alt: '', style: 'width:24px;height:24px;border-radius:3px;'}) : null,
+                    A.el('b', {text: user.name}),
+                    A.el('span', {'class': 'ar-muted', text: user.username}),
+                    A.el('span', {'class': 'ar-grow'}),
+                    A.el('button', {type: 'button', 'class': 'am-icon-btn', title: W.TEXT.up, text: '↑', onclick: function () { move(index, -1); }}),
+                    A.el('button', {type: 'button', 'class': 'am-icon-btn', title: W.TEXT.down, text: '↓', onclick: function () { move(index, 1); }}),
+                    A.el('button', {type: 'button', 'class': 'am-icon-btn', title: W.TEXT.remove, text: '✕',
+                                    onclick: function () { users.splice(index, 1); draw(); }})
+                ]));
+            });
+            if (onChange) onChange(users);
+        }
+        draw();
+        return {get: function () { return users.slice(); }, set: function (rows) { users = rows.slice(); draw(); }};
+    };
+
+    // An ordered list of problems with their points. `context()` gives {a, b, match} for the warnings.
+    W.problemList = function (container, options) {
+        options = options || {};
+        var problems = (options.initial || []).slice();
+        var search = A.el('div');
+        var list = A.el('div', {'class': 'am-list'});
+        container.appendChild(search);
+        container.appendChild(list);
+        function fetchProblems(term) {
+            var ctx = options.context ? options.context() : {};
+            var query = '?term=' + encodeURIComponent(term);
+            if (ctx.a) query += '&a=' + ctx.a;
+            if (ctx.b) query += '&b=' + ctx.b;
+            if (ctx.match) query += '&match=' + ctx.match;
+            return A.get({{ url('arena_manage_problems')|tojson }} + query).then(function (data) { return data.results; });
+        }
+        W.searchBox(search, {
+            fetch: fetchProblems, allowEmpty: true,
+            row: function (p) {
+                return A.el('div', {}, [A.el('b', {text: p.code}), A.el('span', {text: p.name})].concat(W.warningBadges(p.warnings)));
+            },
+            pick: function (p) {
+                if (problems.some(function (q) { return q.id === p.id; })) return;
+                if (problems.length >= (options.max || 5)) return;
+                problems.push({id: p.id, code: p.code, name: p.name, points: options.points || 100, warnings: p.warnings});
+                draw();
+            }
+        });
+        function move(index, delta) {
+            var target = index + delta;
+            if (target < 0 || target >= problems.length) return;
+            var item = problems[index]; problems[index] = problems[target]; problems[target] = item; draw();
+        }
+        function draw() {
+            A.clear(list);
+            problems.forEach(function (p, index) {
+                var points = A.el('input', {'class': 'ar-input am-points', type: 'number', min: 1, max: 10000, value: p.points});
+                points.addEventListener('change', function () { p.points = parseInt(points.value, 10) || 100; });
+                list.appendChild(A.el('div', {'class': 'am-item'}, [
+                    A.el('span', {'class': 'am-letter', text: String.fromCharCode(65 + index)}),
+                    A.el('b', {text: p.code}),
+                    A.el('span', {'class': 'ar-grow', text: p.name})
+                ].concat(W.warningBadges(p.warnings)).concat([
+                    points, A.el('span', {'class': 'ar-muted', text: W.TEXT.points}),
+                    A.el('button', {type: 'button', 'class': 'am-icon-btn', title: W.TEXT.up, text: '↑', onclick: function () { move(index, -1); }}),
+                    A.el('button', {type: 'button', 'class': 'am-icon-btn', title: W.TEXT.down, text: '↓', onclick: function () { move(index, 1); }}),
+                    A.el('button', {type: 'button', 'class': 'am-icon-btn', title: W.TEXT.remove, text: '✕',
+                                    onclick: function () { problems.splice(index, 1); draw(); }})
+                ])));
+            });
+            if (options.onChange) options.onChange(problems);
+        }
+        draw();
+        return {
+            get: function () { return problems.map(function (p) { return {id: p.id, points: p.points}; }); },
+            rows: function () { return problems.slice(); },
+            set: function (rows) { problems = rows.slice(); draw(); }
+        };
+    };
+
+    // Rules editor. `values` are the effective rules, `languages` [{key, name}].
+    W.rulesEditor = function (container, values, languages) {
+        var T = W.TEXT.rules;
+        var inputs = {};
+        var grid = A.el('div', {'class': 'am-rules'});
+        function number(name, min, max) {
+            var input = A.el('input', {'class': 'ar-input', type: 'number', min: min, max: max, value: values[name]});
+            inputs[name] = input;
+            grid.appendChild(A.el('label', {}, [input, A.el('span', {text: T[name]})]));
+        }
+        function check(name) {
+            var input = A.el('input', {type: 'checkbox'});
+            input.checked = !!values[name];
+            inputs[name] = input;
+            grid.appendChild(A.el('label', {}, [input, A.el('span', {text: T[name]})]));
+        }
+        number('duration', 1, 300);
+        number('countdown', 3, 60);
+        number('penalty', 0, 60);
+        number('max_attempts', 0, 50);
+        check('partial');
+        check('block_paste');
+        check('show_rival');
+        check('screen_code');
+        container.appendChild(grid);
+        var boxes = [];
+        if (languages && languages.length) {
+            container.appendChild(A.el('div', {'class': 'am-label', style: 'margin-top: .8em;', text: T.languages}));
+            var wrap = A.el('div', {'class': 'am-languages'});
+            languages.forEach(function (lang) {
+                var box = A.el('input', {type: 'checkbox', value: lang.key});
+                box.checked = (values.languages || []).indexOf(lang.key) !== -1;
+                boxes.push(box);
+                wrap.appendChild(A.el('label', {}, [box, ' ' + lang.name]));
+            });
+            container.appendChild(wrap);
+        }
+        return {
+            get: function () {
+                var rules = {};
+                ['duration', 'countdown', 'penalty', 'max_attempts'].forEach(function (name) {
+                    rules[name] = parseInt(inputs[name].value, 10);
+                    if (isNaN(rules[name])) rules[name] = values[name];
+                });
+                ['partial', 'block_paste', 'show_rival', 'screen_code'].forEach(function (name) { rules[name] = inputs[name].checked; });
+                if (boxes.length) rules.languages = boxes.filter(function (b) { return b.checked; }).map(function (b) { return b.value; });
+                return rules;
+            },
+            set: function (rules) {
+                Object.keys(inputs).forEach(function (name) {
+                    if (!(name in rules)) return;
+                    if (inputs[name].type === 'checkbox') inputs[name].checked = !!rules[name];
+                    else inputs[name].value = rules[name];
+                });
+            }
+        };
+    };
+
+    W.confirmBox = function (title, lines, confirmLabel, onConfirm, danger) {
+        var back = A.el('div', {'class': 'ar-modal-back'});
+        var close = function () { if (back.parentNode) back.parentNode.removeChild(back); };
+        var body = A.el('div', {'class': 'ar-panel-body'});
+        lines.forEach(function (line) { body.appendChild(A.el('p', {text: line})); });
+        body.appendChild(A.el('div', {'class': 'am-actions'}, [
+            A.el('button', {type: 'button', 'class': 'ar-btn' + (danger ? ' ar-btn-red' : ''), text: confirmLabel,
+                            onclick: function () { close(); onConfirm(); }}),
+            A.el('button', {type: 'button', 'class': 'ar-btn ar-btn-plain', text: {{ _('Cancel')|tojson }}, onclick: close})
+        ]));
+        back.appendChild(A.el('div', {'class': 'ar-modal', style: 'width: min(560px, 100%);'},
+                              [A.el('h3', {'class': 'ar-panel-head', text: title}), body]));
+        back.addEventListener('click', function (event) { if (event.target === back) close(); });
+        document.body.appendChild(back);
+    };
+
+    W.fail = function (error) { A.toast(error.message || String(error), 'bad', 7000); };
+
+    // The panels refresh by themselves every few seconds. Redrawing a part of the page that did not change made the
+    // clock blink and the page jump, closed a list someone was choosing from and could swallow a click, so each
+    // part is redrawn only when what it shows changed. `skip` names values that move by themselves.
+    W.painter = function (skip) {
+        var painted = {};
+        function steady(key, value) { return skip && skip.indexOf(key) !== -1 ? undefined : value; }
+        return function paint(key, value, draw) {
+            var text = JSON.stringify(value, steady);
+            if (painted[key] === text) return false;
+            painted[key] = text;
+            draw();
+            return true;
+        };
+    };
+
+    return W;
+})();
+</script>

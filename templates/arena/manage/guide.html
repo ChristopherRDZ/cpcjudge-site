@@ -1,0 +1,355 @@
+{% extends "base.html" %}
+{# Guide for organizers, written in Spanish like problem/interactive-guide.html: the club organizes in Spanish, and
+   a guide is easier to keep right as one text than as hundreds of catalog entries. Linked from every organizer
+   page; each section has an anchor (#duelo, #batalla, #torneo, #problemas, #bancos, #pantallas...). #}
+
+{% block media %}
+<style>
+    .ag { max-width: 62em; line-height: 1.55; }
+    .ag h2 { margin-top: 1.8em; padding-bottom: .2em; border-bottom: 1px solid #ccc; }
+    .ag h3 { margin-top: 1.3em; }
+    .ag .ag-index { columns: 2; margin: .5em 0 1em; }
+    .ag .ag-index li { margin: .15em 0; }
+    .ag ol.ag-steps > li { margin: .45em 0; }
+    .ag .ag-ui { font-weight: 600; white-space: nowrap; }
+    .ag table { border-collapse: collapse; width: 100%; margin: .6em 0; }
+    .ag td, .ag th { border: 1px solid #ccc; padding: 6px 9px; text-align: left; vertical-align: top; }
+    .ag th { background: #f3f3f3; }
+    .ag td.ag-term { font-weight: 600; white-space: nowrap; }
+    .ag .ag-note { border-left: 4px solid #2980b9; background: #f3f8fc; padding: .5em .8em; margin: .8em 0; }
+    .ag .ag-warn { border-left: 4px solid #e69500; background: #fffbe8; padding: .5em .8em; margin: .8em 0; }
+    @media (prefers-color-scheme: dark) {
+        .ag td, .ag th, .ag h2 { border-color: #3b3b3b; }
+        .ag th { background: #242424; }
+        .ag .ag-note { background: #0d2233; }
+        .ag .ag-warn { background: #2b2410; }
+    }
+    @media (max-width: 700px) { .ag .ag-index { columns: 1; } }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="content-description ag">
+    <p><a href="{{ url('arena_manage') }}"><i class="fa fa-arrow-left"></i> Panel de batallas</a></p>
+
+    <p>Esta guía explica cada parte del panel de batallas: para qué sirve y qué hay que hacer en ella. Si sólo
+        quieres organizar algo ya, ve a <a href="#rapido">En dos minutos</a>.</p>
+
+    <ul class="ag-index">
+        <li><a href="#rapido">En dos minutos</a></li>
+        <li><a href="#palabras">Palabras que usa el panel</a></li>
+        <li><a href="#panel">El panel de batallas</a></li>
+        <li><a href="#duelo">Una batalla rápida</a></li>
+        <li><a href="#batalla">La página de una batalla</a></li>
+        <li><a href="#torneo">Un torneo, paso a paso</a></li>
+        <li><a href="#problemas">De dónde salen los problemas</a></li>
+        <li><a href="#bancos">Bancos de problemas</a></li>
+        <li><a href="#pantallas">Pantallas y proyectores</a></li>
+        <li><a href="#laptops">Laptops del club</a></li>
+        <li><a href="#reglas">Reglas de una partida</a></li>
+        <li><a href="#jugador">Qué ve el jugador</a></li>
+        <li><a href="#si-algo-falla">Si algo sale mal</a></li>
+    </ul>
+
+    <h2 id="rapido">En dos minutos</h2>
+    <p><b>Una batalla entre dos personas:</b></p>
+    <ol class="ag-steps">
+        <li>Los dos jugadores abren <b>{{ request.build_absolute_uri(url('arena_home')) }}</b> con su sesión iniciada
+            y esperan. No tienen que hacer nada más.</li>
+        <li>En el panel, en <span class="ag-ui">Nueva batalla rápida</span>, eliges a los dos jugadores, buscas el
+            problema o los problemas y pulsas <span class="ag-ui">Crear y llamar a la sala de espera</span>.</li>
+        <li>Se abre la página de la batalla. Cuando los dos aparecen con <span class="ag-ui">Está en
+            Duelos</span>, pulsas <span class="ag-ui">Iniciar la partida</span>.</li>
+        <li>Abre la pantalla del proyector desde <span class="ag-ui">Pantallas</span> (botón
+            <span class="ag-ui">Todo</span>). La batalla nueva aparece ahí sola.</li>
+        <li>Gana quien resuelva primero. La batalla termina sola y los jugadores quedan libres.</li>
+    </ol>
+    <p><b>Un torneo:</b> en <span class="ag-ui">Nuevo torneo</span> pones nombre y participantes y pulsas
+        <span class="ag-ui">Crear torneo</span>. En su página sigues los cuatro pasos del recuadro
+        <span class="ag-ui">Cómo preparar el torneo</span>, y después llamas a cada batalla cuando le toque.
+        Todo está en <a href="#torneo">Un torneo, paso a paso</a>.</p>
+
+    <h2 id="palabras">Palabras que usa el panel</h2>
+    <table>
+        <tr><td class="ag-term">Batalla</td><td>Dos personas que se enfrentan. Puede ser de una sola partida o de
+            varias (al mejor de 3, de 5...). En un torneo, cada cuadro del bracket es una batalla.</td></tr>
+        <tr><td class="ag-term">Partida</td><td>Una ronda de juego dentro de la batalla: tiene sus problemas, su
+            tiempo y un ganador. Al mejor de 3 gana la batalla quien gane 2 partidas.</td></tr>
+        <tr><td class="ag-term">Sala de espera</td><td>Donde quedan los jugadores al ser <b>llamados</b>: ven a su
+            rival y las reglas, y esperan a que inicies. Desde que los llamas no pueden usar el resto del sitio
+            (siempre pueden cerrar sesión).</td></tr>
+        <tr><td class="ag-term">Retenidos</td><td>Mientras dura su batalla, cualquier página del sitio los devuelve a
+            Duelos. Si en una batalla no pasa nada durante una hora, los deja libres solos; al iniciar la siguiente
+            partida vuelven a quedar retenidos.</td></tr>
+        <tr><td class="ag-term">Pase directo</td><td>Cuando el número de participantes no llena el bracket, los más
+            fuertes pasan a la siguiente ronda sin jugar.</td></tr>
+        <tr><td class="ag-term">Banco de problemas</td><td>Una lista de problemas preparada de antemano, con su
+            dificultad del 1 al 5. Un torneo puede tomar de ahí sus problemas.</td></tr>
+        <tr><td class="ag-term">Pantalla</td><td>Un enlace secreto para el proyector. Una pantalla puede abrirse en
+            varias pestañas, cada una con una vista distinta.</td></tr>
+    </table>
+
+    <h2 id="panel">El panel de batallas</h2>
+    <p>Es la página de inicio del organizador. A la izquierda se crea; a la derecha se ve lo que está pasando.</p>
+    <table>
+        <tr><th>Parte</th><th>Para qué sirve</th></tr>
+        <tr><td class="ag-term">Nueva batalla rápida</td><td>Crear una batalla entre dos personas. Ver
+            <a href="#duelo">Una batalla rápida</a>.</td></tr>
+        <tr><td class="ag-term">Nuevo torneo</td><td>Crear un torneo de eliminación directa con su bracket. Ver
+            <a href="#torneo">Un torneo, paso a paso</a>.</td></tr>
+        <tr><td class="ag-term">Batallas ahora</td><td>Las batallas rápidas que siguen abiertas. Clic en una para
+            abrir su página.</td></tr>
+        <tr><td class="ag-term">Torneos</td><td>Los torneos que no están archivados.</td></tr>
+        <tr><td class="ag-term">Pantallas</td><td>Los enlaces para los proyectores. Ver
+            <a href="#pantallas">Pantallas y proyectores</a>.</td></tr>
+        <tr><td class="ag-term">Batallas recientes</td><td>Las que ya terminaron, con su ganador.</td></tr>
+        <tr><td class="ag-term">Bancos de problemas</td><td>Ver <a href="#bancos">Bancos de problemas</a>.</td></tr>
+        <tr><td class="ag-term">Abrir la página del jugador</td><td>Lo que ve un jugador en <code>/duelos/</code>, para
+            probarlo tú.</td></tr>
+    </table>
+
+    <h2 id="duelo">Una batalla rápida</h2>
+    <ol class="ag-steps">
+        <li><span class="ag-ui">Inicio rápido</span> llena el formulario con algo común: un problema y 15 minutos,
+            varios problemas y 30 minutos, o al mejor de tres. Después puedes cambiar lo que quieras.</li>
+        <li><span class="ag-ui">Jugador A</span> y <span class="ag-ui">Jugador B</span>: escribe parte del usuario o
+            del nombre y elígelo de la lista. Si aparece <span class="ag-ui">Ya está en otra batalla</span>, termina o
+            cancela esa antes.</li>
+        <li><span class="ag-ui">Nombre a mostrar (opcional)</span>: sólo para las <a href="#laptops">laptops del
+            club</a>. Déjalo vacío si cada quien usa su cuenta.</li>
+        <li><span class="ag-ui">Partidas por enfrentamiento</span>: una sola o al mejor de 3, 5 o 7.</li>
+        <li><span class="ag-ui">Partida 1</span>, <span class="ag-ui">Partida 2</span>...: busca los problemas de cada
+            partida por código o nombre. Cada problema vale 100 puntos; puedes cambiarlo. Las etiquetas avisan si
+            el problema es público, si alguno de los dos ya lo resolvió o si no hay juez en línea. Las partidas 2 en
+            adelante se pueden dejar vacías y elegir después.</li>
+        <li><span class="ag-ui">Reglas</span> (plegadas): ver <a href="#reglas">Reglas de una partida</a>.</li>
+        <li><span class="ag-ui">Crear y llamar a la sala de espera</span> manda a los dos jugadores a la sala.
+            <span class="ag-ui">Crear y llamar después</span> la deja lista sin llamar a nadie, para prepararla con
+            tiempo.</li>
+    </ol>
+    <div class="ag-note">La batalla nueva aparece sola en la primera pantalla que esté libre (en espera o mostrando
+        una batalla que ya terminó).</div>
+
+    <h2 id="batalla">La página de una batalla</h2>
+    <p>Arriba, los dos jugadores. El punto verde <span class="ag-ui">Está en Duelos</span> dice que el jugador
+        está en su página, listo. El número grande es cuántas partidas lleva ganadas.</p>
+    <h3>Partida actual</h3>
+    <table>
+        <tr><th>Botón</th><th>Qué hace</th></tr>
+        <tr><td class="ag-term">Llamar a la sala de espera</td><td>Manda a los dos jugadores a la sala de espera.
+            (En una batalla rápida creada con «Crear y llamar» ya están ahí.)</td></tr>
+        <tr><td class="ag-term">Iniciar la partida</td><td>Empieza la cuenta regresiva y después la partida. Si falta
+            alguien, avisa antes y puedes <span class="ag-ui">Iniciar de todos modos</span>. Está desactivado mientras
+            la partida no tenga problemas, salvo en un torneo que los toma del banco: ahí se asignan al iniciar.</td></tr>
+        <tr><td class="ag-term">+1 minuto, +5 minutos</td><td>Alarga la partida en curso, por ejemplo si los jueces
+            se atrasan.</td></tr>
+        <tr><td class="ag-term">Dar la partida a...</td><td>Decides tú el ganador de esa partida (empate, un
+            problema técnico, alguien se fue).</td></tr>
+        <tr><td class="ag-term">Anular esta partida</td><td>La partida no cuenta para nadie y se prepara otra.</td></tr>
+        <tr><td class="ag-term">Dejar de esperar veredictos</td><td>Aparece cuando se acabó el tiempo pero quedan
+            envíos calificándose. Si un juez se trabó, decide ya: lo que siga calificándose cuenta como fallido.</td></tr>
+    </table>
+    <h3>Problemas de cada partida</h3>
+    <p>Una fila por cada partida de la batalla. En las que todavía no empiezan puedes agregar, quitar u ordenar
+        problemas y pulsar <span class="ag-ui">Guardar problemas</span>; si aparece <span class="ag-ui">Cambios sin
+        guardar</span>, todavía no se guardaron. En un torneo con banco está también
+        <span class="ag-ui">Proponer del banco</span>, que llena la lista para que la revises antes de guardar. Las
+        partidas ya jugadas sólo muestran sus problemas.</p>
+    <h3>Código en vivo y envíos</h3>
+    <p>Lo que escribe cada jugador, casi al instante, y sus envíos con el veredicto. Clic en un envío para ver su
+        código. Las señales <span class="ag-ui">intentos de pegar</span>, <span class="ag-ui">salió de la
+        página</span> y <span class="ag-ui">saltos bruscos en el código</span> ayudan a notar si alguien copia; no
+        bloquean nada por sí solas. Un salto también puede venir de pegar un trozo grande de su propio código, que
+        sí está permitido: conviene mirar el código antes de sospechar.</p>
+    <h3>Pantallas</h3>
+    <p><span class="ag-ui">Mostrar esta batalla en...</span> la pone en esa pantalla. Los botones de vista abren
+        cada vista en una pestaña nueva.</p>
+    <h3>Ajustes</h3>
+    <p>Partidas por enfrentamiento, título, nombres a mostrar y reglas. <b>Aplican desde la siguiente partida</b>: la
+        que ya empezó conserva las suyas.</p>
+    <h3>Terminar la batalla</h3>
+    <table>
+        <tr><td class="ag-term">Dar la batalla completa a...</td><td>Uno de los dos gana toda la batalla sin seguir
+            jugando: el otro no llegó o se retiró.</td></tr>
+        <tr><td class="ag-term">Cancelar la batalla</td><td>Sólo en batallas rápidas. Se descarta y los jugadores
+            quedan libres.</td></tr>
+        <tr><td class="ag-term">Corregir: el ganador es...</td><td>Sólo en torneos y ya decidida: cambia el ganador y
+            el bracket avanza al otro, si la siguiente batalla no ha empezado.</td></tr>
+    </table>
+    <p>El <span class="ag-ui">Registro</span> de abajo dice quién hizo qué y cuándo.</p>
+
+    <h2 id="torneo">Un torneo, paso a paso</h2>
+    <h3>1. Crearlo</h3>
+    <p>En el panel, <span class="ag-ui">Nuevo torneo</span>: nombre, participantes y
+        <span class="ag-ui">Orden en el bracket</span>:</p>
+    <ul>
+        <li><b>Como en la lista</b>: el primero de la lista es el más fuerte. Los más fuertes no se enfrentan entre sí
+            hasta el final y, si el número no llena el bracket, son los que pasan directo.</li>
+        <li><b>Al azar</b>: se sortea.</li>
+        <li><b>Por rating</b>: el rating del sitio decide quién es más fuerte.</li>
+    </ul>
+    <p>Al pulsar <span class="ag-ui">Crear torneo</span> el bracket se arma solo y se abre la página del torneo.</p>
+    <h3>2. Prepararlo</h3>
+    <p>Arriba está el recuadro <span class="ag-ui">Cómo preparar el torneo</span>, que marca lo que falta:</p>
+    <ol class="ag-steps">
+        <li><span class="ag-ui">Participantes</span>: agregar, quitar o cambiar el orden (flechas) y pulsar
+            <span class="ag-ui">Guardar participantes</span>. El bracket se vuelve a armar al instante; los problemas
+            que ya hayas elegido se quedan en su lugar del bracket. La casilla del tercer lugar se aplica en cuanto la
+            marcas (hace falta tener 4 participantes o más).</li>
+        <li><span class="ag-ui">Rondas</span>: cuántas partidas tiene cada batalla en cada ronda (por ejemplo, una
+            sola en la primera ronda y al mejor de 3 en la final) y, si usas banco, cuántos problemas y de qué
+            dificultad. Cada ronda se guarda con su botón.</li>
+        <li><span class="ag-ui">Problemas</span>: elige de dónde salen. Ver <a href="#problemas">De dónde salen los
+            problemas</a>.</li>
+        <li><span class="ag-ui">Iniciar el torneo</span>. Desde ese momento los participantes y el bracket ya no
+            cambian.</li>
+    </ol>
+    <h3>3. Jugarlo</h3>
+    <p>Cada cuadro del bracket es una batalla. Debajo de cada una dice cómo está y qué puedes hacer:</p>
+    <table>
+        <tr><th>Lo que ves</th><th>Qué significa</th></tr>
+        <tr><td class="ag-term">Esperando jugadores</td><td>Todavía no se sabe quién juega: vienen de la ronda
+            anterior.</td></tr>
+        <tr><td class="ag-term">Listo para llamar</td><td>Ya están los dos jugadores.</td></tr>
+        <tr><td class="ag-term">✓ Problemas listos</td><td>La siguiente partida ya tiene problemas.</td></tr>
+        <tr><td class="ag-term">Sin problemas aún</td><td>Falta elegirlos (o el banco no tenía suficientes).</td></tr>
+        <tr><td class="ag-term">Del banco</td><td>Se asignan solos del banco al llamar a la batalla.</td></tr>
+        <tr><td class="ag-term">Problemas</td><td>Abre la batalla en la parte de sus problemas, para elegirlos o
+            cambiarlos.</td></tr>
+        <tr><td class="ag-term">Llamar</td><td>Manda a los dos jugadores a la sala de espera y abre la página de la
+            batalla, donde pulsas <span class="ag-ui">Iniciar la partida</span>.</td></tr>
+        <tr><td class="ag-term">Ir a la batalla</td><td>La batalla está en la sala de espera o jugándose.</td></tr>
+        <tr><td class="ag-term">Ver resultado</td><td>Ya se decidió.</td></tr>
+    </table>
+    <p>Quien gana avanza solo al siguiente cuadro. Al decidirse la final, el torneo termina y aparece el campeón.
+        Cuando ya no lo necesites, <span class="ag-ui">Archivar (ocultar del panel)</span> lo quita de la lista.</p>
+    <p>El bracket se mueve arrastrándolo. Para acercar o alejar, mantén <kbd>Ctrl</kbd> y usa la rueda, o los
+        botones <span class="ag-ui">−</span> <span class="ag-ui">+</span>. <span class="ag-ui">Ver todo</span> lo
+        muestra completo y <span class="ag-ui">En juego</span> lleva a lo que se está jugando.</p>
+
+    <h2 id="problemas">De dónde salen los problemas</h2>
+    <p>En la página del torneo, sección <span class="ag-ui">Problemas</span>, hay dos formas. Se pueden combinar.</p>
+    <h3>Los elijo yo para cada batalla</h3>
+    <p>En cada cuadro del bracket pulsas <span class="ag-ui">Problemas</span> y eliges los de cada partida. Se puede
+        hacer en cualquier momento antes de que esa partida empiece, incluso antes de iniciar el torneo o de saber
+        quién juega. Es lo indicado cuando conoces a los jugadores: si sabes que dos son fuertes, les pones
+        problemas más difíciles.</p>
+    <h3>Salen solos de un banco</h3>
+    <p>Eliges un <span class="ag-ui">Banco de problemas</span> y cuántos <span class="ag-ui">Problemas por
+        partida</span>, y guardas. Al llamar a cada batalla, su partida recibe problemas del banco que:</p>
+    <ul>
+        <li>nadie haya usado en el torneo (nunca se repite un problema);</li>
+        <li>los dos jugadores no hayan intentado ni resuelto antes, siempre que el banco alcance;</li>
+        <li>estén dentro de la dificultad de esa ronda, si la fijaste en <span class="ag-ui">Rondas</span> (por
+            ejemplo, 1 a 2 en la primera ronda y 4 a 5 en la final).</li>
+    </ul>
+    <p>Lo mismo pasa con cada partida siguiente de una serie. <span class="ag-ui">Dar problemas del banco ahora</span>
+        los asigna de una vez a todas las batallas cuyos jugadores ya se conocen, para revisarlos antes de llamar.</p>
+    <div class="ag-note"><b>Lo que eliges a mano nunca se reemplaza.</b> Aunque el torneo use banco, puedes cambiar
+        los problemas de cualquier batalla que no haya empezado: se usan los tuyos.</div>
+    <div class="ag-warn">Si el banco no tiene suficientes problemas sin usar, la partida se queda sin problemas y la
+        batalla lo avisa: elígelos a mano o agrega problemas al banco.</div>
+
+    <h2 id="bancos">Bancos de problemas</h2>
+    <p>En el panel, <span class="ag-ui">Bancos de problemas</span>. Creas un banco con nombre, buscas problemas y le
+        das a cada uno su <span class="ag-ui">Dificultad</span> del 1 (fácil) al 5 (difícil) y una nota si quieres.
+        Pulsa <span class="ag-ui">Guardar banco</span>. Conviene usar problemas <b>privados</b>: los envíos a problemas
+        públicos se ven en la API del sitio.</p>
+
+    <h2 id="pantallas">Pantallas y proyectores</h2>
+    <p>Cada pantalla es un enlace secreto que se abre en la laptop del proyector, sin iniciar sesión. Una pantalla
+        puede estar abierta en varias pestañas, cada una con una vista:</p>
+    <table>
+        <tr><td class="ag-term">Todo</td><td>Marcador, reloj y el código de los dos. La más útil para un solo
+            proyector.</td></tr>
+        <tr><td class="ag-term">Marcador</td><td>Sólo puntos y reloj, en grande.</td></tr>
+        <tr><td class="ag-term">Código A, Código B</td><td>El código de un jugador a pantalla completa.</td></tr>
+        <tr><td class="ag-term">Enunciados</td><td>Todos los enunciados de la partida, para el público.</td></tr>
+        <tr><td class="ag-term">Bracket</td><td>El torneo completo. Se mueve solo hacia lo que se está jugando.</td></tr>
+    </table>
+    <p>En el panel, por cada pantalla: <span class="ag-ui">Mostrar la pantalla de espera</span>,
+        <span class="ag-ui">Mostrar un mensaje</span> (por ejemplo, «Pausa de 10 minutos»),
+        <span class="ag-ui">Renombrar</span> y <span class="ag-ui">Cambiar el enlace</span>. Este último invalida el
+        enlace anterior: úsalo si se compartió por error. En la página de un torneo,
+        <span class="ag-ui">Mostrar el bracket en...</span> lo pone en una pantalla, y la casilla
+        <span class="ag-ui">y seguir la batalla en juego</span> hace que muestre sola cada batalla que empieza.</p>
+    <p>Teclas en la pantalla: <kbd>M</kbd> menú, <kbd>F</kbd> pantalla completa, <kbd>T</kbd> tema oscuro,
+        <kbd>E</kbd> enunciados encima, <kbd>1</kbd>–<kbd>6</kbd> cambiar de vista, <kbd>+</kbd> y <kbd>-</kbd>
+        tamaño (en el bracket, acercar y alejar).</p>
+
+    <h2 id="laptops">Laptops del club</h2>
+    <p>Para eventos con gente que no tiene cuenta: en dos laptops inicias sesión con cuentas de confianza
+        <b>sin permisos</b> (por ejemplo <code>estacion1</code> y <code>estacion2</code>) y las dejas en Duelos. En
+        cada batalla rápida eliges esas cuentas como jugadores y escribes en <span class="ag-ui">Nombre a
+        mostrar</span> quién se sienta. El borrador de cada invitado se borra al terminar. En los torneos cada quien
+        usa su propia cuenta.</p>
+
+    <h2 id="reglas">Reglas de una partida</h2>
+    <table>
+        <tr><td class="ag-term">Duración (minutos)</td><td>Tiempo de juego después de la cuenta regresiva.</td></tr>
+        <tr><td class="ag-term">Cuenta regresiva (segundos)</td><td>Lo que se cuenta antes de mostrar los
+            problemas.</td></tr>
+        <tr><td class="ag-term">Puntos parciales</td><td>Sin marcar, un problema da sus puntos sólo si pasa todos los
+            casos. Marcado, da una parte por los casos que pase.</td></tr>
+        <tr><td class="ag-term">Penalización por intento fallido</td><td>Minutos que se suman, en caso de empate a
+            puntos, por cada intento fallido antes de resolver. 0 = quien llegó antes gana.</td></tr>
+        <tr><td class="ag-term">Intentos máximos por problema</td><td>0 = sin límite. Los errores de compilación no
+            cuentan.</td></tr>
+        <tr><td class="ag-term">Bloquear el pegado en el editor</td><td>Los jugadores tienen que escribir el
+            código: no pueden pegar nada de fuera. Sí pueden pegar su propio código, lo que ya escribieron en esa
+            partida o lo que copiaron o cortaron en el editor (por ejemplo, repetir un <code>if</code>).</td></tr>
+        <tr><td class="ag-term">Los jugadores ven el progreso del rival</td><td>Puntos e intentos del otro, nunca su
+            código.</td></tr>
+        <tr><td class="ag-term">Mostrar el código en las pantallas</td><td>Si se proyecta lo que escribe cada
+            uno.</td></tr>
+        <tr><td class="ag-term">Lenguajes</td><td>Sin marcar ninguno, los que permita cada problema.</td></tr>
+    </table>
+    <p><b>Quién gana:</b> más puntos; a igualdad, quien llegó antes a ese puntaje (más la penalización, si hay). La
+        partida termina sola en cuanto el otro ya no puede alcanzarlo.</p>
+
+    <h2 id="jugador">Qué ve el jugador</h2>
+    <p>El jugador sólo abre Duelos y espera. La página pasa sola a la sala de espera, a la cuenta regresiva, a la
+        partida y al resultado. Durante la partida ve los enunciados, el editor, <span class="ag-ui">Probar con
+        entrada</span> para correr su código con una entrada suya, sus envíos y el progreso del rival. Arriba está la
+        barra del sitio, como en cualquier página; durante una batalla sus pestañas dejan lugar al título, la partida
+        y el reloj, y el sitio lo regresa a Duelos si intenta salir.</p>
+    <p>Si la pantalla le queda chica (una laptop, por ejemplo), cada jugador acomoda la vista a su gusto, y su
+        navegador lo recuerda:</p>
+    <ul>
+        <li><span class="ag-ui">Ampliar</span> pone el enunciado o el editor en toda la pantalla; <span class="ag-ui">Vista
+            normal</span> o la tecla Esc lo regresa.</li>
+        <li>La barra entre el enunciado y el editor se arrastra para repartir el ancho, y la de debajo del editor, el
+            alto. Doble clic vuelve a lo de siempre.</li>
+        <li><span class="ag-ui">A−</span> y <span class="ag-ui">A+</span> cambian la letra del enunciado y la del
+            editor.</li>
+        <li><span class="ag-ui">Juntar en pestañas</span> deja <span class="ag-ui">Probar con entrada</span> y
+            <span class="ag-ui">Mis envíos</span> uno a la vez; <span class="ag-ui">Lado a lado</span> los vuelve a
+            poner juntos.</li>
+    </ul>
+    <p>Al terminar, el resultado dice quién ganó y cómo, con el nombre del rival; en una serie, partida por partida.
+        Con su propia cuenta, el jugador puede quedarse a repasar: <span class="ag-ui">Revisar la partida</span>
+        abre el <span class="ag-ui">Modo repaso</span>, donde puede corregir su código, probarlo con su entrada y
+        ver el código de cada envío; ya nada cuenta. Se va cuando quiera con <span class="ag-ui">Salir de
+        Duelos</span>, o cuando lo llaman a otra batalla. En las laptops del club (con nombre a mostrar) no hay
+        repaso: todo se limpia al terminar, para el siguiente.</p>
+
+    <h2 id="si-algo-falla">Si algo sale mal</h2>
+    <table>
+        <tr><th>Situación</th><th>Qué hacer</th></tr>
+        <tr><td>Un jugador no aparece como conectado</td><td>Que abra Duelos (o recargue). Si no llega,
+            <span class="ag-ui">Dar la batalla completa a...</span> el otro.</td></tr>
+        <tr><td>Los envíos tardan en calificarse</td><td><span class="ag-ui">+5 minutos</span>. Si el tiempo ya se
+            acabó y un juez no responde, <span class="ag-ui">Dejar de esperar veredictos</span>.</td></tr>
+        <tr><td>Se eligió un problema equivocado y ya empezó</td><td><span class="ag-ui">Anular esta partida</span> y
+            elegir otros para la siguiente.</td></tr>
+        <tr><td>El banco no alcanzó</td><td>Elegir los problemas a mano en esa batalla, o agregar problemas al
+            banco.</td></tr>
+        <tr><td>Un jugador no puede usar el sitio después del evento</td><td>Su batalla quedó abierta: termínala o
+            cancélala. De todos modos se libera sola tras una hora sin actividad.</td></tr>
+        <tr><td>Alguien vio el enlace del proyector</td><td><span class="ag-ui">Cambiar el enlace</span> de esa
+            pantalla y abrir el nuevo.</td></tr>
+        <tr><td>Hubo empate</td><td>No suma para nadie. Elige los problemas de la siguiente partida (desempate) o
+            <span class="ag-ui">Dar la partida a...</span>.</td></tr>
+    </table>
+</div>
+{% endblock %}

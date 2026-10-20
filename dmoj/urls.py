@@ -11,9 +11,10 @@ from django.views.generic import RedirectView
 
 from judge.feed import AtomBlogFeed, AtomCommentFeed, AtomProblemFeed, BlogFeed, CommentFeed, ProblemFeed
 from judge.sitemap import sitemaps
-from judge.views import TitledTemplateView, announcement, api, blog, comment, contest_balloons, contest_reveal, \
-    contests, language, license, mailgun, organization, preview, problem, problem_manage, ranked_submission, \
-    register, stats, status, submission, tasks, team, ticket, two_factor, user, widgets
+from judge.views import TitledTemplateView, announcement, api, arena, arena_manage, blog, comment, \
+    contest_balloons, contest_reveal, contests, language, license, mailgun, organization, preview, problem, \
+    problem_manage, ranked_submission, register, stats, status, submission, tasks, team, ticket, two_factor, user, \
+    widgets
 from judge.views.problem_data import ProblemDataView, ProblemInteractiveExampleView, ProblemInteractiveGuideView, \
     ProblemSubmissionDiff, problem_data_file, problem_data_upload_gate, problem_init_view
 from judge.views.register import ActivationView, RegistrationView
@@ -107,6 +108,47 @@ urlpatterns = [
     path('problems/random/', problem.RandomProblem.as_view(), name='problem_random'),
     path('custom-test/', problem.CustomTestView.as_view(), name='custom_test'),
     path('custom-test/run/', problem.custom_test_run, name='custom_test_run'),
+
+    # The duels (judge/arena), «arena» until 2026-10-19. Links from before, such as the screen of a projector, keep
+    # working: anything under /arena/ is sent to the same place under /duelos/ (arena.legacy_redirect).
+    re_path(r'^arena(?P<rest>/.*)?$', arena.legacy_redirect),
+    path('duelos/', include([
+        path('', arena.arena_home, name='arena_home'),
+        path('state', arena.arena_state, name='arena_state'),
+        path('game/<int:game>/statement/<int:order>', arena.arena_statement, name='arena_statement'),
+        path('game/<int:game>/submit', arena.arena_submit, name='arena_submit'),
+        path('game/<int:game>/code', arena.arena_code, name='arena_code'),
+        path('game/<int:game>/code/mine', arena.arena_code_mine, name='arena_code_mine'),
+        path('game/<int:game>/submission/<int:submission>', arena.arena_submission, name='arena_submission'),
+        path('screen/<str:token>/', arena.arena_screen, name='arena_screen'),
+        path('screen-api/state', arena.arena_screen_state, name='arena_screen_state'),
+        path('screen-api/code', arena.arena_screen_code, name='arena_screen_code'),
+        path('screen-api/statement/<int:order>', arena.arena_screen_statement, name='arena_screen_statement'),
+        path('manage/', include([
+            path('', arena_manage.manage_dashboard, name='arena_manage'),
+            path('overview', arena_manage.manage_overview, name='arena_manage_overview'),
+            path('duel/new', arena_manage.manage_duel_create, name='arena_manage_duel_create'),
+            path('match/<int:match>/', arena_manage.manage_match, name='arena_manage_match'),
+            path('match/<int:match>/state', arena_manage.manage_match_state, name='arena_manage_match_state'),
+            path('match/<int:match>/action', arena_manage.manage_match_action, name='arena_manage_match_action'),
+            path('match/<int:match>/draw', arena_manage.manage_draw, name='arena_manage_draw'),
+            path('game/<int:game>/code', arena_manage.manage_game_code, name='arena_manage_game_code'),
+            path('submission/<int:submission>', arena_manage.manage_submission_source,
+                 name='arena_manage_submission'),
+            path('problems', arena_manage.manage_problem_search, name='arena_manage_problems'),
+            path('users', arena_manage.manage_user_search, name='arena_manage_users'),
+            path('tournament/new', arena_manage.manage_tournament_create, name='arena_manage_tournament_create'),
+            path('tournament/<slug:slug>/', arena_manage.manage_tournament, name='arena_manage_tournament'),
+            path('tournament/<slug:slug>/state', arena_manage.manage_tournament_state,
+                 name='arena_manage_tournament_state'),
+            path('tournament/<slug:slug>/action', arena_manage.manage_tournament_action,
+                 name='arena_manage_tournament_action'),
+            path('guide/', arena_manage.manage_guide, name='arena_manage_guide'),
+            path('banks/', arena_manage.manage_banks, name='arena_manage_banks'),
+            path('banks/action', arena_manage.manage_bank_action, name='arena_manage_bank_action'),
+            path('screens/action', arena_manage.manage_screen_action, name='arena_manage_screen_action'),
+        ])),
+    ])),
 
     path('problem/<str:problem>', include([
         path('', problem.ProblemDetail.as_view(), name='problem_detail'),

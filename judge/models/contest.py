@@ -575,13 +575,22 @@ class Contest(models.Model):
         """
         return self.is_editable_by(user) or self.is_balloon_staff(user)
 
+    @staticmethod
+    def duel_contests():
+        """The hidden contests that back the games of the duels (judge/arena). Also those whose game was deleted from
+        the admin, which kept their contest until 2026-10-19: they keep the key, the summary and the visibility that
+        engine.start_game gives them, and nothing else creates contests like that."""
+        return Q(arena_game__isnull=False) | Q(key__regex=r'^arena[0-9]+(x[0-9a-f]{6})?$',
+                                                summary__startswith='Arena game ', is_visible=False)
+
     @classmethod
     def get_visible_contests(cls, user):
+        # The hidden contests that back arena games are internal: they are reached from the arena, never listed.
         if not user.is_authenticated:
-            return cls.objects.filter(is_visible=True, is_organization_private=False, is_private=False) \
-                              .defer('description').distinct()
+            return cls.objects.filter(is_visible=True, is_organization_private=False, is_private=False,
+                                      arena_game__isnull=True).defer('description').distinct()
 
-        queryset = cls.objects.defer('description')
+        queryset = cls.objects.defer('description').exclude(cls.duel_contests())
         if not (user.has_perm('judge.see_private_contest') or user.has_perm('judge.edit_all_contest')):
             org_check = (Q(organizations__in=user.profile.organizations.all()) |
                          Q(classes__in=user.profile.classes.all()))
