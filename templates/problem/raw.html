@@ -3,6 +3,8 @@
 <head>
     <link rel="stylesheet" href="{{ urljoin(url, static('style.css')) }}">
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    {# The PDF takes its title from here (pdfoid runs without exiftool). #}
+    <title>{{ problem_name }}</title>
     <style>
         html {
             background: white;

@@ -1,6 +1,7 @@
 import logging
 import os
 import re
+import tempfile
 from datetime import timedelta
 from operator import itemgetter
 from random import randrange
@@ -335,8 +336,14 @@ class ProblemPdfView(ProblemMixin, SingleObjectMixin, View):
         if settings.DMOJ_PDF_PROBLEM_CACHE:
             pdf_filename = os.path.join(settings.DMOJ_PDF_PROBLEM_CACHE, pdf_basename)
             if not os.path.exists(pdf_filename):
-                with open(pdf_filename, 'wb') as f:
-                    f.write(render_problem_pdf())
+                # CPC: render first and then move the file into place. Opening it before rendering left an empty PDF
+                # behind whenever a render failed (pdfoid down, MathJax not loading), and it was served from then on;
+                # a request arriving meanwhile could also read a half-written one.
+                pdf = render_problem_pdf()
+                with tempfile.NamedTemporaryFile(dir=settings.DMOJ_PDF_PROBLEM_CACHE, prefix=pdf_basename,
+                                                 suffix='.part', delete=False) as f:
+                    f.write(pdf)
+                os.replace(f.name, pdf_filename)
 
             if settings.DMOJ_PDF_PROBLEM_INTERNAL:
                 url_path = f'{settings.DMOJ_PDF_PROBLEM_INTERNAL}/{pdf_basename}'
@@ -529,6 +536,10 @@ class ProblemList(QueryStringSortMixin, TitleMixin, SolvedProblemMixin, ListView
                 self.contest.SCOREBOARD_AFTER_PARTICIPATION,
                 self.contest.SCOREBOARD_HIDDEN,
             )
+            # CPC: every statement of the contest in one PDF, at the bottom of the list.
+            from judge.views.contests import can_download_contest_pdf
+            context['contest_pdf_url'] = (reverse('contest_problems_pdf', args=[self.contest.key])
+                                          if can_download_contest_pdf(self.request, self.contest) else None)
         return context
 
     def get_noui_slider_points(self):

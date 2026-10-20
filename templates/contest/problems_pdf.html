@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+{# Every statement of a contest in one PDF (judge/views/contests.py, ContestProblemsPdf). The same pieces as the PDF
+   of each problem (problem/raw.html): a cover with the problems, then each statement on a page of its own. Nothing
+   here may change from one request to the next (no dates, no user): the hash of this HTML names the cached PDF. #}
+<html>
+<head>
+    <link rel="stylesheet" href="{{ urljoin(url, static('style.css')) }}">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    {# The PDF takes its title from here (pdfoid runs without exiftool). #}
+    <title>{{ contest.name }}</title>
+    <style>
+        html {
+            background: white;
+        }
+
+        body {
+            overflow: hidden;
+            background: white;
+        }
+
+        tr {
+            page-break-inside: avoid;
+        }
+
+        .contest-cover h1 {
+            margin: 1.5em 0 .8em;
+            font-size: 2.2em;
+        }
+
+        .contest-cover table {
+            width: auto;
+            border-collapse: collapse;
+        }
+
+        .contest-cover td {
+            padding: .35em 1.2em .35em 0;
+            border-bottom: 1px solid #ddd;
+            font-size: 1.15em;
+            text-align: left;
+        }
+
+        .contest-cover td.label {
+            font-weight: bold;
+        }
+
+        .contest-problem {
+            page-break-before: always;
+        }
+
+        .problem-label {
+            display: inline-block;
+            min-width: 1.4em;
+            margin-right: .3em;
+            padding: 0 .3em;
+            border-radius: 3px;
+            background: #3b3b3b;
+            color: white;
+            text-align: center;
+        }
+
+        .lang-limit {
+            margin-left: 1.5em;
+        }
+
+        .lang-name:after {
+            content: ": ";
+        }
+
+        .problem-info-entry {
+            vertical-align: top;
+            padding: 0.6em;
+            display: inline-block;
+            text-align: left;
+        }
+    </style>
+</head>
+
+<body>
+<div class="contest-cover">
+    <h1>{{ contest.name }}</h1>
+    <table>
+        {% for item in problems %}
+            <tr>
+                <td class="label">{{ item.label }}</td>
+                <td>{{ item.name }}</td>
+            </tr>
+        {% endfor %}
+    </table>
+</div>
+{% for item in problems %}
+    {% set problem = item.problem %}
+    <div class="contest-problem">
+        <h2 style="display: inline-block;"><span class="problem-label">{{ item.label }}</span>{{ item.name }}</h2>
+        <hr>
+        <div align="center" style="position: relative;">
+            <div class="problem-info-entry">
+                <b>{{ _('Time limit:') }}</b> {{ problem.time_limit }}s
+                {% for name, limit in problem.language_time_limit %}
+                    <div class="lang-limit">
+                        <span class="lang-name">{{ name }}</span>
+                        <span>{{ limit }}s</span>
+                    </div>
+                {% endfor %}
+            </div>
+            <div class="problem-info-entry">
+                <b>{{ _('Memory limit:') }}</b> {{ problem.memory_limit|kbsimpleformat }}
+                {% for name, limit in problem.language_memory_limit %}
+                    <div class="lang-limit">
+                        <span class="lang-name">{{ name }}</span>
+                        <span>{{ limit|kbsimpleformat }}</span>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+        <hr style="clear: both;">
+        <div class="content-description printing">
+            {{ item.description|markdown(problem.markdown_style, 'tex')|reference|absolutify(item.url)|str|safe }}
+        </div>
+    </div>
+{% endfor %}
+<script type="text/javascript" src="{{ urljoin(url, static('mathjax_config.js')) }}"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.0/es5/tex-chtml.min.js"></script>
+<script type="text/javascript">
+    MathJax.typesetPromise().then(function () {
+        document.body.classList.add('math-loaded');
+    });
+</script>
+</body>
+</html>

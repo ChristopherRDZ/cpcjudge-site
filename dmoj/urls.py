@@ -267,6 +267,7 @@ urlpatterns = [
         path('/join', contests.ContestJoin.as_view(), name='contest_join'),
         path('/leave', contests.ContestLeave.as_view(), name='contest_leave'),
         path('/stats', contests.ContestStats.as_view(), name='contest_stats'),
+        path('/pdf', contests.ContestProblemsPdf.as_view(), name='contest_problems_pdf'),
         path('/reveal', contest_reveal.contest_reveal, name='contest_reveal'),
         path('/reveal/publish', contest_reveal.contest_reveal_publish, name='contest_reveal_publish'),
         path('/balloons', contest_balloons.contest_balloons, name='contest_balloons'),

@@ -12,7 +12,7 @@ PDFOID_URL = settings.DMOJ_PDF_PDFOID_URL
 PDF_RENDERING_ENABLED = PDFOID_URL is not None
 
 
-def render_pdf(*, title: str, html: str, footer: bool = False) -> bytes:
+def render_pdf(*, title: str, html: str, footer: bool = False, timeout=None) -> bytes:
     if not PDF_RENDERING_ENABLED:
         raise RuntimeError("pdfoid is not configured, can't render PDFs")
 
@@ -33,6 +33,8 @@ def render_pdf(*, title: str, html: str, footer: bool = False) -> bytes:
             'wait-for-class': 'math-loaded',
             'wait-for-duration-secs': 15,
         },
+        # CPC: the PDF of a whole contest gives up before uWSGI kills the worker waiting for it.
+        timeout=timeout,
     )
 
     response.raise_for_status()

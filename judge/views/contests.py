@@ -1,4 +1,8 @@
+import hashlib
 import json
+import logging
+import os
+import tempfile
 from calendar import Calendar, SUNDAY
 from collections import defaultdict, namedtuple
 from datetime import date, datetime, time, timedelta, timezone as datetime_timezone
@@ -9,6 +13,7 @@ from operator import attrgetter, itemgetter
 from django import forms
 from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+from django.core.cache import cache
 from django.core.exceptions import ImproperlyConfigured, ObjectDoesNotExist
 from django.db import IntegrityError
 from django.db.models import (BooleanField, Case, Count, F, FloatField, IntegerField, Max, Min, Prefetch, Q,
@@ -18,8 +23,9 @@ from django.db.models.functions import Coalesce
 from django.http import Http404, HttpResponse, HttpResponseBadRequest, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render
 from django.template.defaultfilters import date as date_filter
+from django.template.loader import get_template
 from django.urls import reverse
-from django.utils import timezone
+from django.utils import timezone, translation
 from django.utils.functional import cached_property
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
@@ -34,21 +40,22 @@ from reversion import revisions
 from judge import event_poster as event
 from judge.comments import CommentedDetailView
 from judge.forms import ContestCloneForm
-from judge.models import Contest, ContestMoss, ContestParticipation, ContestProblem, ContestSubmission, \
-    ContestTag, Problem, Profile, Submission
+from judge.models import ArenaGame, Contest, ContestMoss, ContestParticipation, ContestProblem, ContestSubmission, \
+    ContestTag, Problem, ProblemTranslation, Profile, Submission
 from judge.tasks import run_moss
 from judge.utils.celery import redirect_to_task_status
 from judge.utils.opengraph import generate_opengraph
+from judge.utils.pdfoid import PDF_RENDERING_ENABLED, render_pdf
 from judge.utils.problems import _get_result_data
 from judge.utils.ranker import ranker
 from judge.utils.stats import get_bar_chart, get_pie_chart
 from judge.utils.views import DiggPaginatorMixin, QueryStringSortMixin, SingleObjectFormView, TitleMixin, \
-    generic_message
+    add_file_response, generic_message
 
 __all__ = ['ContestList', 'ContestDetail', 'ContestRanking', 'ContestJoin', 'ContestLeave', 'ContestCalendar',
            'ContestClone', 'ContestStats', 'ContestMossView', 'ContestMossDelete', 'contest_ranking_ajax',
            'ContestParticipationList', 'ContestParticipationDisqualify', 'get_contest_ranking_list',
-           'base_contest_ranking_list']
+           'base_contest_ranking_list', 'ContestProblemsPdf', 'can_download_contest_pdf']
 
 
 def _find_contest(request, key, private_check=True):
@@ -338,6 +345,8 @@ class ContestDetail(ContestMixin, TitleMixin, CommentedDetailView):
         )
         context['enable_comments'] = settings.DMOJ_ENABLE_COMMENTS
         context['enable_social'] = settings.DMOJ_ENABLE_SOCIAL
+        context['contest_pdf_url'] = (reverse('contest_problems_pdf', args=[self.object.key])
+                                      if can_download_contest_pdf(self.request, self.object) else None)
         return context
 
 
@@ -1095,3 +1104,156 @@ class ContestTagDetail(TitleMixin, ContestTagDetailAjax):
 
     def get_title(self):
         return _('Contest tag: %s') % self.object.name
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# Every statement of a contest in one PDF (CPC, 2026-10-19)
+# ---------------------------------------------------------------------------------------------------------------
+
+# pdfoid makes PDFs one at a time and uWSGI kills a worker that waits more than 120 s (harakiri): a render that
+# takes longer gives up first, and only one request at a time renders a given PDF.
+CONTEST_PDF_RENDER_TIMEOUT = (5, 100)
+CONTEST_PDF_LOCK_SECONDS = 110
+# The page that says the PDF is on its way asks again by itself after this many seconds.
+CONTEST_PDF_RETRY_SECONDS = 5
+
+
+def can_download_contest_pdf(request, contest):
+    """Who may download every statement of a contest in one PDF.
+
+    Whoever is inside this contest once it started (live, virtual or spectating), the same people who already
+    see its problems; and its authors, curators and testers, or anyone who edits every contest, at any time, to
+    prepare it before the contest. Never the hidden contests that back arena games.
+    """
+    if not PDF_RENDERING_ENABLED or not request.user.is_authenticated:
+        return False
+    if ArenaGame.objects.filter(contest_id=contest.id).exists():
+        return False
+    if contest.is_editable_by(request.user) or request.profile.id in contest.tester_ids:
+        return True
+    participation = getattr(request, 'participation', None)
+    return participation is not None and participation.contest_id == contest.id and contest.started
+
+
+def contest_pdf_html(request, contest, language):
+    """The HTML that pdfoid prints, and how many problems it has.
+
+    A cover with the problems, then each statement on its own page, in `language` when the problem has a
+    translation to it, as in the PDF of each problem. Nothing in it changes between two requests unless the
+    contest or its problems do, so its hash names the cached PDF.
+    """
+    contest_problems = list(contest.contest_problems.select_related('problem').order_by('order'))
+    translations = {item.problem_id: item for item in
+                    ProblemTranslation.objects.filter(problem_id__in=[cp.problem_id for cp in contest_problems],
+                                                      language=language)}
+    problems = []
+    for index, contest_problem in enumerate(contest_problems):
+        problem = contest_problem.problem
+        trans = translations.get(problem.id)
+        problems.append({
+            'label': contest.get_label_for_problem(index),
+            'problem': problem,
+            'name': trans.name if trans else problem.name,
+            'description': trans.description if trans else problem.description,
+            'url': request.build_absolute_uri(reverse('problem_detail', args=[problem.code])),
+        })
+    with translation.override(language):
+        html = get_template('contest/problems_pdf.html').render({
+            'contest': contest,
+            'problems': problems,
+            'url': request.build_absolute_uri('/'),
+        })
+    return html.replace('"//', '"https://').replace("'//", "'https://"), len(problems)
+
+
+class ContestProblemsPdf(LoginRequiredMixin, ContestMixin, SingleObjectMixin, View):
+    """Every statement of a contest in one PDF, to keep reading them if the connection drops during the contest.
+
+    pdfoid prints all the statements together once, and the PDF stays in the PDF cache under a fingerprint of its
+    HTML: editing a statement, a limit, a translation or the problem set makes a new one, and the old one of that
+    contest and language is removed. Only one request renders it; the others get a page that asks again by itself
+    a few seconds later instead of holding a worker.
+    """
+    logger = logging.getLogger('judge.contest.pdf')
+    languages = frozenset(code for code, _name in settings.LANGUAGES)
+
+    def get(self, request, *args, **kwargs):
+        self.object = contest = self.get_object()
+        if not can_download_contest_pdf(request, contest):
+            return self.not_found(request, contest)
+        language = request.LANGUAGE_CODE if request.LANGUAGE_CODE in self.languages else settings.LANGUAGE_CODE
+        html, count = contest_pdf_html(request, contest, language)
+        if not count:
+            return self.not_found(request, contest)
+        fingerprint = hashlib.sha256(html.encode('utf-8')).hexdigest()[:16]
+        # Contest keys and language codes have no dots or slashes, and the PDF of a problem is <code>.<language>.pdf
+        # with a code of letters and digits only: the dash keeps the two kinds apart.
+        prefix = 'contest-%s.%s.' % (contest.key, language)
+        basename = prefix + fingerprint + '.pdf'
+        folder = settings.DMOJ_PDF_PROBLEM_CACHE
+        path = os.path.join(folder, basename) if folder else None
+
+        if path is None or not os.path.exists(path):
+            lock = 'contest_pdf:' + basename
+            if not cache.add(lock, 1, CONTEST_PDF_LOCK_SECONDS):
+                return self.preparing(request)
+            try:
+                # Another request may have finished it between the check and the lock.
+                if path is None or not os.path.exists(path):
+                    self.logger.info('Rendering contest PDF in %s: %s (%d problems)', language, contest.key, count)
+                    try:
+                        pdf = render_pdf(html=html, title=contest.name, footer=True,
+                                         timeout=CONTEST_PDF_RENDER_TIMEOUT)
+                    except Exception:
+                        self.logger.exception('Contest PDF failed: %s', contest.key)
+                        return generic_message(request, _('Could not prepare the PDF'),
+                                               _('The PDF with every statement could not be prepared right now. '
+                                                 'Please try again in a moment.'), status=503)
+                    if path is None:
+                        return self.pdf_response(contest, content=pdf)
+                    # Written aside and moved into place at once, like the PDF of each problem: a failed write
+                    # leaves nothing behind and nobody reads a half-written file.
+                    with tempfile.NamedTemporaryFile(dir=folder, prefix=basename, suffix='.part',
+                                                     delete=False) as stream:
+                        try:
+                            stream.write(pdf)
+                        except BaseException:
+                            os.unlink(stream.name)
+                            raise
+                    os.replace(stream.name, path)
+                    for name in os.listdir(folder):
+                        if name.startswith(prefix) and name.endswith('.pdf') and name != basename:
+                            try:
+                                os.unlink(os.path.join(folder, name))
+                            except OSError:
+                                pass
+            finally:
+                cache.delete(lock)
+        response = self.pdf_response(contest)
+        internal = settings.DMOJ_PDF_PROBLEM_INTERNAL
+        try:
+            add_file_response(request, response, '%s/%s' % (internal, basename) if internal else None, path)
+        except FileNotFoundError:
+            # Replaced just now by a newer version, after a statement changed: that one is on its way.
+            return self.preparing(request)
+        return response
+
+    def not_found(self, request, contest):
+        return generic_message(request, _('No such contest'),
+                               _('Could not find a contest with the key "%s".') % contest.key, status=404)
+
+    def pdf_response(self, contest, content=None):
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename=%s.pdf' % contest.key
+        if content is not None:
+            response.content = content
+        return response
+
+    def preparing(self, request):
+        response = generic_message(request, _('Preparing the PDF'),
+                                   _('The PDF with every statement is being prepared. '
+                                     'The download starts by itself in a few seconds.'), status=202)
+        response['Refresh'] = str(CONTEST_PDF_RETRY_SECONDS)
+        response['Retry-After'] = str(CONTEST_PDF_RETRY_SECONDS)
+        response['Cache-Control'] = 'no-store'
+        return response

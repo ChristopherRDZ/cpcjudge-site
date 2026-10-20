@@ -301,6 +301,17 @@
             </table>
         </div>
     </div>
+    {% if contest_pdf_url %}
+        {# CPC: every statement of the contest in one PDF, to keep reading if the connection drops. Plain markup with
+           inline styles, outside the compressed blocks of this template. #}
+        <div class="contest-pdf-download"
+             style="clear: both; display: flex; align-items: center; gap: 1em; flex-wrap: wrap; margin-top: 1.5em;">
+            <a class="unselectable button" href="{{ contest_pdf_url }}">
+                <i class="fa fa-file-pdf-o"></i> {{ _('Download every statement (PDF)') }}
+            </a>
+            <span style="color: #777;">{{ _('One file with every problem of the contest, to keep reading them if the connection drops.') }}</span>
+        </div>
+    {% endif %}
    {% if page_obj.has_other_pages() %}
        <div class="bottom-pagination-bar">{% include "list-pages.html" %}</div>
    {% endif %}
