@@ -46,6 +46,27 @@ class MathInlineLexer(mistune.InlineLexer):
         return self.renderer.inline_html(html)
 
 
+class DollarMathInlineGrammar(MathInlineGrammar):
+    # Same as mistune's, plus \$ for a literal dollar sign.
+    escape = re.compile(r'^\\([\\`*{}\[\]()#+\-.!_>~|$])')
+    # $...$ as inline math, next to ~...~. Pandoc's rules, so that prices stay text: the opening $ is followed by
+    # a non-space, the closing $ follows a non-space and is not followed by a digit ("$5 and $10" is not math).
+    # A formula cannot hold a backtick, so `$` in inline code never opens one.
+    dollar_math = re.compile(r'^\$(?![\s$])((?:\\[\s\S]|[^\\$`])+?)(?<!\s)\$(?!\d)')
+
+
+class DollarMathInlineLexer(MathInlineLexer):
+    grammar_class = DollarMathInlineGrammar
+
+    def __init__(self, *args, **kwargs):
+        super(DollarMathInlineLexer, self).__init__(*args, **kwargs)
+        # After $$...$$, so that display math keeps its meaning. inline_html_rules is the same list.
+        self.default_rules.insert(self.default_rules.index('block_math') + 1, 'dollar_math')
+
+    def output_dollar_math(self, m):
+        return self.renderer.math(m.group(1))
+
+
 class MathRenderer(mistune.Renderer):
     def __init__(self, *args, **kwargs):
         if kwargs.pop('math', False):
