@@ -8142,3 +8142,2535 @@ msgstr "No se creó la cuenta"
 #: judge/topes-de-correo
 msgid "We could not send the activation email, so your account was not created. Please try again later."
 msgstr "No pudimos enviar el correo de activación, así que tu cuenta no se creó. Inténtalo de nuevo más tarde."
+
+#: judge/arena
+#, python-format
+msgid "%(name)s does not have the arena open."
+msgstr "%(name)s no está en Duelos."
+
+#: judge/arena
+#, python-format
+msgid "%(name)s is already in another battle."
+msgstr "%(name)s ya está en otra batalla."
+
+#: judge/arena
+#, python-format
+msgid "%(name)s must be between %(low)s and %(high)s."
+msgstr "%(name)s debe estar entre %(low)s y %(high)s."
+
+#: judge/arena
+#, python-format
+msgid "%(problem)s has no language allowed by the rules of this battle."
+msgstr "%(problem)s no tiene ningún lenguaje permitido por las reglas de esta batalla."
+
+#: judge/arena
+#, python-format
+msgid "A display name can have at most %(count)s characters."
+msgstr "El nombre a mostrar puede tener como máximo %(count)s caracteres."
+
+#: judge/arena
+#, python-format
+msgid "A game can have at most %(count)s problems."
+msgstr "Una partida puede tener como máximo %(count)s problemas."
+
+#: judge/arena
+#, python-format
+msgid "A game cannot last more than %(count)s minutes."
+msgstr "Una partida no puede durar más de %(count)s minutos."
+
+#: judge/arena
+#, python-format
+msgid "A tournament can have at most %(count)s participants."
+msgstr "Un torneo puede tener como máximo %(count)s participantes."
+
+#: judge/arena
+#, python-format
+msgid "A tournament needs at least %(count)s participants."
+msgstr "Un torneo necesita al menos %(count)s participantes."
+
+#: judge/arena
+#, python-format
+msgid "Battle: %(name)s"
+msgstr "Batalla: %(name)s"
+
+#: judge/arena
+#, python-format
+msgid "The players are no longer kept in the arena: more than %(minutes)s minutes went by without anything happening in this battle. They are kept again when the next game starts."
+msgstr "Los jugadores ya no están retenidos en Duelos: pasaron más de %(minutes)s minutos sin actividad en esta batalla. Vuelven a estarlo al iniciar la siguiente partida."
+
+#: judge/arena
+#, python-format
+msgid "Invalid value for %(name)s."
+msgstr "Valor no válido para %(name)s."
+
+#: judge/arena
+#, python-format
+msgid "No judge is online for %(problem)s."
+msgstr "No hay ningún juez en línea para %(problem)s."
+
+#: judge/arena
+#, python-format
+msgid "Points must be between %(low)s and %(high)s."
+msgstr "Los puntos deben estar entre %(low)s y %(high)s."
+
+#: judge/arena
+#, python-format
+msgid "Round %(number)s"
+msgstr "Ronda %(number)s"
+
+#: judge/arena
+#, python-format
+msgid "Tournament: %(name)s"
+msgstr "Torneo: %(name)s"
+
+#: judge/arena
+msgid "A game of this battle is already being played."
+msgstr "Ya se está jugando una partida de esta batalla."
+
+#: judge/arena
+msgid "A player cannot face themselves."
+msgstr "Un jugador no puede enfrentarse a sí mismo."
+
+#: judge/arena
+msgid "A tournament match cannot be cancelled; give it to one player instead."
+msgstr "Un enfrentamiento de torneo no se puede cancelar; dáselo a uno de los jugadores."
+
+#: judge/arena
+msgid "Add between 1 and 60 minutes."
+msgstr "Añade entre 1 y 60 minutos."
+
+#: judge/arena
+msgid "Battle in progress"
+msgstr "Batalla en curso"
+
+#: judge/arena
+msgid "Being played"
+msgstr "En juego"
+
+#: judge/arena
+msgid "Drag to move around, Ctrl and the wheel or a pinch to zoom"
+msgstr "Arrastra para moverte; Ctrl con la rueda, o pellizca, para acercar"
+
+#: judge/arena
+msgid "Drag to move around, wheel to zoom"
+msgstr "Arrastra para moverte, rueda para acercar"
+
+#: judge/arena
+msgid "Go to what is being played"
+msgstr "Ir a lo que se está jugando"
+
+#: judge/arena
+msgid "Normal size"
+msgstr "Tamaño normal"
+
+#: judge/arena
+msgid "Show all"
+msgstr "Ver todo"
+
+#: judge/arena
+msgid "Show the whole bracket"
+msgstr "Mostrar el bracket completo"
+
+#: judge/arena
+msgid "Zoom in"
+msgstr "Acercar"
+
+#: judge/arena
+msgid "Zoom out"
+msgstr "Alejar"
+
+#: judge/arena
+msgid "Sign in again"
+msgstr "Inicia sesión otra vez"
+
+#: judge/arena
+msgid "This screen link is no longer valid. Open the new link from the battle panel."
+msgstr "Este enlace de pantalla ya no es válido. Abre el enlace nuevo desde el panel de batallas."
+
+#: judge/arena
+msgid "Your session ended."
+msgstr "Tu sesión terminó."
+
+#: judge/arena
+msgid "Best of must be an odd number between 1 and 9."
+msgstr "La serie debe ser al mejor de un número impar entre 1 y 9."
+
+#: judge/arena
+msgid "Both players are needed to start."
+msgstr "Hacen falta los dos jugadores para empezar."
+
+#: judge/arena
+msgid "Build the bracket before starting."
+msgstr "Arma el bracket antes de empezar."
+
+#: judge/arena
+msgid "Choose a player."
+msgstr "Elige un jugador."
+
+#: judge/arena
+msgid "Choose a winner."
+msgstr "Elige un ganador."
+
+#: judge/arena
+msgid "Choose both players."
+msgstr "Elige a los dos jugadores."
+
+#: judge/arena
+msgid "Choose the problems of the first game."
+msgstr "Elige los problemas de la primera partida."
+
+#: judge/arena
+msgid "Choose the problems of this game before starting it."
+msgstr "Elige los problemas de esta partida antes de iniciarla."
+
+#: judge/arena
+msgid "Display names are only for quick battles; tournament players use their own accounts."
+msgstr "Los nombres a mostrar son sólo para batallas rápidas; en un torneo cada quien juega con su propia cuenta."
+
+#: judge/arena
+msgid "Each game of a battle must use different problems."
+msgstr "Cada partida de una batalla debe usar problemas distintos."
+
+#: judge/arena
+msgid "Finish or decide the matches being played first."
+msgstr "Primero termina o decide los enfrentamientos en juego."
+
+#: judge/arena
+msgid "Give the bank a name."
+msgstr "Ponle un nombre al banco."
+
+#: judge/arena
+msgid "Give the tournament a name."
+msgstr "Ponle un nombre al torneo."
+
+#: judge/arena
+msgid "Invalid list of participants."
+msgstr "Lista de participantes no válida."
+
+#: judge/arena
+msgid "Invalid list of problems."
+msgstr "Lista de problemas no válida."
+
+#: judge/arena
+msgid "Invalid number of minutes."
+msgstr "Número de minutos no válido."
+
+#: judge/arena
+msgid "Invalid points."
+msgstr "Puntos no válidos."
+
+#: judge/arena
+msgid "Invalid problem bank."
+msgstr "Banco de problemas no válido."
+
+#: judge/arena
+msgid "Invalid request."
+msgstr "Solicitud no válida."
+
+#: judge/arena
+msgid "Invalid rules."
+msgstr "Reglas no válidas."
+
+#: judge/arena
+msgid "Invalid screen mode."
+msgstr "Modo de pantalla no válido."
+
+#: judge/arena
+msgid "Invalid seeding."
+msgstr "Siembra no válida."
+
+#: judge/arena
+msgid "Invalid submission."
+msgstr "Envío no válido."
+
+#: judge/arena
+msgid "Main screen"
+msgstr "Pantalla principal"
+
+#: judge/arena
+msgid "Not enough problems neither player has tried; some of the proposal may be known."
+msgstr "No hay suficientes problemas que ninguno haya intentado; parte de la propuesta puede ser conocida."
+
+#: judge/arena
+msgid "One of the participants does not exist."
+msgstr "Uno de los participantes no existe."
+
+#: judge/arena
+msgid "One of the problems does not exist or you cannot see it."
+msgstr "Uno de los problemas no existe o no puedes verlo."
+
+#: judge/arena
+msgid "Only a game being played can get more time."
+msgstr "Sólo una partida en juego puede recibir más tiempo."
+
+#: judge/arena
+msgid "Only a started game can be cancelled."
+msgstr "Sólo se puede anular una partida que ya empezó."
+
+#: judge/arena
+msgid "Only the winner of a decided match can be corrected."
+msgstr "Sólo se puede corregir el ganador de un enfrentamiento ya decidido."
+
+#: judge/arena
+msgid "Participants can only change while the tournament is a draft."
+msgstr "Los participantes sólo se pueden cambiar mientras el torneo es un borrador."
+
+#: judge/arena
+msgid "Players cannot change once a game has been played."
+msgstr "Los jugadores no se pueden cambiar una vez jugada una partida."
+
+#: judge/arena
+msgid "Screen"
+msgstr "Pantalla"
+
+#: judge/arena
+msgid "Somebody else changed this battle a moment ago. The page has been updated; check it and try again."
+msgstr "Otra persona cambió esta batalla hace un momento. La página se actualizó; revísala y vuelve a intentarlo."
+
+#: judge/arena
+msgid "Start the tournament before calling its matches."
+msgstr "Inicia el torneo antes de llamar a sus enfrentamientos."
+
+#: judge/arena
+msgid "That bank does not exist."
+msgstr "Ese banco no existe."
+
+#: judge/arena
+msgid "That battle does not exist."
+msgstr "Esa batalla no existe."
+
+#: judge/arena
+msgid "That game does not exist."
+msgstr "Esa partida no existe."
+
+#: judge/arena
+msgid "That language is not allowed here."
+msgstr "Ese lenguaje no está permitido aquí."
+
+#: judge/arena
+msgid "That player is not set yet."
+msgstr "Ese jugador todavía no está definido."
+
+#: judge/arena
+msgid "That problem is not part of this game."
+msgstr "Ese problema no es de esta partida."
+
+#: judge/arena
+msgid "That round does not exist."
+msgstr "Esa ronda no existe."
+
+#: judge/arena
+msgid "That screen does not exist."
+msgstr "Esa pantalla no existe."
+
+#: judge/arena
+msgid "That tournament does not exist."
+msgstr "Ese torneo no existe."
+
+#: judge/arena
+msgid "The bank does not have enough unused problems for this game."
+msgstr "El banco no tiene suficientes problemas sin usar para esta partida."
+
+#: judge/arena
+msgid "The bracket can only be built while the tournament is a draft."
+msgstr "El bracket sólo se puede armar mientras el torneo es un borrador."
+
+#: judge/arena
+msgid "The bracket is already set; this can only change in a draft."
+msgstr "El bracket ya está armado; esto sólo se puede cambiar en un borrador."
+
+#: judge/arena
+msgid "The code is too long."
+msgstr "El código es demasiado largo."
+
+#: judge/arena
+msgid "The level must be between 1 and 5."
+msgstr "El nivel debe estar entre 1 y 5."
+
+#: judge/arena
+msgid "The next match has already been played; it cannot receive another player."
+msgstr "El siguiente enfrentamiento ya se jugó; no puede recibir a otro jugador."
+
+#: judge/arena
+msgid "The problems of a game cannot change once it has started."
+msgstr "Los problemas de una partida no se pueden cambiar una vez iniciada."
+
+#: judge/arena
+msgid "The request is too large."
+msgstr "La solicitud es demasiado grande."
+
+#: judge/arena
+msgid "The same problem cannot appear twice in a bank."
+msgstr "El mismo problema no puede aparecer dos veces en un banco."
+
+#: judge/arena
+msgid "The same problem cannot appear twice in a game."
+msgstr "El mismo problema no puede aparecer dos veces en una partida."
+
+#: judge/arena
+msgid "There is no game ready to start."
+msgstr "No hay ninguna partida lista para iniciar."
+
+#: judge/arena
+msgid "This battle cannot be called yet."
+msgstr "Esta batalla todavía no se puede llamar."
+
+#: judge/arena
+msgid "This battle cannot start a game now."
+msgstr "Esta batalla no puede iniciar una partida ahora."
+
+#: judge/arena
+msgid "This battle has no problem bank to draw from."
+msgstr "Esta batalla no tiene un banco de problemas del cual sortear."
+
+#: judge/arena
+msgid "This battle is over."
+msgstr "Esta batalla ya terminó."
+
+#: judge/arena
+msgid "This contest belongs to an arena battle."
+msgstr "Este concurso pertenece a un duelo."
+
+#: judge/arena
+msgid "This game cannot be decided now."
+msgstr "Esta partida no se puede decidir ahora."
+
+#: judge/arena
+msgid "This game is not accepting submissions."
+msgstr "Esta partida no está aceptando envíos."
+
+#: judge/arena
+msgid "This game is not waiting for verdicts."
+msgstr "Esta partida no está esperando veredictos."
+
+#: judge/arena
+msgid "This round has already started; change the length of each match instead."
+msgstr "Esta ronda ya empezó; cambia la duración de cada enfrentamiento por separado."
+
+#: judge/arena
+msgid "This tournament has already started."
+msgstr "Este torneo ya empezó."
+
+#: judge/arena
+msgid "Time is up."
+msgstr "Se acabó el tiempo."
+
+#: judge/arena
+msgid "Too many requests."
+msgstr "Demasiadas solicitudes."
+
+#: judge/arena
+msgid "Unknown action."
+msgstr "Acción desconocida."
+
+#: judge/arena
+msgid "Wait for your previous submissions to be judged."
+msgstr "Espera a que se califiquen tus envíos anteriores."
+
+#: judge/arena
+msgid "With that length the series would already be decided."
+msgstr "Con esa duración la serie ya estaría decidida."
+
+#: judge/arena
+msgid "Write some code before submitting."
+msgstr "Escribe algo de código antes de enviar."
+
+#: judge/arena
+msgid "You are in a battle. Go back to the arena."
+msgstr "Estás en una batalla. Vuelve a Duelos."
+
+#: judge/arena
+msgid "You are not playing this game."
+msgstr "No estás jugando esta partida."
+
+#: judge/arena
+msgid "You are playing an arena battle. Submit your code from the arena."
+msgstr "Estás jugando un duelo. Envía tu código desde Duelos."
+
+#: judge/arena
+msgid "You are submitting too fast. Wait a few seconds."
+msgstr "Estás enviando demasiado rápido. Espera unos segundos."
+
+#: judge/arena
+msgid "You can prepare at most as many games as the series has."
+msgstr "Puedes preparar como máximo tantas partidas como tiene la serie."
+
+#: judge/arena
+msgid "You cannot submit to this problem."
+msgstr "No puedes enviar a este problema."
+
+#: judge/arena
+msgid "You have no attempts left on this problem."
+msgstr "Ya no te quedan intentos en este problema."
+
+#: judge/arena
+msgid "Block pasting"
+msgstr "Bloquear pegado"
+
+#: judge/arena
+msgid "Code on the screens"
+msgstr "Código en las pantallas"
+
+#: judge/arena
+msgid "Countdown"
+msgstr "Cuenta regresiva"
+
+#: judge/arena
+msgid "Duration"
+msgstr "Duración"
+
+#: judge/arena
+msgid "Languages"
+msgstr "Lenguajes"
+
+#: judge/arena
+msgid "Maximum attempts per problem"
+msgstr "Intentos máximos por problema"
+
+#: judge/arena
+msgid "Partial points"
+msgstr "Puntos parciales"
+
+#: judge/arena
+msgid "Penalty per failed attempt"
+msgstr "Penalización por intento fallido"
+
+#: judge/arena
+msgid "Show rival progress"
+msgstr "Mostrar el progreso del rival"
+
+#: judge/arena
+msgid "Final"
+msgstr "Final"
+
+#: judge/arena
+msgid "Quarterfinal"
+msgstr "Cuartos de final"
+
+#: judge/arena
+msgid "Round of 16"
+msgstr "Octavos de final"
+
+#: judge/arena
+msgid "Semifinal"
+msgstr "Semifinal"
+
+#: judge/arena
+msgid "Organize arena battles"
+msgstr "Organizar duelos"
+
+#: judge/arena
+msgid "arena action"
+msgstr "acción de duelos"
+
+#: judge/arena
+msgid "arena actions"
+msgstr "acciones de duelos"
+
+#: judge/arena
+msgid "arena bank problem"
+msgstr "problema de banco de duelos"
+
+#: judge/arena
+msgid "arena bank problems"
+msgstr "problemas de banco de duelos"
+
+#: judge/arena
+msgid "arena game"
+msgstr "partida de duelos"
+
+#: judge/arena
+msgid "arena game problem"
+msgstr "problema de partida de duelos"
+
+#: judge/arena
+msgid "arena game problems"
+msgstr "problemas de partida de duelos"
+
+#: judge/arena
+msgid "arena games"
+msgstr "partidas de duelos"
+
+#: judge/arena
+msgid "arena match"
+msgstr "enfrentamiento de duelos"
+
+#: judge/arena
+msgid "arena matches"
+msgstr "enfrentamientos de duelos"
+
+#: judge/arena
+msgid "arena participant"
+msgstr "participante de duelos"
+
+#: judge/arena
+msgid "arena participants"
+msgstr "participantes de duelos"
+
+#: judge/arena
+msgid "arena problem bank"
+msgstr "banco de problemas de duelos"
+
+#: judge/arena
+msgid "arena problem banks"
+msgstr "bancos de problemas de duelos"
+
+#: judge/arena
+msgid "arena round"
+msgstr "ronda de duelos"
+
+#: judge/arena
+msgid "arena rounds"
+msgstr "rondas de duelos"
+
+#: judge/arena
+msgid "arena screen"
+msgstr "pantalla de duelos"
+
+#: judge/arena
+msgid "arena screens"
+msgstr "pantallas de duelos"
+
+#: judge/arena
+msgid "arena tournament"
+msgstr "torneo de duelos"
+
+#: judge/arena
+msgid "arena tournaments"
+msgstr "torneos de duelos"
+
+#: judge/arena
+msgid "battle panel"
+msgstr "panel de batallas"
+
+#: judge/arena
+msgid "battles"
+msgstr "batallas"
+
+#: judge/arena
+msgid "as player"
+msgstr "como jugador"
+
+#: judge/arena
+msgid "backing contest"
+msgstr "concurso de respaldo"
+
+#: judge/arena
+msgid "best of"
+msgstr "al mejor de"
+
+#: judge/arena
+msgid "called at"
+msgstr "llamado el"
+
+#: judge/arena
+msgid "created at"
+msgstr "creado el"
+
+#: judge/arena
+msgid "created by"
+msgstr "creado por"
+
+#: judge/arena
+msgid "data"
+msgstr "datos"
+
+#: judge/arena
+msgid "decided at"
+msgstr "decidido el"
+
+#: judge/arena
+msgid "decided by"
+msgstr "decidido por"
+
+#: judge/arena
+msgid "done by"
+msgstr "hecho por"
+
+#: judge/arena
+msgid "finished at"
+msgstr "terminado el"
+
+#: judge/arena
+msgid "follow the match being played"
+msgstr "seguir el enfrentamiento en juego"
+
+#: judge/arena
+msgid "game"
+msgstr "partida"
+
+#: judge/arena
+msgid "games won"
+msgstr "partidas ganadas"
+
+#: judge/arena
+msgid "games won by A"
+msgstr "partidas ganadas por A"
+
+#: judge/arena
+msgid "games won by B"
+msgstr "partidas ganadas por B"
+
+#: judge/arena
+msgid "level"
+msgstr "nivel"
+
+#: judge/arena
+msgid "loser as player"
+msgstr "el perdedor como jugador"
+
+#: judge/arena
+msgid "loser goes to"
+msgstr "el perdedor pasa a"
+
+#: judge/arena
+msgid "match"
+msgstr "enfrentamiento"
+
+#: judge/arena
+msgid "message"
+msgstr "mensaje"
+
+#: judge/arena
+msgid "name"
+msgstr "nombre"
+
+#: judge/arena
+msgid "name shown for player A"
+msgstr "nombre a mostrar del jugador A"
+
+#: judge/arena
+msgid "name shown for player B"
+msgstr "nombre a mostrar del jugador B"
+
+#: judge/arena
+msgid "number"
+msgstr "número"
+
+#: judge/arena
+msgid "panel"
+msgstr "panel"
+
+#: judge/arena
+msgid "participation of A"
+msgstr "participación de A"
+
+#: judge/arena
+msgid "participation of B"
+msgstr "participación de B"
+
+#: judge/arena
+msgid "play ends at"
+msgstr "el juego termina el"
+
+#: judge/arena
+msgid "play starts at"
+msgstr "el juego empieza el"
+
+#: judge/arena
+msgid "player A"
+msgstr "jugador A"
+
+#: judge/arena
+msgid "player B"
+msgstr "jugador B"
+
+#: judge/arena
+msgid "players"
+msgstr "jugadores"
+
+#: judge/arena
+msgid "position"
+msgstr "posición"
+
+#: judge/arena
+msgid "problem bank"
+msgstr "banco de problemas"
+
+#: judge/arena
+msgid "round"
+msgstr "ronda"
+
+#: judge/arena
+msgid "rules"
+msgstr "reglas"
+
+#: judge/arena
+msgid "seed"
+msgstr "semilla"
+
+#: judge/arena
+msgid "seed of player A"
+msgstr "semilla del jugador A"
+
+#: judge/arena
+msgid "seed of player B"
+msgstr "semilla del jugador B"
+
+#: judge/arena
+msgid "seeding"
+msgstr "siembra"
+
+#: judge/arena
+msgid "shows"
+msgstr "muestra"
+
+#: judge/arena
+msgid "started at"
+msgstr "iniciado el"
+
+#: judge/arena
+msgid "submissions closed at"
+msgstr "envíos cerrados el"
+
+#: judge/arena
+msgid "third place match"
+msgstr "enfrentamiento por el tercer lugar"
+
+#: judge/arena
+msgid "title"
+msgstr "título"
+
+#: judge/arena
+msgid "token"
+msgstr "token"
+
+#: judge/arena
+msgid "tournament"
+msgstr "torneo"
+
+#: judge/arena
+msgid "updated at"
+msgstr "actualizado el"
+
+#: judge/arena
+msgid "winner"
+msgstr "ganador"
+
+#: judge/arena
+msgid "winner goes to"
+msgstr "el ganador pasa a"
+
+#: judge/arena
+msgid "Archived"
+msgstr "Archivado"
+
+#: judge/arena
+msgid "Called"
+msgstr "Llamado"
+
+#: judge/arena
+msgid "Cancelled"
+msgstr "Cancelado"
+
+#: judge/arena
+msgid "Decided"
+msgstr "Decidido"
+
+#: judge/arena
+msgid "Draft"
+msgstr "Borrador"
+
+#: judge/arena
+msgid "Finished"
+msgstr "Terminado"
+
+#: judge/arena
+msgid "In progress"
+msgstr "En curso"
+
+#: judge/arena
+msgid "Manual order"
+msgstr "Orden manual"
+
+#: judge/arena
+msgid "Match"
+msgstr "Enfrentamiento"
+
+#: judge/arena
+msgid "Message"
+msgstr "Mensaje"
+
+#: judge/arena
+msgid "Playing"
+msgstr "Jugando"
+
+#: judge/arena
+msgid "Prepared"
+msgstr "Preparada"
+
+#: judge/arena
+msgid "Ready"
+msgstr "Listo"
+
+#: judge/arena
+msgid "Tie"
+msgstr "Empate"
+
+#: judge/arena
+msgid "Verifying"
+msgstr "Verificando"
+
+#: judge/arena
+msgid "Waiting"
+msgstr "En espera"
+
+#: judge/arena
+msgid "Waiting for players"
+msgstr "Esperando jugadores"
+
+#: judge/arena
+msgid "By rating"
+msgstr "Por rating"
+
+#: judge/arena
+msgid "Bracket"
+msgstr "Bracket"
+
+#: judge/arena
+msgid "Arena"
+msgstr "Duelos"
+
+#: judge/arena
+msgid "Back to the site"
+msgstr "Volver al sitio"
+
+#: judge/arena
+msgid "Battle"
+msgstr "Batalla"
+
+#: judge/arena
+msgid "Best of"
+msgstr "Al mejor de"
+
+#: judge/arena
+msgid "Code"
+msgstr "Código"
+
+#: judge/arena
+msgid "Compilation error"
+msgstr "Error de compilación"
+
+#: judge/arena
+msgid "Compiler output"
+msgstr "Salida del compilador"
+
+#: judge/arena
+msgid "Connection lost. Retrying..."
+msgstr "Se perdió la conexión. Reintentando..."
+
+#: judge/arena
+msgid "Dropping text is disabled in this battle."
+msgstr "Soltar texto está desactivado en esta batalla."
+
+#: judge/arena
+msgid "Executed"
+msgstr "Ejecutado"
+
+#: judge/arena
+msgid "Game"
+msgstr "Partida"
+
+#: judge/arena
+msgid "Go!"
+msgstr "¡Ya!"
+
+#: judge/arena
+msgid "Input for your program"
+msgstr "Entrada para tu programa"
+
+#: judge/arena
+msgid "Internal error"
+msgstr "Error interno"
+
+#: judge/arena
+msgid "Internal error of the judging system."
+msgstr "Error interno del sistema de jueceo."
+
+#: judge/arena
+msgid "Invalid return"
+msgstr "Retorno inválido"
+
+#: judge/arena
+msgid "Judging"
+msgstr "Calificando"
+
+#: judge/arena
+msgid "Keep this page open. When the organizer calls you, it moves on by itself to the waiting room and then to the countdown."
+msgstr "Deja esta página abierta. Cuando el organizador te llame, pasará sola a la sala de espera y luego a la cuenta regresiva."
+
+#: judge/arena
+msgid "Loading statement..."
+msgstr "Cargando el enunciado..."
+
+#: judge/arena
+msgid "Memory"
+msgstr "Memoria"
+
+#: judge/arena
+msgid "Memory limit"
+msgstr "Límite de memoria"
+
+#: judge/arena
+msgid "Memory limit exceeded"
+msgstr "Límite de memoria excedido"
+
+#: judge/arena
+msgid "Memory limit exceeded."
+msgstr "Se excedió el límite de memoria."
+
+#: judge/arena
+msgid "More points when time ran out"
+msgstr "Más puntos al terminar el tiempo"
+
+#: judge/arena
+msgid "No penalty"
+msgstr "Sin penalización"
+
+#: judge/arena
+msgid "Open the battle panel"
+msgstr "Abrir el panel de batallas"
+
+#: judge/arena
+msgid "Output limit exceeded"
+msgstr "Límite de salida excedido"
+
+#: judge/arena
+msgid "Partial"
+msgstr "Parcial"
+
+#: judge/arena
+msgid "Pasting disabled"
+msgstr "Pegado desactivado"
+
+#: judge/arena
+msgid "Pasting is disabled in this battle. Type your code."
+msgstr "Pegar está desactivado en esta batalla. Escribe tu código."
+
+#: judge/arena
+msgid "Queued, waiting for a judge..."
+msgstr "En cola, esperando un juez..."
+
+#: judge/arena
+msgid "Rival"
+msgstr "Rival"
+
+#: judge/arena
+msgid "Run"
+msgstr "Ejecutar"
+
+#: judge/arena
+msgid "Running..."
+msgstr "Ejecutando..."
+
+#: judge/arena
+msgid "Runtime error"
+msgstr "Error en tiempo de ejecución"
+
+#: judge/arena
+msgid "Same points, reached first"
+msgstr "Mismos puntos, llegó primero"
+
+#: judge/arena
+msgid "Sending..."
+msgstr "Enviando..."
+
+#: judge/arena
+msgid "Short circuited"
+msgstr "Cortocircuitado"
+
+#: judge/arena
+msgid "Solved every problem first"
+msgstr "Resolvió todos los problemas primero"
+
+#: judge/arena
+msgid "Submission details"
+msgstr "Detalles del envío"
+
+#: judge/arena
+msgid "Submission sent for problem"
+msgstr "Envío mandado para el problema"
+
+#: judge/arena
+msgid "Submissions are closed."
+msgstr "Los envíos están cerrados."
+
+#: judge/arena
+msgid "Submit"
+msgstr "Enviar"
+
+#: judge/arena
+msgid "Test case"
+msgstr "Caso de prueba"
+
+#: judge/arena
+msgid "The battle is over. You can leave the arena."
+msgstr "La batalla terminó. Ya puedes salir de Duelos."
+
+#: judge/arena
+msgid "The organizer cancelled this battle."
+msgstr "El organizador canceló esta batalla."
+
+#: judge/arena
+msgid "The organizer will decide or start a tiebreak game."
+msgstr "El organizador decidirá o iniciará una partida de desempate."
+
+#: judge/arena
+msgid "The problems will appear when the countdown ends. You will write and submit your code here, with the editor of the platform."
+msgstr "Los problemas aparecerán al terminar la cuenta regresiva. Escribirás y enviarás tu código aquí, con el editor de la plataforma."
+
+#: judge/arena
+msgid "The program ended abnormally."
+msgstr "El programa terminó de forma anormal."
+
+#: judge/arena
+msgid "The program printed nothing."
+msgstr "El programa no imprimió nada."
+
+#: judge/arena
+msgid "The rival could no longer catch up"
+msgstr "El rival ya no podía alcanzarlo"
+
+#: judge/arena
+msgid "The statement could not be loaded. Retrying..."
+msgstr "No se pudo cargar el enunciado. Reintentando..."
+
+#: judge/arena
+msgid "This game is a tie"
+msgstr "Esta partida es un empate"
+
+#: judge/arena
+msgid "This game was cancelled"
+msgstr "Esta partida se anuló"
+
+#: judge/arena
+msgid "Time is up. Waiting for the last verdicts..."
+msgstr "Se acabó el tiempo. Esperando los últimos veredictos..."
+
+#: judge/arena
+msgid "Time limit"
+msgstr "Límite de tiempo"
+
+#: judge/arena
+msgid "Time limit exceeded"
+msgstr "Límite de tiempo excedido"
+
+#: judge/arena
+msgid "Time limit exceeded."
+msgstr "Se excedió el límite de tiempo."
+
+#: judge/arena
+msgid "Try with input"
+msgstr "Probar con entrada"
+
+#: judge/arena
+msgid "Verdict"
+msgstr "Veredicto"
+
+#: judge/arena
+msgid "Waiting for the next game..."
+msgstr "Esperando la siguiente partida..."
+
+#: judge/arena
+msgid "Waiting for the organizer to start the game."
+msgstr "Esperando a que el organizador inicie la partida."
+
+#: judge/arena
+msgid "Won by walkover"
+msgstr "Ganó por incomparecencia"
+
+#: judge/arena
+msgid "Won the series"
+msgstr "Ganó la serie"
+
+#: judge/arena
+msgid "Decided by the organizer"
+msgstr "Decidido por el organizador"
+
+#: judge/arena
+msgid "Bye"
+msgstr "Pase directo"
+
+#: judge/arena
+msgid "Write some code before running it."
+msgstr "Escribe algo de código antes de ejecutarlo."
+
+#: judge/arena
+msgid "Wrong answer"
+msgstr "Respuesta incorrecta"
+
+#: judge/arena
+msgid "You"
+msgstr "Tú"
+
+#: judge/arena
+msgid "You lost the battle"
+msgstr "Perdiste la batalla"
+
+#: judge/arena
+msgid "You lost this game"
+msgstr "Perdiste esta partida"
+
+#: judge/arena
+msgid "You won the battle!"
+msgstr "¡Ganaste la batalla!"
+
+#: judge/arena
+msgid "You won this game!"
+msgstr "¡Ganaste esta partida!"
+
+#: judge/arena
+msgid "Your battle will appear here when you are called."
+msgstr "Tu batalla aparecerá aquí cuando te llamen."
+
+#: judge/arena
+msgid "Your submissions will appear here."
+msgstr "Tus envíos aparecerán aquí."
+
+#: judge/arena
+msgid "attempts"
+msgstr "intentos"
+
+#: judge/arena
+msgid "attempts left"
+msgstr "intentos restantes"
+
+#: judge/arena
+msgid "case"
+msgstr "caso"
+
+#: judge/arena
+msgid "min"
+msgstr "min"
+
+#: judge/arena
+msgid "of"
+msgstr "de"
+
+#: judge/arena
+msgid "run with your input"
+msgstr "ejecutar con tu entrada"
+
+#: judge/arena
+msgid "solved at"
+msgstr "resuelto en"
+
+#: judge/arena
+msgid "All or nothing"
+msgstr "Todo o nada"
+
+#: judge/arena
+msgid "Bigger code"
+msgstr "Código más grande"
+
+#: judge/arena
+msgid "Champion"
+msgstr "Campeón"
+
+#: judge/arena
+msgid "Code is not shown in this battle."
+msgstr "En esta batalla no se muestra el código."
+
+#: judge/arena
+msgid "Code of player A"
+msgstr "Código del jugador A"
+
+#: judge/arena
+msgid "Code of player B"
+msgstr "Código del jugador B"
+
+#: judge/arena
+msgid "Everything"
+msgstr "Todo"
+
+#: judge/arena
+msgid "Game cancelled"
+msgstr "Partida anulada"
+
+#: judge/arena
+msgid "LIVE"
+msgstr "EN VIVO"
+
+#: judge/arena
+msgid "Light or dark"
+msgstr "Claro u oscuro"
+
+#: judge/arena
+msgid "Next: game"
+msgstr "Siguiente: partida"
+
+#: judge/arena
+msgid "Open in a new tab"
+msgstr "Abrir en una pestaña nueva"
+
+#: judge/arena
+msgid "Scoreboard"
+msgstr "Marcador"
+
+#: judge/arena
+msgid "Smaller code"
+msgstr "Código más pequeño"
+
+#: judge/arena
+msgid "Statements"
+msgstr "Enunciados"
+
+#: judge/arena
+msgid "Statements over the duel"
+msgstr "Enunciados sobre el duelo"
+
+#: judge/arena
+msgid "The battle starts soon"
+msgstr "La batalla empieza pronto"
+
+#: judge/arena
+msgid "The statements appear when the game starts."
+msgstr "Los enunciados aparecen cuando empieza la partida."
+
+#: judge/arena
+msgid "To be decided"
+msgstr "Por definir"
+
+#: judge/arena
+msgid "Waiting for code..."
+msgstr "Esperando código..."
+
+#: judge/arena
+msgid "wins the battle!"
+msgstr "¡gana la batalla!"
+
+#: judge/arena
+msgid "wins the game!"
+msgstr "¡gana la partida!"
+
+#: judge/arena
+msgid "+1 minute"
+msgstr "+1 minuto"
+
+#: judge/arena
+msgid "+5 minutes"
+msgstr "+5 minutos"
+
+#: judge/arena
+msgid "A bank only helps you fill games quickly: drawing from it proposes problems that neither player has tried and that were not used in the tournament, and you can always change them by hand."
+msgstr "Un banco sólo te ayuda a llenar partidas rápido: sortear de él propone problemas que ningún jugador ha intentado y que no se usaron en el torneo, y siempre puedes cambiarlos a mano."
+
+#: judge/arena
+msgid "A single game"
+msgstr "Una sola partida"
+
+#: judge/arena
+msgid "Add at least two participants."
+msgstr "Añade al menos dos participantes."
+
+#: judge/arena
+msgid "Already in another battle"
+msgstr "Ya está en otra batalla"
+
+#: judge/arena
+msgid "Already used in this tournament"
+msgstr "Ya se usó en este torneo"
+
+#: judge/arena
+msgid "Archive"
+msgstr "Archivar"
+
+#: judge/arena
+msgid "Battle created. Opening it..."
+msgstr "Batalla creada. Abriéndola..."
+
+#: judge/arena
+msgid "Battle panel"
+msgstr "Panel de batallas"
+
+#: judge/arena
+msgid "Battles now"
+msgstr "Batallas ahora"
+
+#: judge/arena
+msgid "Before starting"
+msgstr "Antes de empezar"
+
+#: judge/arena
+msgid "Best of 3"
+msgstr "Al mejor de 3"
+
+#: judge/arena
+msgid "Best of 5"
+msgstr "Al mejor de 5"
+
+#: judge/arena
+msgid "Best of 7"
+msgstr "Al mejor de 7"
+
+#: judge/arena
+msgid "Best of 9"
+msgstr "Al mejor de 9"
+
+#: judge/arena
+msgid "Best of three"
+msgstr "Al mejor de tres"
+
+#: judge/arena
+msgid "Block pasting in the editor"
+msgstr "Bloquear el pegado en el editor"
+
+#: judge/arena
+msgid "Build it again"
+msgstr "Armarlo de nuevo"
+
+#: judge/arena
+msgid "Build the bracket"
+msgstr "Armar el bracket"
+
+#: judge/arena
+msgid "Call"
+msgstr "Llamar"
+
+#: judge/arena
+msgid "Call to the waiting room"
+msgstr "Llamar a la sala de espera"
+
+#: judge/arena
+msgid "Cancel"
+msgstr "Cancelar"
+
+#: judge/arena
+msgid "Cancel the battle"
+msgstr "Cancelar la batalla"
+
+#: judge/arena
+msgid "Changes apply from the next game on; a game already started keeps its rules."
+msgstr "Los cambios aplican desde la siguiente partida; una partida ya iniciada conserva sus reglas."
+
+#: judge/arena
+msgid "Choose a bank on the right, or create one."
+msgstr "Elige un banco a la derecha, o crea uno."
+
+#: judge/arena
+msgid "Code A"
+msgstr "Código A"
+
+#: judge/arena
+msgid "Code B"
+msgstr "Código B"
+
+#: judge/arena
+msgid "Correct the winner: give it to"
+msgstr "Corregir el ganador: dárselo a"
+
+#: judge/arena
+msgid "Countdown (seconds)"
+msgstr "Cuenta regresiva (segundos)"
+
+#: judge/arena
+msgid "Create and call to the waiting room"
+msgstr "Crear y llamar a la sala de espera"
+
+#: judge/arena
+msgid "Create bank"
+msgstr "Crear banco"
+
+#: judge/arena
+msgid "Create tournament"
+msgstr "Crear torneo"
+
+#: judge/arena
+msgid "Create without calling"
+msgstr "Crear sin llamar"
+
+#: judge/arena
+msgid "Current game"
+msgstr "Partida actual"
+
+#: judge/arena
+msgid "Decide with the verdicts so far"
+msgstr "Decidir con los veredictos que hay"
+
+#: judge/arena
+msgid "Does not have the arena open"
+msgstr "No está en Duelos"
+
+#: judge/arena
+msgid "Draw from the bank"
+msgstr "Sortear del banco"
+
+#: judge/arena
+msgid "Duration (minutes)"
+msgstr "Duración (minutos)"
+
+#: judge/arena
+msgid "Each button opens that view in a new tab: one projector can show everything, or several projectors one thing each. Choose what a screen shows from each battle or tournament."
+msgstr "Cada botón abre esa vista en una pestaña nueva: un proyector puede mostrarlo todo, o varios proyectores una cosa cada uno. Lo que muestra cada pantalla se elige desde cada batalla o torneo."
+
+#: judge/arena
+msgid "End the battle"
+msgstr "Terminar la batalla"
+
+#: judge/arena
+msgid "Every participant plays with their own account."
+msgstr "Cada participante juega con su propia cuenta."
+
+#: judge/arena
+msgid "Give the game to"
+msgstr "Dar la partida a"
+
+#: judge/arena
+msgid "Has a published editorial"
+msgstr "Tiene una solución publicada"
+
+#: judge/arena
+msgid "Has the arena open"
+msgstr "Está en Duelos"
+
+#: judge/arena
+msgid "In seed order: the first is the best seed. The bracket keeps the best seeds apart until the end and gives them the byes."
+msgstr "En orden de siembra: el primero es la mejor semilla. El bracket mantiene separadas a las mejores semillas hasta el final y les da los pases directos."
+
+#: judge/arena
+msgid "In the waiting room"
+msgstr "En la sala de espera"
+
+#: judge/arena
+msgid "Languages (none checked = whatever each problem allows)"
+msgstr "Lenguajes (sin marcar ninguno = los que permita cada problema)"
+
+#: judge/arena
+msgid "Level"
+msgstr "Nivel"
+
+#: judge/arena
+msgid "Live code"
+msgstr "Código en vivo"
+
+#: judge/arena
+msgid "Maximum attempts per problem (0 = unlimited)"
+msgstr "Intentos máximos por problema (0 = sin límite)"
+
+#: judge/arena
+msgid "Move down"
+msgstr "Bajar"
+
+#: judge/arena
+msgid "Move up"
+msgstr "Subir"
+
+#: judge/arena
+msgid "Name of the screen"
+msgstr "Nombre de la pantalla"
+
+#: judge/arena
+msgid "Name to show (optional)"
+msgstr "Nombre a mostrar (opcional)"
+
+#: judge/arena
+msgid "Name to show for A"
+msgstr "Nombre a mostrar de A"
+
+#: judge/arena
+msgid "Name to show for B"
+msgstr "Nombre a mostrar de B"
+
+#: judge/arena
+msgid "New bank"
+msgstr "Banco nuevo"
+
+#: judge/arena
+msgid "New link"
+msgstr "Enlace nuevo"
+
+#: judge/arena
+msgid "New quick battle"
+msgstr "Nueva batalla rápida"
+
+#: judge/arena
+msgid "New screen"
+msgstr "Pantalla nueva"
+
+#: judge/arena
+msgid "New tournament"
+msgstr "Nuevo torneo"
+
+#: judge/arena
+msgid "Next you set the length of each round and build the bracket."
+msgstr "Después defines la duración de cada ronda y armas el bracket."
+
+#: judge/arena
+msgid "No banks yet."
+msgstr "Todavía no hay bancos."
+
+#: judge/arena
+msgid "No battles right now."
+msgstr "No hay batallas en este momento."
+
+#: judge/arena
+msgid "No game yet."
+msgstr "Todavía no hay partida."
+
+#: judge/arena
+msgid "No judge online"
+msgstr "Sin juez en línea"
+
+#: judge/arena
+msgid "No results"
+msgstr "Sin resultados"
+
+#: judge/arena
+msgid "No submissions yet."
+msgstr "Todavía no hay envíos."
+
+#: judge/arena
+msgid "No tournaments yet."
+msgstr "Todavía no hay torneos."
+
+#: judge/arena
+msgid "Note"
+msgstr "Nota"
+
+#: judge/arena
+msgid "Nothing yet."
+msgstr "Nada todavía."
+
+#: judge/arena
+msgid "Now on the screen"
+msgstr "En la pantalla ahora"
+
+#: judge/arena
+msgid "One problem, 15 minutes"
+msgstr "Un problema, 15 minutos"
+
+#: judge/arena
+msgid "Open"
+msgstr "Abrir"
+
+#: judge/arena
+msgid "Open the player page"
+msgstr "Abrir la página del jugador"
+
+#: judge/arena
+msgid "Open view"
+msgstr "Abrir vista"
+
+#: judge/arena
+msgid "Optional: you can also choose these problems between games."
+msgstr "Opcional: estos problemas también se pueden elegir entre partida y partida."
+
+#: judge/arena
+msgid "Participants"
+msgstr "Participantes"
+
+#: judge/arena
+msgid "Participants and the bracket can no longer change. Matches are then called one by one."
+msgstr "Los participantes y el bracket ya no podrán cambiar. Después se llama a los enfrentamientos uno por uno."
+
+#: judge/arena
+msgid "Participants, in seed order"
+msgstr "Participantes, en orden de siembra"
+
+#: judge/arena
+msgid "Penalty per failed attempt (minutes, 0 = none)"
+msgstr "Penalización por intento fallido (minutos, 0 = ninguna)"
+
+#: judge/arena
+msgid "Play a match for third place (with 4 or more participants)"
+msgstr "Jugar un enfrentamiento por el tercer lugar (con 4 participantes o más)"
+
+#: judge/arena
+msgid "Player A"
+msgstr "Jugador A"
+
+#: judge/arena
+msgid "Player A already solved it"
+msgstr "El jugador A ya lo resolvió"
+
+#: judge/arena
+msgid "Player A already tried it"
+msgstr "El jugador A ya lo intentó"
+
+#: judge/arena
+msgid "Player B"
+msgstr "Jugador B"
+
+#: judge/arena
+msgid "Player B already solved it"
+msgstr "El jugador B ya lo resolvió"
+
+#: judge/arena
+msgid "Player B already tried it"
+msgstr "El jugador B ya lo intentó"
+
+#: judge/arena
+msgid "Players see the progress of the rival"
+msgstr "Los jugadores ven el progreso del rival"
+
+#: judge/arena
+msgid "Problem bank (optional)"
+msgstr "Banco de problemas (opcional)"
+
+#: judge/arena
+msgid "Problem banks"
+msgstr "Bancos de problemas"
+
+#: judge/arena
+msgid "Public problem"
+msgstr "Problema público"
+
+#: judge/arena
+msgid "Quick start:"
+msgstr "Inicio rápido:"
+
+#: judge/arena
+msgid "Ready, not called yet"
+msgstr "Listo, todavía sin llamar"
+
+#: judge/arena
+msgid "Recent battles"
+msgstr "Batallas recientes"
+
+#: judge/arena
+msgid "Rename"
+msgstr "Renombrar"
+
+#: judge/arena
+msgid "Rounds"
+msgstr "Rondas"
+
+#: judge/arena
+msgid "Rules"
+msgstr "Reglas"
+
+#: judge/arena
+msgid "Rules of every match"
+msgstr "Reglas de cada enfrentamiento"
+
+#: judge/arena
+msgid "Save bank"
+msgstr "Guardar banco"
+
+#: judge/arena
+msgid "Save participants"
+msgstr "Guardar participantes"
+
+#: judge/arena
+msgid "Save problems"
+msgstr "Guardar problemas"
+
+#: judge/arena
+msgid "Saved"
+msgstr "Guardado"
+
+#: judge/arena
+msgid "Screens"
+msgstr "Pantallas"
+
+#: judge/arena
+msgid "Search..."
+msgstr "Buscar..."
+
+#: judge/arena
+msgid "Seeding"
+msgstr "Siembra"
+
+#: judge/arena
+msgid "Series"
+msgstr "Serie"
+
+#: judge/arena
+msgid "Settings saved"
+msgstr "Ajustes guardados"
+
+#: judge/arena
+msgid "Several problems, 30 minutes"
+msgstr "Varios problemas, 30 minutos"
+
+#: judge/arena
+msgid "Show a message"
+msgstr "Mostrar un mensaje"
+
+#: judge/arena
+msgid "Show the bracket on"
+msgstr "Mostrar el bracket en"
+
+#: judge/arena
+msgid "Show the code on the screens"
+msgstr "Mostrar el código en las pantallas"
+
+#: judge/arena
+msgid "Show the waiting screen"
+msgstr "Mostrar la pantalla de espera"
+
+#: judge/arena
+msgid "Show this battle on"
+msgstr "Mostrar esta batalla en"
+
+#: judge/arena
+msgid "Shows"
+msgstr "Muestra"
+
+#: judge/arena
+msgid "Source code"
+msgstr "Código fuente"
+
+#: judge/arena
+msgid "Staff account: on a club laptop use an account without permissions"
+msgstr "Cuenta de personal: en una laptop del club usa una cuenta sin permisos"
+
+#: judge/arena
+msgid "Start anyway"
+msgstr "Iniciar de todos modos"
+
+#: judge/arena
+msgid "Start the game"
+msgstr "Iniciar la partida"
+
+#: judge/arena
+msgid "Start the tournament"
+msgstr "Iniciar el torneo"
+
+#: judge/arena
+msgid "Submissions of A"
+msgstr "Envíos de A"
+
+#: judge/arena
+msgid "Submissions of B"
+msgstr "Envíos de B"
+
+#: judge/arena
+msgid "Submissions still being judged will count as failed."
+msgstr "Los envíos que sigan calificándose contarán como fallidos."
+
+#: judge/arena
+msgid "Text to show on the screen"
+msgstr "Texto que se mostrará en la pantalla"
+
+#: judge/arena
+msgid "The battle is dropped and the players are released."
+msgstr "La batalla se descarta y los jugadores quedan libres."
+
+#: judge/arena
+msgid "The bracket is built from the seeds in the current order."
+msgstr "El bracket se arma con las semillas en el orden actual."
+
+#: judge/arena
+msgid "The bracket moves the other player forward instead."
+msgstr "El bracket hace avanzar al otro jugador en su lugar."
+
+#: judge/arena
+msgid "The current link of this screen stops working. Every open tab will need the new one."
+msgstr "El enlace actual de esta pantalla deja de funcionar. Cada pestaña abierta necesitará el nuevo."
+
+#: judge/arena
+msgid "The game counts for nobody and the next one is prepared."
+msgstr "La partida no cuenta para nadie y se prepara la siguiente."
+
+#: judge/arena
+msgid "The name to show is for the club laptops: a trusted account is already signed in and you only type who is sitting there. Leave it empty when each player uses their own account."
+msgstr "El nombre a mostrar es para las laptops del club: ya hay una cuenta de confianza iniciada y sólo escribes quién está sentado ahí. Déjalo vacío cuando cada quien usa su propia cuenta."
+
+#: judge/arena
+msgid "The order of the list"
+msgstr "El orden de la lista"
+
+#: judge/arena
+msgid "The whole battle goes to this player without playing on."
+msgstr "La batalla completa es para este jugador sin seguir jugando."
+
+#: judge/arena
+msgid "Third place"
+msgstr "Tercer lugar"
+
+#: judge/arena
+msgid "This bank has no problems yet."
+msgstr "Este banco todavía no tiene problemas."
+
+#: judge/arena
+msgid "This game will count as won by this player."
+msgstr "Esta partida contará como ganada por este jugador."
+
+#: judge/arena
+msgid "Tie. Give the game to one player or play a tiebreak game: choose its problems below and start it."
+msgstr "Empate. Da la partida a uno de los jugadores o juega un desempate: elige sus problemas abajo e inícialo."
+
+#: judge/arena
+msgid "Title (optional)"
+msgstr "Título (opcional)"
+
+#: judge/arena
+msgid "Tournament"
+msgstr "Torneo"
+
+#: judge/arena
+msgid "Tournaments"
+msgstr "Torneos"
+
+#: judge/arena
+msgid "Void this game"
+msgstr "Anular esta partida"
+
+#: judge/arena
+msgid "Waiting for the last verdicts"
+msgstr "Esperando los últimos veredictos"
+
+#: judge/arena
+msgid "Waiting too long for a judge"
+msgstr "Lleva demasiado esperando un juez"
+
+#: judge/arena
+msgid "Walkover for"
+msgstr "Victoria por incomparecencia para"
+
+#: judge/arena
+msgid "Winner"
+msgstr "Ganador"
+
+#: judge/arena
+msgid "added time"
+msgstr "añadió tiempo"
+
+#: judge/arena
+msgid "and follow the match being played"
+msgstr "y seguir el enfrentamiento en juego"
+
+#: judge/arena
+msgid "battle decided"
+msgstr "batalla decidida"
+
+#: judge/arena
+msgid "called the players"
+msgstr "llamó a los jugadores"
+
+#: judge/arena
+msgid "cancelled the battle"
+msgstr "canceló la batalla"
+
+#: judge/arena
+msgid "changed settings"
+msgstr "cambió los ajustes"
+
+#: judge/arena
+msgid "chose problems"
+msgstr "eligió los problemas"
+
+#: judge/arena
+msgid "corrected the winner"
+msgstr "corrigió el ganador"
+
+#: judge/arena
+msgid "put it on a screen"
+msgstr "la puso en una pantalla"
+
+#: judge/arena
+msgid "created the battle"
+msgstr "creó la batalla"
+
+#: judge/arena
+msgid "decided with the verdicts so far"
+msgstr "decidió con los veredictos que había"
+
+#: judge/arena
+msgid "game finished"
+msgstr "partida terminada"
+
+#: judge/arena
+msgid "game tied"
+msgstr "partida empatada"
+
+#: judge/arena
+msgid "left the page"
+msgstr "salió de la página"
+
+#: judge/arena
+msgid "live"
+msgstr "en vivo"
+
+#: judge/arena
+msgid "participants"
+msgstr "participantes"
+
+#: judge/arena
+msgid "pasting attempts"
+msgstr "intentos de pegar"
+
+#: judge/arena
+msgid "replaced a player"
+msgstr "reemplazó a un jugador"
+
+#: judge/arena
+msgid "started a game"
+msgstr "inició una partida"
+
+#: judge/arena
+msgid "sudden jumps in the code"
+msgstr "saltos bruscos en el código"
+
+#: judge/arena
+msgid "system"
+msgstr "sistema"
+
+#: judge/arena
+msgid "time up, verifying"
+msgstr "tiempo agotado, verificando"
+
+#: judge/arena
+msgid "voided a game"
+msgstr "anuló una partida"
+
+#: judge/arena
+#, python-format
+msgid "Problems per game and difficulty go from %(low)s to %(high)s."
+msgstr "Los problemas por partida y la dificultad van de %(low)s a %(high)s."
+
+#: judge/arena
+msgid "Choose a problem bank for the tournament first."
+msgstr "Primero elige un banco de problemas para el torneo."
+
+#: judge/arena
+msgid "Invalid settings."
+msgstr "Ajustes no válidos."
+
+#: judge/arena
+msgid "The lowest difficulty cannot be above the highest."
+msgstr "La dificultad mínima no puede ser mayor que la máxima."
+
+#: judge/arena
+msgid "Guide for organizers"
+msgstr "Guía para organizadores"
+
+#: judge/arena
+msgid "Choose the problems of each game before starting it. A game that has not started can still change its problems."
+msgstr "Elige los problemas de cada partida antes de iniciarla. Una partida que no ha empezado todavía puede cambiar sus problemas."
+
+#: judge/arena
+msgid "Correct: the winner is"
+msgstr "Corregir: el ganador es"
+
+#: judge/arena
+msgid "Fills the list with problems of the tournament bank that nobody has used yet. Nothing is saved until you press Save problems."
+msgstr "Llena la lista con problemas del banco del torneo que nadie ha usado. No se guarda nada hasta que pulses Guardar problemas."
+
+#: judge/arena
+msgid "Games per battle"
+msgstr "Partidas por enfrentamiento"
+
+#: judge/arena
+msgid "Give the whole battle to"
+msgstr "Dar la batalla completa a"
+
+#: judge/arena
+msgid "How does this page work?"
+msgstr "¿Cómo funciona esta página?"
+
+#: judge/arena
+msgid "Not played yet"
+msgstr "Por jugar"
+
+#: judge/arena
+msgid "Problems of each game"
+msgstr "Problemas de cada partida"
+
+#: judge/arena
+msgid "Stop waiting for verdicts"
+msgstr "Dejar de esperar veredictos"
+
+#: judge/arena
+msgid "Suggest from the bank"
+msgstr "Proponer del banco"
+
+#: judge/arena
+msgid "Suggested from the bank. Check them and press Save problems."
+msgstr "Propuestos del banco. Revísalos y pulsa Guardar problemas."
+
+#: judge/arena
+msgid "The bank did not have enough unused problems for this game. Choose them by hand."
+msgstr "El banco no tenía suficientes problemas sin usar para esta partida. Elígelos a mano."
+
+#: judge/arena
+msgid "The players of this battle are not known yet: they come from the previous round. You can already choose its problems."
+msgstr "Todavía no se sabe quién juega esta batalla: vienen de la ronda anterior. Ya puedes elegir sus problemas."
+
+#: judge/arena
+msgid "The tournament has not started yet. You can already choose the problems; the players are called once it starts."
+msgstr "El torneo todavía no empieza. Ya puedes elegir los problemas; a los jugadores se les llama cuando empiece."
+
+#: judge/arena
+msgid "This game has no problems yet. Choose them below, in Problems of each game."
+msgstr "Esta partida todavía no tiene problemas. Elígelos abajo, en Problemas de cada partida."
+
+#: judge/arena
+msgid "This game will take its problems from the tournament bank when it starts. You can also choose them below."
+msgstr "Esta partida tomará sus problemas del banco del torneo al iniciarla. También puedes elegirlos abajo."
+
+#: judge/arena
+msgid "This tournament takes the problems from its bank by itself when each game is called or started. If you choose some here, yours are used instead."
+msgstr "Este torneo toma los problemas de su banco por sí solo al llamar o iniciar cada partida. Si eliges algunos aquí, se usan los tuyos."
+
+#: judge/arena
+msgid "Unsaved changes"
+msgstr "Cambios sin guardar"
+
+#: judge/arena
+msgid "After this the participants and the bracket can no longer change. You call the battles one by one, when it is their turn."
+msgstr "Después de esto los participantes y el bracket ya no pueden cambiar. Llamas a las batallas una por una, cuando les toque."
+
+#: judge/arena
+msgid "Archive (hide from the panel)"
+msgstr "Archivar (ocultar del panel)"
+
+#: judge/arena
+msgid "As in the list"
+msgstr "Como en la lista"
+
+#: judge/arena
+msgid "At random"
+msgstr "Al azar"
+
+#: judge/arena
+msgid "Battles of the first round without problems:"
+msgstr "Batallas de la primera ronda sin problemas:"
+
+#: judge/arena
+msgid "Battles ready to call:"
+msgstr "Batallas listas para llamar:"
+
+#: judge/arena
+msgid "Being prepared"
+msgstr "En preparación"
+
+#: judge/arena
+msgid "Check the participants and their order, in Participants. Saving them updates the bracket."
+msgstr "Revisa los participantes y su orden, en Participantes. Al guardarlos se actualiza el bracket."
+
+#: judge/arena
+msgid "Choose how many games each battle has in every round, in Rounds. One game is the default."
+msgstr "Elige cuántas partidas tiene cada batalla en cada ronda, en Rondas. Por omisión es una sola."
+
+#: judge/arena
+msgid "Choose the bank the problems come from."
+msgstr "Elige el banco del que salen los problemas."
+
+#: judge/arena
+msgid "Choose the problems of each game of this battle"
+msgstr "Elegir los problemas de cada partida de esta batalla"
+
+#: judge/arena
+msgid "Create or edit banks"
+msgstr "Crear o editar bancos"
+
+#: judge/arena
+msgid "Decide where the problems come from, in Problems: chosen by hand for each battle, or by themselves from a bank."
+msgstr "Decide de dónde salen los problemas, en Problemas: elegidos a mano para cada batalla, o solos desde un banco."
+
+#: judge/arena
+msgid "Difficulty (bank levels)"
+msgstr "Dificultad (del banco)"
+
+#: judge/arena
+msgid "Difficulty uses the levels of the bank, from 1 (easy) to 5 (hard). Harder rounds can draw harder problems; empty means any level."
+msgstr "La dificultad es la del banco, de 1 (fácil) a 5 (difícil). Las rondas más avanzadas pueden tomar problemas más difíciles; vacío es cualquiera."
+
+#: judge/arena
+msgid "Done"
+msgstr "Hecho"
+
+#: judge/arena
+msgid "During the tournament: press Call on a battle that is ready, and on its page press Start the game. Whoever wins moves forward in the bracket by itself."
+msgstr "Durante el torneo: pulsa Llamar en una batalla lista y, en su página, Iniciar la partida. Quien gana avanza solo en el bracket."
+
+#: judge/arena
+msgid "Each round can change it, and choose a difficulty, in Rounds."
+msgstr "Cada ronda puede cambiarlo, y elegir una dificultad, en Rondas."
+
+#: judge/arena
+msgid "From the bank"
+msgstr "Del banco"
+
+#: judge/arena
+msgid "Give problems from the bank now"
+msgstr "Dar problemas del banco ahora"
+
+#: judge/arena
+msgid "Gives problems from the bank now to the battles whose players are known and whose next game has none, so you can check them before calling"
+msgstr "Da ya problemas del banco a las batallas cuyos jugadores se conocen y cuya siguiente partida no tiene, para que los revises antes de llamar"
+
+#: judge/arena
+msgid "Go to the battle"
+msgstr "Ir a la batalla"
+
+#: judge/arena
+msgid "How does a tournament work?"
+msgstr "¿Cómo funciona un torneo?"
+
+#: judge/arena
+msgid "How to prepare the tournament"
+msgstr "Cómo preparar el torneo"
+
+#: judge/arena
+msgid "I choose them for each battle"
+msgstr "Los elijo yo para cada batalla"
+
+#: judge/arena
+msgid "In each battle of the bracket press Problems and choose the problems of every game. Good when you know the players and want harder problems for the strongest."
+msgstr "En cada batalla del bracket pulsa Problemas y elige los de cada partida. Sirve cuando conoces a los jugadores y quieres problemas más difíciles para los más fuertes."
+
+#: judge/arena
+msgid "No battle was waiting for problems."
+msgstr "Ninguna batalla esperaba problemas."
+
+#: judge/arena
+msgid "No problems yet"
+msgstr "Sin problemas aún"
+
+#: judge/arena
+msgid "Optional: with a bank, every battle has a Suggest from the bank button that fills its list for you to check."
+msgstr "Opcional: con un banco, cada batalla tiene el botón Proponer del banco, que llena su lista para que la revises."
+
+#: judge/arena
+msgid "Order in the bracket"
+msgstr "Orden en el bracket"
+
+#: judge/arena
+msgid "Participants saved. The bracket was updated."
+msgstr "Participantes guardados. El bracket se actualizó."
+
+#: judge/arena
+msgid "Press Start the tournament. Then you call each battle when it is its turn."
+msgstr "Pulsa Iniciar el torneo. Después llamas a cada batalla cuando le toque."
+
+#: judge/arena
+msgid "Problem bank"
+msgstr "Banco de problemas"
+
+#: judge/arena
+msgid "Problems given from the bank to battles:"
+msgstr "Batallas que recibieron problemas del banco:"
+
+#: judge/arena
+msgid "Problems per game"
+msgstr "Problemas por partida"
+
+#: judge/arena
+msgid "Problems ready"
+msgstr "Problemas listos"
+
+#: judge/arena
+msgid "Ready to call"
+msgstr "Listo para llamar"
+
+#: judge/arena
+msgid "Rules of every game"
+msgstr "Reglas de cada partida"
+
+#: judge/arena
+msgid "See result"
+msgstr "Ver resultado"
+
+#: judge/arena
+msgid "Some battles of the first round have no problems yet. You can still choose them later, before starting each one."
+msgstr "Algunas batallas de la primera ronda todavía no tienen problemas. Puedes elegirlos después, antes de iniciar cada una."
+
+#: judge/arena
+msgid "The bank gives them its problems when it is called"
+msgstr "El banco le da sus problemas al llamarla"
+
+#: judge/arena
+msgid "The first of the list is the strongest. The strongest are kept apart until the end, and if the number of participants does not fill the bracket, they are the ones who go straight to the next round."
+msgstr "El primero de la lista es el más fuerte. Los más fuertes no se enfrentan entre sí hasta el final y, si el número de participantes no llena el bracket, son los que pasan directo a la siguiente ronda."
+
+#: judge/arena
+msgid "The problems of every battle come from here."
+msgstr "De aquí salen los problemas de cada batalla."
+
+#: judge/arena
+msgid "The two players go to the waiting room of the arena"
+msgstr "Los dos jugadores pasan a la sala de espera de Duelos"
+
+#: judge/arena
+msgid "They come by themselves from a problem bank"
+msgstr "Salen solos de un banco de problemas"
+
+#: judge/arena
+msgid "They will come from the bank"
+msgstr "Saldrán del banco"
+
+#: judge/arena
+msgid "When a battle is called, each game gets problems from the bank that nobody has used in the tournament and that the players have not tried. You can still change the problems of any battle by hand: yours are never replaced."
+msgstr "Al llamar a una batalla, cada partida recibe problemas del banco que nadie haya usado en el torneo y que los jugadores no hayan intentado. Aun así puedes cambiar a mano los de cualquier batalla: los tuyos nunca se reemplazan."
+
+#: judge/arena
+msgid "and follow the battle being played"
+msgstr "y seguir la batalla en juego"
+
+#: judge/arena
+msgid "any"
+msgstr "cualquiera"
+
+#: judge/arena
+msgid "A bank is a list of problems prepared in advance for tournaments. A tournament can give its battles problems from it by itself, or suggest them for you to check; it never repeats a problem in the tournament and avoids those the players already tried. Give each problem a difficulty so harder rounds can get harder problems."
+msgstr "Un banco es una lista de problemas preparada de antemano para los torneos. Un torneo puede dar problemas de aquí a sus batallas por sí solo, o proponerlos para que los revises; nunca repite un problema en el torneo y evita los que los jugadores ya intentaron. Dale a cada problema una dificultad para que las rondas más avanzadas tengan problemas más difíciles."
+
+#: judge/arena
+msgid "Change the link"
+msgstr "Cambiar el enlace"
+
+#: judge/arena
+msgid "Create, call later"
+msgstr "Crear y llamar después"
+
+#: judge/arena
+msgid "Difficulty (1 easy, 5 hard)"
+msgstr "Dificultad (1 fácil, 5 difícil)"
+
+#: judge/arena
+msgid "Difficulty (1 to 5)"
+msgstr "Dificultad (1 a 5)"
+
+#: judge/arena
+msgid "Each button opens that view in a new tab: one projector can show everything, or several projectors one thing each. A new quick battle goes on a free screen by itself; a tournament is put on a screen from its page."
+msgstr "Cada botón abre esa vista en una pestaña nueva: un proyector puede mostrarlo todo, o varios proyectores una cosa cada uno. Una batalla rápida nueva aparece sola en una pantalla libre; un torneo se pone en una pantalla desde su página."
+
+#: judge/arena
+msgid "First time organizing? Each part of this panel is explained step by step in the guide."
+msgstr "¿Primera vez organizando? Cada parte de este panel se explica paso a paso en la guía."
+
+#: judge/arena
+msgid "How do banks work?"
+msgstr "¿Cómo funcionan los bancos?"
+
+#: judge/arena
+msgid "Participants (the first is the strongest)"
+msgstr "Participantes (el primero es el más fuerte)"
+
+#: judge/arena
+msgid "The bracket is built at once. On the next page you choose the games of each round and where the problems come from."
+msgstr "El bracket se arma al instante. En la siguiente página eliges las partidas de cada ronda y de dónde salen los problemas."
+
+#: judge/arena
+msgid "Smaller text"
+msgstr "Letra más chica"
+
+#: judge/arena
+msgid "Larger text"
+msgstr "Letra más grande"
+
+#: judge/arena
+msgid "Show the statement on the whole screen"
+msgstr "Ver el enunciado en toda la pantalla"
+
+#: judge/arena
+msgid "Show the editor on the whole screen"
+msgstr "Ver el editor en toda la pantalla"
+
+#: judge/arena
+msgid "Expand"
+msgstr "Ampliar"
+
+#: judge/arena
+msgid "Normal view"
+msgstr "Vista normal"
+
+#: judge/arena
+msgid "Back to the normal view (Esc)"
+msgstr "Volver a la vista normal (Esc)"
+
+#: judge/arena
+msgid "Drag to change the width; double click to go back to the usual one"
+msgstr "Arrastra para cambiar el ancho; doble clic para volver al de siempre"
+
+#: judge/arena
+msgid "Drag to change the height; double click to go back to the usual one"
+msgstr "Arrastra para cambiar el alto; doble clic para volver al de siempre"
+
+#: judge/arena
+msgid "Join in tabs"
+msgstr "Juntar en pestañas"
+
+#: judge/arena
+msgid "Show one panel at a time, with tabs"
+msgstr "Ver un panel a la vez, con pestañas"
+
+#: judge/arena
+msgid "Side by side"
+msgstr "Lado a lado"
+
+#: judge/arena
+msgid "Show both panels side by side"
+msgstr "Ver los dos paneles lado a lado"
+
+#: judge/arena
+msgid "You solved every problem first."
+msgstr "Resolviste todos los problemas primero."
+
+#: judge/arena
+#, python-format
+msgid "%(rival)s solved every problem before you."
+msgstr "%(rival)s resolvió todos los problemas antes que tú."
+
+#: judge/arena
+#, python-format
+msgid "%(rival)s could no longer catch up with you."
+msgstr "%(rival)s ya no podía alcanzarte."
+
+#: judge/arena
+#, python-format
+msgid "You could no longer catch up with %(rival)s."
+msgstr "Ya no podías alcanzar a %(rival)s."
+
+#: judge/arena
+msgid "You had more points when time ran out."
+msgstr "Tenías más puntos al acabarse el tiempo."
+
+#: judge/arena
+#, python-format
+msgid "%(rival)s had more points when time ran out."
+msgstr "%(rival)s tenía más puntos al acabarse el tiempo."
+
+#: judge/arena
+msgid "Same points, but you got there first."
+msgstr "Empataron en puntos, pero llegaste primero."
+
+#: judge/arena
+#, python-format
+msgid "Same points, but %(rival)s got there first."
+msgstr "Empataron en puntos, pero %(rival)s llegó primero."
+
+#: judge/arena
+msgid "The organizer gave you this game."
+msgstr "El organizador te dio esta partida."
+
+#: judge/arena
+#, python-format
+msgid "The organizer gave this game to %(rival)s."
+msgstr "El organizador le dio esta partida a %(rival)s."
+
+#: judge/arena
+msgid "The organizer decided this battle in your favor."
+msgstr "El organizador decidió esta batalla a tu favor."
+
+#: judge/arena
+#, python-format
+msgid "The organizer decided this battle in favor of %(rival)s."
+msgstr "El organizador decidió esta batalla a favor de %(rival)s."
+
+#: judge/arena
+msgid "The organizer gave you the whole battle."
+msgstr "El organizador te dio la batalla completa."
+
+#: judge/arena
+#, python-format
+msgid "The organizer gave the whole battle to %(rival)s."
+msgstr "El organizador le dio la batalla completa a %(rival)s."
+
+#: judge/arena
+#, python-format
+msgid "You won the series %(mine)s to %(theirs)s."
+msgstr "Ganaste la serie %(mine)s a %(theirs)s."
+
+#: judge/arena
+#, python-format
+msgid "%(rival)s won the series %(theirs)s to %(mine)s."
+msgstr "%(rival)s ganó la serie %(theirs)s a %(mine)s."
+
+#: judge/arena
+#, python-format
+msgid "Best of %(best)s: the first to win %(needed)s games wins the battle."
+msgstr "Al mejor de %(best)s: gana la batalla quien llega primero a %(needed)s partidas."
+
+#: judge/arena
+msgid "Tie."
+msgstr "Empate."
+
+#: judge/arena
+msgid "Voided by the organizer."
+msgstr "La anuló el organizador."
+
+#: judge/arena
+msgid "Review mode: you can edit your code and run it with your input. Nothing is submitted anymore."
+msgstr "Modo repaso: puedes editar tu código y probarlo con tu entrada. Ya no se envía nada."
+
+#: judge/arena
+msgid "Leave the arena"
+msgstr "Salir de Duelos"
+
+#: judge/arena
+msgid "The battle is over. You can stay to look over your code and your submissions; nothing counts anymore. Leave whenever you want."
+msgstr "La batalla terminó. Puedes quedarte a revisar tu código y tus envíos; ya nada cuenta. Sal cuando quieras."
+
+#: judge/arena
+msgid "Meanwhile you can look over this game."
+msgstr "Mientras tanto puedes revisar esta partida."
+
+#: judge/arena
+msgid "Review the game"
+msgstr "Revisar la partida"
+
+#: judge/arena
+msgid "Submitted code"
+msgstr "Código enviado"
+
+#: judge/arena
+msgid "In this battle you can only paste your own code. Type the rest."
+msgstr "En esta batalla sólo puedes pegar tu propio código. Escribe lo demás."
+
+#: judge/arena
+msgid "Only your own code can be pasted"
+msgstr "Sólo se puede pegar código propio"
+
+#: judge/jinja2/markdown
+msgid "Input"
+msgstr "Entrada"
+
+#: judge/jinja2/markdown
+msgid "Output"
+msgstr "Salida"
+
+#: cpc 2026-10-19
+msgid "Use as input"
+msgstr "Usar como entrada"
+
+#: cpc 2026-10-19
+msgid "Puts this example in Try with input. Then press Run."
+msgstr "Pone este ejemplo en Probar con entrada. Después pulsa Ejecutar."
+
+#: cpc 2026-10-19
+msgid "Download every statement (PDF)"
+msgstr "Descargar todos los enunciados (PDF)"
+
+#: cpc 2026-10-19
+msgid "One file with every problem of the contest, to keep reading them if the connection drops."
+msgstr "Un solo archivo con todos los problemas del concurso, para seguir leyéndolos si se va el internet."
+
+#: cpc 2026-10-19
+msgid "Preparing the PDF"
+msgstr "Preparando el PDF"
+
+#: cpc 2026-10-19
+msgid "The PDF with every statement is being prepared. The download starts by itself in a few seconds."
+msgstr "Se está preparando el PDF con todos los enunciados. La descarga empezará sola en unos segundos."
+
+#: cpc 2026-10-19
+msgid "Could not prepare the PDF"
+msgstr "No se pudo preparar el PDF"
+
+#: cpc 2026-10-19
+msgid "The PDF with every statement could not be prepared right now. Please try again in a moment."
+msgstr "Ahora mismo no se pudo preparar el PDF con todos los enunciados. Vuelve a intentarlo en un momento."
+
+#: duelos 2026-10-19
+msgid "duels"
+msgstr "duelos"
+
+#: duelos 2026-10-19
+msgid "Without duels"
+msgstr "Sin duelos"
+
+#: duelos 2026-10-19
+msgid "Only duels"
+msgstr "Sólo duelos"
+
+#: duelos 2026-10-19
+msgid "With duels"
+msgstr "Con duelos"
+
+#: duelos 2026-10-19
+msgid "Duel contests"
+msgstr "Concursos de duelos"

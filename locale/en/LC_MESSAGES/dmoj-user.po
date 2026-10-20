@@ -27,3 +27,7 @@ msgstr "Contests"
 #: judge/navigationbar
 msgid "Compilador"
 msgstr "Compiler"
+
+#: judge/navigationbar
+msgid "Duelos"
+msgstr "Duels"

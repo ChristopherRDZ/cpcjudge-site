@@ -7194,3 +7194,133 @@ msgstr "Team participations are kept as history."
 #: judge/equipos
 msgid "Selecciona una modalidad"
 msgstr "Select a participation mode"
+
+#: duelos 2026-10-19
+msgid "Arena"
+msgstr "Duels"
+
+#: duelos 2026-10-19
+#, python-format
+msgid "%(name)s does not have the arena open."
+msgstr "%(name)s is not in Duels."
+
+#: duelos 2026-10-19
+#, python-format
+msgid "The players are no longer kept in the arena: more than %(minutes)s minutes went by without anything happening in this battle. They are kept again when the next game starts."
+msgstr "The players are no longer kept in Duels: more than %(minutes)s minutes went by without anything happening in this battle. They are kept again when the next game starts."
+
+#: duelos 2026-10-19
+msgid "This contest belongs to an arena battle."
+msgstr "This contest belongs to a duel."
+
+#: duelos 2026-10-19
+msgid "You are in a battle. Go back to the arena."
+msgstr "You are in a battle. Go back to Duels."
+
+#: duelos 2026-10-19
+msgid "You are playing an arena battle. Submit your code from the arena."
+msgstr "You are playing a duel. Submit your code from Duels."
+
+#: duelos 2026-10-19
+msgid "Organize arena battles"
+msgstr "Organize duels"
+
+#: duelos 2026-10-19
+msgid "The battle is over. You can leave the arena."
+msgstr "The battle is over. You can leave Duels."
+
+#: duelos 2026-10-19
+msgid "Does not have the arena open"
+msgstr "Not in Duels"
+
+#: duelos 2026-10-19
+msgid "Has the arena open"
+msgstr "In Duels"
+
+#: duelos 2026-10-19
+msgid "The two players go to the waiting room of the arena"
+msgstr "The two players go to the waiting room of Duels"
+
+#: duelos 2026-10-19
+msgid "Leave the arena"
+msgstr "Leave Duels"
+
+#: duelos 2026-10-19
+msgid "arena action"
+msgstr "duel action"
+
+#: duelos 2026-10-19
+msgid "arena actions"
+msgstr "duel actions"
+
+#: duelos 2026-10-19
+msgid "arena bank problem"
+msgstr "duel bank problem"
+
+#: duelos 2026-10-19
+msgid "arena bank problems"
+msgstr "duel bank problems"
+
+#: duelos 2026-10-19
+msgid "arena game"
+msgstr "duel game"
+
+#: duelos 2026-10-19
+msgid "arena games"
+msgstr "duel games"
+
+#: duelos 2026-10-19
+msgid "arena game problem"
+msgstr "duel game problem"
+
+#: duelos 2026-10-19
+msgid "arena game problems"
+msgstr "duel game problems"
+
+#: duelos 2026-10-19
+msgid "arena match"
+msgstr "duel match"
+
+#: duelos 2026-10-19
+msgid "arena matches"
+msgstr "duel matches"
+
+#: duelos 2026-10-19
+msgid "arena participant"
+msgstr "duel participant"
+
+#: duelos 2026-10-19
+msgid "arena participants"
+msgstr "duel participants"
+
+#: duelos 2026-10-19
+msgid "arena problem bank"
+msgstr "duel problem bank"
+
+#: duelos 2026-10-19
+msgid "arena problem banks"
+msgstr "duel problem banks"
+
+#: duelos 2026-10-19
+msgid "arena round"
+msgstr "duel round"
+
+#: duelos 2026-10-19
+msgid "arena rounds"
+msgstr "duel rounds"
+
+#: duelos 2026-10-19
+msgid "arena screen"
+msgstr "duel screen"
+
+#: duelos 2026-10-19
+msgid "arena screens"
+msgstr "duel screens"
+
+#: duelos 2026-10-19
+msgid "arena tournament"
+msgstr "duel tournament"
+
+#: duelos 2026-10-19
+msgid "arena tournaments"
+msgstr "duel tournaments"
