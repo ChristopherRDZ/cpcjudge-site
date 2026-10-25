@@ -32,6 +32,10 @@ The tests cover:
 - the admin: the Battles section, who sees it, finding and deleting games, a game
   in progress that cannot be deleted, and the hidden contests behind games, left
   out of the contest lists and deleted with their game;
+- who organizes what: `manage_arena` for one's own battles and the ones where one
+  is a co-organizer, `manage_all_arena` for all of them, the Organizers panel of
+  tournaments and quick duels, screens and problem banks per organizer, and
+  private problems in banks hidden from organizers who cannot see them;
 - `/duelos/` and the forwarding from `/arena/`;
 - migration 0157, which only creates the `judge_arena*` tables.
 
