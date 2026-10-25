@@ -16,6 +16,10 @@ sends and refuses with a clear message before the provider does.
 | `DMOJ_EMAIL_DAILY_RESERVE` | 20 | Part of the daily limit that registrations and error reports may not use |
 | `DMOJ_EMAIL_ERROR_DAILY_LIMIT` | 10 | Error reports to `ADMINS` per UTC day, on top of `DMOJ_EMAIL_THROTTLING` |
 
+[Emails to users](../mass-email.md), written in the admin for many accounts, are not
+counted here and never use this SMTP: they go through Resend Broadcasts, with their
+own quota and unsubscribe handling.
+
 The day is counted in UTC because that is when most providers reset their quotas.
 **Set `DMOJ_EMAIL_DAILY_LIMIT` below your provider's daily quota.** If your provider
 has no daily quota and charges per message instead, use it as a spending cap.

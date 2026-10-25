@@ -27,6 +27,7 @@ presents them, with the date each one was added.
 | Player lock | Players stay on the duel page and submit only from it while their battle lasts; expires after a period without activity. 2026-10-17 |
 | Projector screens | Secret, revocable links with combined, scoreboard, live code, statements and bracket views. 2026-10-17 |
 | Duel contests out of the lists | The hidden contest behind each game stays out of `/contests/` and the admin's contest lists, and is deleted with its game. 2026-10-19 |
+| Own and all | `manage_arena` now covers one's own battles and the ones where one is a co-organizer; `manage_all_arena` covers every battle. Co-organizers per tournament and quick battle, screens and problem banks per organizer. Migration `0159`. 2026-10-23 |
 
 ## Teams
 
@@ -55,8 +56,18 @@ presents them, with the date each one was added.
 | Phone overflow fixes | MathJax formulas no longer make pages pan sideways, the contest timer keeps its clock inside the box, and the problem data page fits with its case table scrolling on its own. 2026-10-01 |
 | Readable permission selector | The admin's two-list selector shows full permission names at any width. 2026-10-07 |
 | Account emails | One design for activation, password reset and email change, readable in Gmail, Outlook and phone apps. 2026-10-08 |
+| Email footer | Every email says the club is independent and not an official service of its university; emails to users link the privacy notice. 2026-10-24 |
+| Back in read-only admin forms | The bottom bar of a form that can only be viewed was black and empty; it now offers Back, keeping the list filter. 2026-10-24 |
 | Site icons | A multi-size favicon, and the site's own artwork in the Windows tile and browser notifications. 2026-10-08 |
 | Spanish interface | Spanish translations for every screen the fork adds. |
+
+## Emails to users
+
+| Change | Notes |
+| --- | --- |
+| Emails to users | A section of the admin to write one email for many accounts and send it through Resend Broadcasts, never through the site's SMTP: drafts, desktop and phone preview, a test to oneself, confirmation by typing the number of recipients, sending now or scheduled, delivery figures and unsubscribes. Migration `0158`. 2026-10-21 |
+| Audiences | Everyone with a confirmed email, those matching filters (contests, organizations, groups, activity, sign-up dates, solved problems, rating), or people chosen by name; "never include" always wins. 2026-10-23 |
+| Own and all | `send_mass_email` covers one's own emails, `edit_all_mass_email` all of them. Unsubscribed addresses are masked for non-superusers. 2026-10-23 |
 
 ## Accounts
 

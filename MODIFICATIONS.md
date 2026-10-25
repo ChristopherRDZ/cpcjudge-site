@@ -1,6 +1,9 @@
 # CPC-UAEH modifications to DMOJ
 
-As of 2026-10-20, this source includes 1v1 duels and knockout tournaments,
+As of 2026-10-24, this source includes emails to many users sent through
+Resend, permissions for one's own and for all duels and emails with duel
+co-organizers, a footer line in every email about the club, a Back button in
+read-only admin forms, 1v1 duels and knockout tournaments,
 sample tables and `$...$` math in problem statements, reliable problem PDFs and
 one PDF with every statement of a contest, an event daemon that survives
 malformed messages, per-recipient and daily email limits, the visitor's real
@@ -35,6 +38,51 @@ GNU Affero General Public License version 3.
 - Authentication using either a username or an email address.
 - A signed-in custom code testing workflow and its judge bridge support.
 - Minor registration and presentation adjustments.
+
+## Email footer and the admin bottom bar — 2026-10-24
+
+- Every email the site sends (activation, password reset, both email change
+  messages and emails to users) ends with a line saying the club is independent
+  and not an official service of its university. Emails to users also link the
+  privacy notice at `/privacidad/`, in HTML and in plain text. The line names this
+  club; see [Emails to users](docs/mass-email.md#the-footer) to change it.
+- `templates/admin/submit_line.html`: on a change form that can only be viewed,
+  Django asks for a Close button that wpadmin's bar does not draw, so the bar was
+  black and empty. It now shows Back, to the list and keeping its filter.
+- No migration. Tests in `tests/mass_email`.
+
+## Own and all, co-organizers and audiences — 2026-10-23
+
+- `judge.manage_arena` covers the battles a person created or co-organizes, with
+  their own screens and problem banks; the new `judge.manage_all_arena` covers
+  every battle. Tournaments and quick battles get an Organizers panel. What
+  belongs to someone else answers 404 and stays out of the admin lists.
+- `judge.send_mass_email` covers one's own emails to users; the new
+  `judge.edit_all_mass_email` covers all of them and subscribing people again.
+- Emails to users choose their audience explicitly: everyone with a confirmed
+  email, those matching the filters, or people chosen by name. New rating filter.
+- Fixed: "always include" without filters sent to everyone; the unsubscribed list
+  showed full addresses to non-superusers; organizers could open other people's
+  battles and move their projectors; problem banks showed private problems to
+  organizers who could not see them, and saving them failed.
+- The task progress page shows the site's logo, a Back button and wrapped errors.
+- Migration `0159`. Tests in `tests/duels/test_duel_organizers.py` and `tests/mass_email`.
+
+## Emails to users — 2026-10-21
+
+- A section of the admin, Emails to users, to write one email for many accounts
+  and send it through Resend Broadcasts, never through the site's SMTP: drafts in
+  Markdown and HTML, a preview as a desktop and a phone show it, a test to oneself,
+  recipients by filters, confirmation by typing their number, sending now or
+  scheduled, delivery figures read from Resend and the list of unsubscribed people.
+- A Celery task creates the Resend segment and contacts and asks Resend to send;
+  retries never send twice. The client in `judge/utils/resend.py` respects
+  Resend's request limit. 2026-10-22: each segment is sent as an object when a
+  contact is created, which Resend requires.
+- The common email template gains `title` and `footer` blocks; the account emails
+  are unchanged.
+- Settings `DMOJ_RESEND_*` and `DMOJ_MASS_EMAIL_*`, an `email` Markdown style and an
+  admin menu entry. Migration `0158`. Guide in [docs/mass-email.md](docs/mass-email.md).
 
 ## Problem and contest PDFs — 2026-10-19
 

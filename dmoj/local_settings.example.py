@@ -21,6 +21,11 @@ SITE_NAME = 'Example Judge'
 SITE_LONG_NAME = 'Example Online Judge'
 SITE_DOMAIN = 'judge.example.org'
 SITE_ADMIN_EMAIL = 'admin@example.org'
+# Domain of the canonical link and og:url of every page. Left empty, they come
+# out as https:///... and search engines cannot use them.
+DMOJ_CANONICAL = 'judge.example.org'
+# Linked from the registration form; for example a flat page created in the admin.
+TERMS_OF_SERVICE_URL = '/terms/'
 
 DATABASES = {
     'default': {
@@ -87,6 +92,13 @@ EMAIL_HOST_PASSWORD = os.environ.get('DMOJ_EMAIL_PASSWORD', '')
 EMAIL_TIMEOUT = 20
 DEFAULT_FROM_EMAIL = 'Example Judge <judge@example.org>'
 SERVER_EMAIL = DEFAULT_FROM_EMAIL
+
+# Emails to many users (admin: Emails to users) go through Resend Broadcasts,
+# never through the SMTP above; see docs/mass-email.md. A full access key, and a
+# sender on the domain verified in Resend.
+DMOJ_RESEND_API_KEY = os.environ.get('DMOJ_RESEND_API_KEY')
+DMOJ_MASS_EMAIL_FROM = 'Example Judge <news@example.org>'
+DMOJ_MASS_EMAIL_REPLY_TO = SITE_ADMIN_EMAIL
 
 # Email limits; see docs/security/email.md. Keep the daily limit below your
 # provider's daily quota, or use it as a spending cap.

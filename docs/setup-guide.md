@@ -66,7 +66,14 @@ off until you set the two `DMOJ_PDF_*` settings; see [PDFs](pdf.md).
 For email, point the `EMAIL_*` settings at your provider and give
 `DEFAULT_FROM_EMAIL` and `SERVER_EMAIL` explicit addresses on your own domain. Set
 `DMOJ_EMAIL_DAILY_LIMIT` below the provider's daily quota; the other email limits
-have workable defaults. See [Email](security/email.md).
+have workable defaults. See [Email](security/email.md). Emails to many users go
+through Resend instead, with `DMOJ_RESEND_API_KEY`; see [Emails to users](mass-email.md).
+
+Set `DMOJ_CANONICAL` to your domain, for example `'judge.example.org'`. Every page
+carries a canonical link and an `og:url` built from it; left empty, they come out
+as `https:///...`, which search engines cannot use. Point
+`TERMS_OF_SERVICE_URL` at your own terms (the registration form links it), for
+example a flat page at `'/terminos/'`.
 
 Never commit `dmoj/local_settings.py`. It is already in `.gitignore`.
 
@@ -76,8 +83,9 @@ Never commit `dmoj/local_settings.py`. It is already in `.gitignore`.
 /srv/dmoj/venv/bin/python manage.py migrate
 ```
 
-This fork adds migrations `0150` through `0157`: announcements, clarifications,
-scoreboard freeze, balloons, teams, interactive problems and duels. Keep the
+This fork adds migrations `0150` through `0159`: announcements, clarifications,
+scoreboard freeze, balloons, teams, interactive problems, duels, emails to users,
+and the permissions for one's own and for all duels and emails. Keep the
 database backup from step 1 before applying them to an existing installation.
 
 ## 4. Translations
@@ -163,8 +171,12 @@ in the admin to get its key.
 
 [Duels](duels.md) need no service of their own, but live code, the player lock
 and their request limits live in the cache, so with several web workers the cache
-must be shared (Redis). Give organizers the `manage_arena` permission and add the
-`Duelos` entry to the navigation bar, as the guide explains.
+must be shared (Redis). Give organizers `manage_arena` (their own battles) or
+`manage_all_arena` (all of them) and add the `Duelos` entry to the navigation bar,
+as the guide explains.
+
+[Emails to users](mass-email.md) are handed to Resend by a Celery task: Celery must
+be running, and restarted after their code or catalogs change.
 
 PDFs of problems and contests need [pdfoid](pdf.md), an optional extra service with
 headless Chrome. There is an [example unit](../deploy/examples/systemd/dmoj-pdfoid.service)
@@ -244,6 +256,9 @@ The fork ships with the CPC-UAEH name and artwork. To use your own:
 | Link preview description | the `og:description` default in `templates/base.html` |
 | Email design: colors, header logo, button and footer | `templates/registration/email_base.html` and `email_macros.html`; the logo is `resources/icons/logo-correo.png` |
 | Email texts | the activation, password reset and email change templates in `templates/registration/` |
+| Email footer line about the club | `templates/registration/email_base.html`, the four `templates/registration/*_email.txt`, `templates/mass_email/email.html` and `judge/mass_email.py`; see [Emails to users](mass-email.md#the-footer) |
+| Terms and privacy notice | flat pages created from the admin (this site uses `/terminos/` and `/privacidad/`), and `TERMS_OF_SERVICE_URL` |
+| `robots.txt` | add `Sitemap: https://your-domain/sitemap.xml` at the end, with your own domain |
 | Home page text | a blog post or flat page created from the admin |
 
 The footer and email texts are translatable strings. If you change them, add the
@@ -287,6 +302,11 @@ Start the services and verify these workflows:
     live code and the winner. `/arena/` must forward to `/duelos/`.
 13. With pdfoid configured, open `/problem/<code>/pdf` for a public problem, and
     the contest PDF from the bottom of a contest page you organize.
+14. With a Resend key, write a draft in Emails to users and use "Save and send me
+    a test": the copy arrives from your sender address, with the footer line and
+    the unsubscribe and privacy notice links.
+15. View the source of any page: the canonical link reads
+    `https://your-domain/...`, not `https:///...`.
 
 ---
 

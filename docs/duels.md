@@ -11,15 +11,18 @@ earlier address `/arena/…` are forwarded to the same place under `/duelos/` wi
 
 ## Setting it up
 
-1. **Migrate.** Migration `0157_arena` only creates the `judge_arena*` tables.
+1. **Migrate.** Migration `0157_arena` only creates the `judge_arena*` tables;
+   `0159_own_permissions` adds co-organizers and the permission for all battles.
 2. **Use a shared cache.** Live code, drafts, the player lock and the request
    limits live in the Django cache. With several web workers it must be shared
    (Redis, as in the [settings example](../dmoj/local_settings.example.py)); a
    per-process cache makes players and screens see different things.
-3. **Give organizers the permission.** Everything is behind one permission,
-   `judge | arena match | Organize arena battles` (`judge.manage_arena`). Create a
-   group with it, plus `see_private_problem` if battles should use problems that
-   are not public, and add the organizers. Superusers have it already.
+3. **Give organizers a permission.** `judge | arena match | Organize own arena
+   battles` (`judge.manage_arena`) lets a person organize their own battles;
+   `Organize all arena battles` (`judge.manage_all_arena`) gives every battle of
+   every organizer. See [Who organizes what](#who-organizes-what). Create a group
+   with one of them, plus `see_private_problem` if battles should use problems that
+   are not public, and add the organizers. Superusers have both already.
 4. **Add the navigation entry.** In the admin, under *Navigation bar*, add an
    entry with key `arena`, label `Duelos`, path `/duelos/` and regex `^/duelos`.
    The label is translated through the `dmoj-user` catalog; both the Spanish and
@@ -56,6 +59,29 @@ section of the admin. Every page of the panel links to a guide for organizers at
 - **Several organizers** can work at once. Every action carries a version; an
   action based on an old state is refused with a conflict instead of overwriting
   someone else's.
+
+### Who organizes what
+
+| Permission | Gives |
+| --- | --- |
+| `judge.manage_arena`, "Organize own arena battles" | The quick battles and tournaments the person created or was added to as a co-organizer, with all their games, plus their own screens and problem banks |
+| `judge.manage_all_arena`, "Organize all arena battles" | Everything, from every organizer; works on its own |
+
+- The page of each tournament and quick battle has an **Organizers** panel: it
+  shows who created it and adds or removes co-organizers. Its search only offers
+  people with one of the two permissions. The battles of a tournament are managed
+  by the tournament's organizers.
+- Each organizer has their own **screens**: the first is created with their first
+  battle or tournament, and a new battle never takes someone else's free
+  projector. **Problem banks** belong to whoever created them; a tournament that
+  already uses someone else's bank keeps it.
+- What belongs to someone else answers 404, and the *Battles* lists of the admin
+  show only one's own objects. The panel tells organizers who do not see
+  everything, and the organizer guide has a section on it.
+- Problems a person cannot see (private ones without `see_private_problem`) are
+  not shown in banks and are kept when the bank is saved.
+
+![The Organizers panel of a quick battle](screenshots/duels-organizers.png)
 
 ### Rules of a game
 

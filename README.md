@@ -11,6 +11,7 @@
   <a href="#django-52">Django 5.2</a> ·
   <a href="#security">Security</a> ·
   <a href="docs/duels.md">Duels</a> ·
+  <a href="docs/mass-email.md">Emails to users</a> ·
   <a href="docs/contest-tools.md">Contest guide</a> ·
   <a href="MODIFICATIONS.md">Changelog</a>
 </p>
@@ -139,7 +140,8 @@ knockout tournaments with a bracket that builds itself. Organizers call the
 players, pick the problems by hand or from a problem bank, and start each game
 from a panel. Players stay on the duel page and submit from it until the battle is
 decided; a projector shows both players' code live, the scoreboard, the
-statements and the bracket.
+statements and the bracket. Organizers manage their own battles and the ones they
+are added to as co-organizers; one permission gives every battle.
 
 ![A player during a duel: statement, editor, custom input and submissions](docs/screenshots/duels-player.png)
 
@@ -192,7 +194,8 @@ such as the test case table, scroll inside their own box.
 
 Activation, password reset and email change messages share one design that reads
 well in Gmail, Outlook and phone apps: the site logo, a button with a plain link
-below it, and a contact line.
+below it, and a contact line. Every email ends with a line saying the club is
+independent and not an official service of its university.
 
 ### Custom tests
 
@@ -246,7 +249,22 @@ lists the affected records; submission records are preserved.
 Contest authors can remove a problem from a contest they edit. The problem and
 its submissions stay; only their link to the contest goes. This is the only
 exception to the owner-only deletion lock. The two-list permission selector shows
-full permission names at any screen width.
+full permission names at any screen width. Pages that can only be viewed offer a
+Back button in the bottom bar.
+
+### Emails to users
+
+Write an announcement in the admin and send it to many accounts through Resend:
+to everyone with a confirmed email, to those matching filters (contests,
+organizations, groups, recent activity, sign-up dates, solved problems, rating) or
+to people chosen by name. Preview it as a desktop and a phone would show it, send
+yourself a test, confirm by typing the number of recipients, send now or schedule
+it, and read the delivery figures afterwards. Unsubscribes are honoured; writers
+manage their own emails, and one permission gives all of them.
+
+![An email to users in the preview, as a desktop and a phone would show it](docs/screenshots/mass-email-preview.png)
+
+See [Emails to users](docs/mass-email.md) for the setup with Resend.
 
 ## Installation and documentation
 
@@ -262,7 +280,8 @@ own branding.
 | [Django 5.2 upgrade](docs/django52/README.md) | Compatibility changes, tested dependencies and upgrade guidance |
 | [Contest tools](docs/contest-tools.md) | Freeze, reveal, balloons, announcements and clarifications |
 | [Interactive problems](docs/interactive-problems.md) | Interactors from the data page, judge requirements and verdicts |
-| [Duels](docs/duels.md) | Battles, tournaments, projectors, settings and limitations |
+| [Duels](docs/duels.md) | Battles, tournaments, projectors, who organizes what, settings and limitations |
+| [Emails to users](docs/mass-email.md) | Announcements to many accounts through Resend: audiences, sending, unsubscribes, permissions |
 | [Sample tables and math](docs/statements.md) | The `\|\|input` table and `$...$` in statements |
 | [PDFs](docs/pdf.md) | Problem and contest PDFs with pdfoid |
 | [Deployment examples](deploy/examples/README.md) | Example service units, Nginx settings and maintenance tasks |
