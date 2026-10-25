@@ -10674,3 +10674,675 @@ msgstr "Con duelos"
 #: duelos 2026-10-19
 msgid "Duel contests"
 msgstr "Concursos de duelos"
+
+#: cpc 2026-10-21
+msgid "email to users"
+msgstr "correo a usuarios"
+
+#: cpc 2026-10-21
+msgid "emails to users"
+msgstr "correos a usuarios"
+
+#: cpc 2026-10-21
+msgid "email recipient"
+msgstr "destinatario de correo"
+
+#: cpc 2026-10-21
+msgid "email recipients"
+msgstr "destinatarios de correo"
+
+#: cpc 2026-10-21
+msgid "Write and send emails to users"
+msgstr "Escribir y enviar correos a usuarios"
+
+#: cpc 2026-10-21
+msgid "subject"
+msgstr "asunto"
+
+#: cpc 2026-10-21
+msgid "preview text"
+msgstr "texto de vista previa"
+
+#: cpc 2026-10-21
+msgid "Shown by most inboxes next to the subject. Optional."
+msgstr "La mayoría de las bandejas lo muestran junto al asunto. Opcional."
+
+#: cpc 2026-10-21
+msgid "Big title at the top of the email. Leave empty for no title."
+msgstr "Título grande al principio del correo. Déjalo vacío para que no lleve título."
+
+#: cpc 2026-10-21
+msgid "content"
+msgstr "contenido"
+
+#: cpc 2026-10-21
+msgid "language of the footer"
+msgstr "idioma del pie"
+
+#: cpc 2026-10-21
+msgid "The language of the lines the site adds at the end, such as the unsubscribe link. Write the content in the language you prefer."
+msgstr "El idioma de las líneas que el sitio añade al final, como el enlace de baja. El contenido escríbelo en el idioma que prefieras."
+
+#: cpc 2026-10-21
+msgid "took part in any of these contests"
+msgstr "participó en alguno de estos concursos"
+
+#: cpc 2026-10-21
+msgid "Registered in or took part in at least one of them, team members included. Spectators do not count."
+msgstr "Se inscribió o participó en al menos uno, incluidos los integrantes de equipos. Los espectadores no cuentan."
+
+#: cpc 2026-10-21
+msgid "count virtual participations"
+msgstr "contar participaciones virtuales"
+
+#: cpc 2026-10-21
+msgid "Also people who did those contests in virtual mode, after they ended."
+msgstr "También quienes hicieron esos concursos en modo virtual, después de que terminaron."
+
+#: cpc 2026-10-21
+msgid "member of any of these organizations"
+msgstr "miembro de alguna de estas organizaciones"
+
+#: cpc 2026-10-21
+msgid "in any of these permission groups"
+msgstr "en alguno de estos grupos de permisos"
+
+#: cpc 2026-10-21
+msgid "For example, to write only to the people who create problems."
+msgstr "Por ejemplo, para escribir sólo a quienes crean problemas."
+
+#: cpc 2026-10-21
+msgid "visited the site in the last days"
+msgstr "entró al sitio en los últimos días"
+
+#: cpc 2026-10-21
+msgid "For example 90: only people who opened the site in the last 90 days."
+msgstr "Por ejemplo 90: sólo quienes abrieron el sitio en los últimos 90 días."
+
+#: cpc 2026-10-21
+msgid "signed up on or after"
+msgstr "se registró desde"
+
+#: cpc 2026-10-21
+msgid "signed up on or before"
+msgstr "se registró hasta"
+
+#: cpc 2026-10-21
+msgid "solved at least this many problems"
+msgstr "resolvió al menos esta cantidad de problemas"
+
+#: cpc 2026-10-21
+msgid "always include"
+msgstr "incluir siempre"
+
+#: cpc 2026-10-21
+msgid "They receive it even if the filters leave them out, as long as their email is confirmed."
+msgstr "Lo reciben aunque los filtros los dejen fuera, siempre que tengan el correo confirmado."
+
+#: cpc 2026-10-21
+msgid "never include"
+msgstr "no incluir nunca"
+
+#: cpc 2026-10-21
+msgid "written by"
+msgstr "escrito por"
+
+#: cpc 2026-10-21
+msgid "created"
+msgstr "creado"
+
+#: cpc 2026-10-21
+msgid "last change"
+msgstr "último cambio"
+
+#: cpc 2026-10-21
+msgid "sent by"
+msgstr "enviado por"
+
+#: cpc 2026-10-21
+msgid "sent at"
+msgstr "enviado el"
+
+#: cpc 2026-10-21
+msgid "scheduled for"
+msgstr "programado para"
+
+#: cpc 2026-10-21
+msgid "sender"
+msgstr "remitente"
+
+#: cpc 2026-10-21
+msgid "recipients"
+msgstr "destinatarios"
+
+#: cpc 2026-10-21
+msgid "error"
+msgstr "error"
+
+#: cpc 2026-10-21
+msgid "date"
+msgstr "fecha"
+
+#: cpc 2026-10-21
+msgid "Sending"
+msgstr "Enviando"
+
+#: cpc 2026-10-21
+msgid "Scheduled"
+msgstr "Programado"
+
+#: cpc 2026-10-21
+msgid "Sent"
+msgstr "Enviado"
+
+#: cpc 2026-10-21
+msgid "Failed"
+msgstr "Con error"
+
+#: cpc 2026-10-21
+msgid "Handed to Resend"
+msgstr "Entregado a Resend"
+
+#: cpc 2026-10-21
+msgid "Unsubscribed"
+msgstr "Dado de baja"
+
+#: cpc 2026-10-21
+msgid "Recipients"
+msgstr "Destinatarios"
+
+#: cpc 2026-10-21
+msgid "Only accounts with a confirmed email receive it. Without filters, all of them do. With several filters, people must meet all of them; inside one filter, one of the choices is enough."
+msgstr "Sólo lo reciben las cuentas con el correo confirmado. Sin filtros, lo reciben todas. Con varios filtros, hay que cumplirlos todos; dentro de un mismo filtro, basta con una de las opciones."
+
+#: cpc 2026-10-21
+msgid "The sign-up dates are reversed: the first one is after the second."
+msgstr "Las fechas de registro están al revés: la primera es posterior a la segunda."
+
+#: cpc 2026-10-21
+msgid "The name of each person can only go in the content, not in the subject."
+msgstr "El nombre de cada persona sólo puede ir en el contenido, no en el asunto."
+
+#: cpc 2026-10-21
+msgid "Will receive it:"
+msgstr "Lo recibirán:"
+
+#: cpc 2026-10-21
+msgid "person"
+msgstr "persona"
+
+#: cpc 2026-10-21
+msgid "people"
+msgstr "personas"
+
+#: cpc 2026-10-21
+msgid "(all accounts with a confirmed email)"
+msgstr "(todas las cuentas con el correo confirmado)"
+
+#: cpc 2026-10-21
+msgid "See the list"
+msgstr "Ver la lista"
+
+#: cpc 2026-10-21
+msgid "How to give it format"
+msgstr "Cómo darle formato"
+
+#: cpc 2026-10-21
+msgid "Bold"
+msgstr "Negritas"
+
+#: cpc 2026-10-21
+msgid "text"
+msgstr "texto"
+
+#: cpc 2026-10-21
+msgid "Subtitle"
+msgstr "Subtítulo"
+
+#: cpc 2026-10-21
+msgid "first"
+msgstr "primero"
+
+#: cpc 2026-10-21
+msgid "second"
+msgstr "segundo"
+
+#: cpc 2026-10-21
+msgid "Image"
+msgstr "Imagen"
+
+#: cpc 2026-10-21
+msgid "The image button of the editor uploads it to the site and writes this:"
+msgstr "El botón de imagen del editor la sube al sitio y escribe esto:"
+
+#: cpc 2026-10-21
+msgid "Button"
+msgstr "Botón"
+
+#: cpc 2026-10-21
+msgid "Grey box"
+msgstr "Recuadro gris"
+
+#: cpc 2026-10-21
+msgid "Warning box"
+msgstr "Recuadro de aviso"
+
+#: cpc 2026-10-21
+msgid "Centered"
+msgstr "Centrado"
+
+#: cpc 2026-10-21
+msgid "Color"
+msgstr "Color"
+
+#: cpc 2026-10-21
+msgid "Name of each person"
+msgstr "Nombre de cada persona"
+
+#: cpc 2026-10-21
+msgid "replaced by the username of whoever receives it."
+msgstr "se cambia por el nombre de usuario de quien lo recibe."
+
+#: cpc 2026-10-21
+msgid "Math formulas with ~ do not work in email. Use Preview to see it as it will arrive, on a computer and on a phone."
+msgstr "Las fórmulas con ~ no funcionan en un correo. Usa Vista previa para verlo como llegará, en computadora y en teléfono."
+
+#: cpc 2026-10-21
+msgid "Save draft"
+msgstr "Guardar borrador"
+
+#: cpc 2026-10-21
+msgid "Preview"
+msgstr "Vista previa"
+
+#: cpc 2026-10-21
+msgid "Save and send me a test"
+msgstr "Guardar y enviarme una prueba"
+
+#: cpc 2026-10-21
+msgid "Save and go to send"
+msgstr "Guardar y pasar al envío"
+
+#: cpc 2026-10-21
+msgid "The Resend key is not configured yet: you can write drafts and see who would receive them, but nothing can be sent. The server owner adds DMOJ_RESEND_API_KEY to the private settings."
+msgstr "Todavía no está configurada la clave de Resend: puedes escribir borradores y ver quién los recibiría, pero no se puede enviar nada. El dueño del servidor añade DMOJ_RESEND_API_KEY a la configuración privada."
+
+#: cpc 2026-10-21
+msgid "The Resend key is not configured yet, so nothing can be sent."
+msgstr "Todavía no está configurada la clave de Resend, así que no se puede enviar nada."
+
+#: cpc 2026-10-21
+msgid "Test"
+msgstr "Prueba"
+
+#: cpc 2026-10-21
+msgid "Your account has no email address to send the test to."
+msgstr "Tu cuenta no tiene una dirección de correo a la cual enviar la prueba."
+
+#: cpc 2026-10-21
+#, python-format
+msgid "The test could not be sent: %(error)s"
+msgstr "No se pudo enviar la prueba: %(error)s"
+
+#: cpc 2026-10-21
+#, python-format
+msgid "A test was sent to %(email)s. It may take a minute to arrive."
+msgstr "Se envió una prueba a %(email)s. Puede tardar un minuto en llegar."
+
+#: cpc 2026-10-21
+#, python-format
+msgid "Scheduled for %(when)s, to %(count)d people."
+msgstr "Programado para el %(when)s, a %(count)d personas."
+
+#: cpc 2026-10-21
+#, python-format
+msgid "Handed to Resend on %(when)s, for %(count)d people."
+msgstr "Entregado a Resend el %(when)s, para %(count)d personas."
+
+#: cpc 2026-10-21
+msgid "It could not be completed. The error is below."
+msgstr "No se pudo completar. El error está abajo."
+
+#: cpc 2026-10-21
+msgid "Cancelled before it was sent."
+msgstr "Cancelado antes de enviarse."
+
+#: cpc 2026-10-21
+msgid "It is being handed to Resend. Reload this page in a moment."
+msgstr "Se está entregando a Resend. Recarga esta página en un momento."
+
+#: cpc 2026-10-21
+msgid "See progress"
+msgstr "Ver el avance"
+
+#: cpc 2026-10-21
+msgid "In Resend:"
+msgstr "En Resend:"
+
+#: cpc 2026-10-21
+msgid "draft"
+msgstr "borrador"
+
+#: cpc 2026-10-21
+msgid "scheduled"
+msgstr "programado"
+
+#: cpc 2026-10-21
+msgid "queued"
+msgstr "en cola"
+
+#: cpc 2026-10-21
+msgid "sending"
+msgstr "enviándose"
+
+#: cpc 2026-10-21
+msgid "sent"
+msgstr "enviado"
+
+#: cpc 2026-10-21
+msgid "cancelled"
+msgstr "cancelado"
+
+#: cpc 2026-10-21
+msgid "Delivered to the inbox"
+msgstr "Entregados"
+
+#: cpc 2026-10-21
+msgid "Bounced"
+msgstr "Rebotados"
+
+#: cpc 2026-10-21
+msgid "Marked as spam"
+msgstr "Marcados como spam"
+
+#: cpc 2026-10-21
+msgid "Unsubscribed with this email"
+msgstr "Se dieron de baja con este correo"
+
+#: cpc 2026-10-21
+msgid "Not sent by Resend (suppressed)"
+msgstr "Resend no los envió (suprimidos)"
+
+#: cpc 2026-10-21
+#, python-format
+msgid "Figures read from Resend on %(when)s."
+msgstr "Cifras leídas de Resend el %(when)s."
+
+#: cpc 2026-10-21
+msgid "There are no figures yet, or the list is too long: see them in Resend."
+msgstr "Todavía no hay cifras, o la lista es muy larga: consúltalas en Resend."
+
+#: cpc 2026-10-21
+msgid "See the email"
+msgstr "Ver el correo"
+
+#: cpc 2026-10-21
+msgid "Who it was sent to"
+msgstr "A quién se envió"
+
+#: cpc 2026-10-21
+msgid "Retry"
+msgstr "Reintentar"
+
+#: cpc 2026-10-21
+msgid "Cancel this email? Nobody will receive it."
+msgstr "¿Cancelar este correo? Nadie lo recibirá."
+
+#: cpc 2026-10-21
+msgid "Cancel the scheduled email"
+msgstr "Cancelar el envío programado"
+
+#: cpc 2026-10-21
+msgid "Update figures"
+msgstr "Actualizar cifras"
+
+#: cpc 2026-10-21
+msgid "Open in Resend"
+msgstr "Abrir en Resend"
+
+#: cpc 2026-10-21
+msgid "Duplicate as a new draft"
+msgstr "Duplicar como borrador nuevo"
+
+#: cpc 2026-10-21
+msgid "From:"
+msgstr "De:"
+
+#: cpc 2026-10-21
+msgid "Preview text:"
+msgstr "Texto de vista previa:"
+
+#: cpc 2026-10-21
+msgid "The name of each person shows here as yours:"
+msgstr "Aquí el nombre de cada persona aparece como el tuyo:"
+
+#: cpc 2026-10-21
+msgid "Computer"
+msgstr "Computadora"
+
+#: cpc 2026-10-21
+msgid "Phone"
+msgstr "Teléfono"
+
+#: cpc 2026-10-21
+msgid "Plain text version"
+msgstr "Versión de sólo texto"
+
+#: cpc 2026-10-21
+msgid "Who will receive it"
+msgstr "Quién lo recibirá"
+
+#: cpc 2026-10-21
+msgid "Accounts with a confirmed email that meet the filters, one per address. People who unsubscribed in Resend are still listed here; they are left out when it is sent."
+msgstr "Cuentas con el correo confirmado que cumplen los filtros, una por dirección. Quienes se dieron de baja en Resend aparecen aquí de todos modos; al enviar se dejan fuera."
+
+#: cpc 2026-10-21
+msgid "Nobody."
+msgstr "Nadie."
+
+#: cpc 2026-10-21
+msgid "Had unsubscribed"
+msgstr "Se habían dado de baja"
+
+#: cpc 2026-10-21
+msgid "Send"
+msgstr "Enviar"
+
+#: cpc 2026-10-21
+#, python-format
+msgid "Send: %(subject)s"
+msgstr "Enviar: %(subject)s"
+
+#: cpc 2026-10-21
+msgid "This email is no longer a draft."
+msgstr "Este correo ya no es un borrador."
+
+#: cpc 2026-10-21
+msgid "Choose the date and time to send it."
+msgstr "Elige la fecha y la hora del envío."
+
+#: cpc 2026-10-21
+msgid "It can be scheduled from 5 minutes to 30 days from now."
+msgstr "Se puede programar desde 5 minutos hasta 30 días a partir de ahora."
+
+#: cpc 2026-10-21
+#, python-format
+msgid "Type the number of people who will receive it: %(count)d."
+msgstr "Escribe el número de personas que lo recibirán: %(count)d."
+
+#: cpc 2026-10-21
+msgid "Nobody would receive it."
+msgstr "Nadie lo recibiría."
+
+#: cpc 2026-10-21
+msgid "Could not read the list of unsubscribed people from Resend, so it is not sent now:"
+msgstr "No se pudo leer de Resend la lista de bajas, así que no se envía por ahora:"
+
+#: cpc 2026-10-21
+msgid "Replies go to"
+msgstr "Las respuestas llegan a"
+
+#: cpc 2026-10-21
+msgid "Subject"
+msgstr "Asunto"
+
+#: cpc 2026-10-21
+msgid "Will receive it"
+msgstr "Lo recibirán"
+
+#: cpc 2026-10-21
+msgid "Change the filters"
+msgstr "Cambiar los filtros"
+
+#: cpc 2026-10-21
+msgid "Send now"
+msgstr "Enviar ahora"
+
+#: cpc 2026-10-21
+msgid "Schedule for"
+msgstr "Programar para"
+
+#: cpc 2026-10-21
+msgid "The list of people is the one above, fixed now; people who sign up before the scheduled time are not added."
+msgstr "La lista de personas es la de arriba, fijada ahora; quienes se registren antes de la hora programada no se añaden."
+
+#: cpc 2026-10-21
+msgid "To confirm, type the number of people who will receive it:"
+msgstr "Para confirmar, escribe el número de personas que lo recibirán:"
+
+#: cpc 2026-10-21
+msgid "Once sent it cannot be undone: the emails reach their inboxes in a few minutes."
+msgstr "Una vez enviado no se puede deshacer: los correos llegan a las bandejas en pocos minutos."
+
+#: cpc 2026-10-21
+msgid "Back"
+msgstr "Volver"
+
+#: cpc 2026-10-21
+msgid "Somebody else is already sending this email."
+msgstr "Alguien más ya está enviando este correo."
+
+#: cpc 2026-10-21
+msgid "The email could not be queued. Try again in a moment."
+msgstr "No se pudo poner el correo en cola. Vuelve a intentarlo en un momento."
+
+#: cpc 2026-10-21
+msgid "Handing the email to Resend..."
+msgstr "Entregando el correo a Resend..."
+
+#: cpc 2026-10-21
+msgid "Handing the email to Resend"
+msgstr "Entregando el correo a Resend"
+
+#: cpc 2026-10-21
+msgid "Nobody could be added to the list in Resend, so nothing was sent."
+msgstr "No se pudo añadir a nadie a la lista en Resend, así que no se envió nada."
+
+#: cpc 2026-10-21
+msgid "Only an email that failed, or that has been sending for more than 15 minutes, can be retried."
+msgstr "Sólo se puede reintentar un correo que falló o que lleva más de 15 minutos enviándose."
+
+#: cpc 2026-10-21
+msgid "It has been like this for more than 15 minutes, so the delivery was interrupted. Retry continues where it stopped, without sending anything twice."
+msgstr "Lleva así más de 15 minutos, así que la entrega se interrumpió. Reintentar sigue donde se quedó, sin enviar nada dos veces."
+
+#: cpc 2026-10-21
+#, python-format
+msgid "Resend did not create the list of this email (%(error)s). Its free plan holds three lists, called segments: delete the ones left over in Resend and retry."
+msgstr "Resend no creó la lista de este correo (%(error)s). Su plan gratis admite tres listas, llamadas segmentos: borra las que sobren en Resend y reintenta."
+
+#: cpc 2026-10-21
+msgid "Retried after a failure."
+msgstr "Reintentado tras un error."
+
+#: cpc 2026-10-21
+#, python-format
+msgid "Copied from email %(id)d."
+msgstr "Copiado del correo %(id)d."
+
+#: cpc 2026-10-21
+msgid "This is a new draft copied from the previous email. Nothing has been sent yet."
+msgstr "Este es un borrador nuevo copiado del correo anterior. Todavía no se ha enviado nada."
+
+#: cpc 2026-10-21
+msgid "Only a scheduled email can be cancelled."
+msgstr "Sólo se puede cancelar un correo programado."
+
+#: cpc 2026-10-21
+#, python-format
+msgid "Resend did not cancel it: %(error)s"
+msgstr "Resend no lo canceló: %(error)s"
+
+#: cpc 2026-10-21
+msgid "Cancelled: nobody will receive it. Duplicate it to change and send it again."
+msgstr "Cancelado: nadie lo recibirá. Duplícalo para cambiarlo y enviarlo de nuevo."
+
+#: cpc 2026-10-21
+#, python-format
+msgid "Could not read it from Resend: %(error)s"
+msgstr "No se pudo leer de Resend: %(error)s"
+
+#: cpc 2026-10-21
+msgid "Unsubscribed people"
+msgstr "Bajas"
+
+#: cpc 2026-10-21
+msgid "People who used the unsubscribe link of an email to users. They still receive the emails of their account, such as password resets. Subscribe someone again only if they asked for it."
+msgstr "Personas que usaron el enlace de baja de un correo a usuarios. Siguen recibiendo los correos de su cuenta, como el de restablecer la contraseña. Vuelve a suscribir a alguien sólo si lo pidió."
+
+#: cpc 2026-10-21
+msgid "Subscribe again"
+msgstr "Volver a suscribir"
+
+#: cpc 2026-10-21
+msgid "Nobody has unsubscribed."
+msgstr "Nadie se ha dado de baja."
+
+#: cpc 2026-10-21
+msgid "Subscribe this person again? Do it only if they asked for it."
+msgstr "¿Volver a suscribir a esta persona? Hazlo sólo si lo pidió."
+
+#: cpc 2026-10-21
+#, python-format
+msgid "Resend did not change it: %(error)s"
+msgstr "Resend no lo cambió: %(error)s"
+
+#: cpc 2026-10-21
+#, python-format
+msgid "Subscribed again: %(email)s will receive the next emails."
+msgstr "Suscrito de nuevo: %(email)s recibirá los próximos correos."
+
+#: cpc 2026-10-21
+#, python-format
+msgid "You receive this email because you have an account on %(site_name)s."
+msgstr "Recibes este correo porque tienes una cuenta en %(site_name)s."
+
+#: cpc 2026-10-21
+msgid "Unsubscribe from these emails"
+msgstr "Darme de baja de estos correos"
+
+#: cpc 2026-10-21
+#, python-format
+msgid "To stop receiving these emails: %(url)s"
+msgstr "Para dejar de recibir estos correos: %(url)s"
+
+#: cpc 2026-10-21
+#, python-format
+msgid "%(count)d more person matches, but unsubscribed earlier and is left out."
+msgid_plural "%(count)d more people match, but unsubscribed earlier and are left out."
+msgstr[0] "%(count)d persona más cumple los filtros, pero se dio de baja antes y queda fuera."
+msgstr[1] "%(count)d personas más cumplen los filtros, pero se dieron de baja antes y quedan fuera."
+
+#: cpc 2026-10-21
+#, python-format
+msgid "%(count)d person had unsubscribed and was left out."
+msgid_plural "%(count)d people had unsubscribed and were left out."
+msgstr[0] "%(count)d persona se había dado de baja y quedó fuera."
+msgstr[1] "%(count)d personas se habían dado de baja y quedaron fuera."
+
+#: cpc 2026-10-21
+#, python-format
+msgid "Sent to %(count)d person."
+msgid_plural "Sent to %(count)d people."
+msgstr[0] "Enviado a %(count)d persona."
+msgstr[1] "Enviado a %(count)d personas."

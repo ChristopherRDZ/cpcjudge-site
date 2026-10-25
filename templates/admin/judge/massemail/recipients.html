@@ -1,0 +1,32 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls %}
+{% comment %}
+    Quién recibiría un correo con los filtros del formulario, guardado o no (se abre en otra pestaña).
+    Las direcciones sólo las ve un superusuario.
+{% endcomment %}
+
+{% block breadcrumbs %}
+    <div class="breadcrumbs">
+        <a href="{% url 'admin:index' %}">{% translate "Home" %}</a>
+        &rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+        &rsaquo; {{ title }}
+    </div>
+{% endblock %}
+
+{% block content_title %}{% endblock %}
+
+{% block content %}
+    <h1>{{ title }}: {{ rows|length }}</h1>
+    {% if errors %}<div class="errornote">{{ errors }}</div>{% endif %}
+    <p class="help">{% translate "Accounts with a confirmed email that meet the filters, one per address. People who unsubscribed in Resend are still listed here; they are left out when it is sent." %}</p>
+    <table>
+        <thead><tr><th>#</th><th>{% translate "User" %}</th>{% if show_email %}<th>{% translate "Email" %}</th>{% endif %}</tr></thead>
+        <tbody>
+        {% for profile_id, username, email in rows %}
+            <tr><td>{{ forloop.counter }}</td><td><a href="{% url 'user_page' username %}" target="_blank" rel="noopener">{{ username }}</a></td>{% if show_email %}<td>{{ email }}</td>{% endif %}</tr>
+        {% empty %}
+            <tr><td colspan="3">{% translate "Nobody." %}</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}

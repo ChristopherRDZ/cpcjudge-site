@@ -1,0 +1,26 @@
+{#- Aviso escrito en la administración para muchos usuarios (judge/mass_email.py). El cuerpo llega ya limpio y
+    con estilos en línea; aquí sólo se pone dentro del marco común y con el pie que lleva el enlace de baja.
+    Con Resend, unsubscribe_url es su variable y la reemplaza para cada contacto. -#}
+{% extends "registration/email_base.html" %}
+{% block preheader %}{{ preheader }}{% endblock %}
+{% block title %}
+{% if heading %}
+<h1 class="title" style="margin:0 0 16px;font-family:'Segoe UI','Lucida Grande',Arial,sans-serif;font-size:22px;line-height:1.3;font-weight:bold;color:#222222;">{{ heading }}</h1>
+{% endif %}
+{% endblock %}
+{% block content %}
+{{ body }}
+{% endblock %}
+{% block footer %}
+{{ _('You receive this email because you have an account on %(site_name)s.', site_name=site_name) }}
+<br>
+<a href="{{ unsubscribe_url }}" style="color:#555555;">{{ _('Unsubscribe from these emails') }}</a>
+{%- if site_admin_email %}
+<br>
+{%- with link='<a href="mailto:%(email)s" style="color:#555555;">%(email)s</a>'|safe|format(email=site_admin_email) %}
+{{ _('Questions? Write to us at %(email)s.', email=link) }}
+{%- endwith %}
+{%- endif %}
+<br>
+<a href="{{ protocol }}://{{ domain }}" style="color:#555555;">{{ domain }}</a>
+{% endblock %}

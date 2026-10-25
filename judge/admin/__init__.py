@@ -10,6 +10,7 @@ from judge.admin.clarification import ContestClarificationAdmin
 from judge.admin.comments import CommentAdmin
 from judge.admin.contest import ContestAdmin, ContestParticipationAdmin, ContestTagAdmin
 from judge.admin.interface import BlogPostAdmin, FlatPageAdmin, LicenseAdmin, LogEntryAdmin, NavigationBarAdmin
+from judge.admin.mass_email import MassEmailAdmin
 from judge.admin.organization import ClassAdmin, OrganizationAdmin, OrganizationRequestAdmin
 from judge.admin.problem import ProblemAdmin, ProblemPointsVoteAdmin
 from judge.admin.profile import ProfileAdmin, UserAdmin
@@ -21,8 +22,8 @@ from judge.admin.ticket import TicketAdmin
 from judge.admin_owner import install as install_delete_guard
 from judge.models import Announcement, ArenaGame, ArenaMatch, ArenaPanel, ArenaProblemBank, ArenaScreen, \
     ArenaTournament, BlogPost, Class, Comment, CommentLock, Contest, ContestClarification, ContestParticipation, \
-    ContestTag, Judge, Language, License, MiscConfig, NavigationBar, Organization, OrganizationRequest, Problem, \
-    ProblemGroup, ProblemPointsVote, ProblemType, Profile, Submission, Team, TeamInvitation, Ticket
+    ContestTag, Judge, Language, License, MassEmail, MiscConfig, NavigationBar, Organization, OrganizationRequest, \
+    Problem, ProblemGroup, ProblemPointsVote, ProblemType, Profile, Submission, Team, TeamInvitation, Ticket
 
 admin.site.register(Announcement, AnnouncementAdmin)
 admin.site.register(ArenaGame, ArenaGameAdmin)
@@ -44,6 +45,7 @@ admin.site.register(Judge, JudgeAdmin)
 admin.site.register(Language, LanguageAdmin)
 admin.site.register(License, LicenseAdmin)
 admin.site.register(LogEntry, LogEntryAdmin)
+admin.site.register(MassEmail, MassEmailAdmin)
 admin.site.register(MiscConfig)
 admin.site.register(NavigationBar, NavigationBarAdmin)
 admin.site.register(Class, ClassAdmin)

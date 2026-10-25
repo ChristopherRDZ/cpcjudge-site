@@ -130,6 +130,18 @@ DMOJ_EMAIL_CHANGE_DAILY_LIMIT = 1
 # Error report emails to ADMINS per UTC day, on top of DMOJ_EMAIL_THROTTLING
 DMOJ_EMAIL_ERROR_DAILY_LIMIT = 10
 
+# Emails to many users, written in the admin (Emails to users), go through Resend Broadcasts and not through
+# the SMTP above: transactional providers forbid them, and they would use up DMOJ_EMAIL_DAILY_LIMIT. Needs a
+# Resend API key with full access; without it the section is there but cannot send. See judge/mass_email.py.
+DMOJ_RESEND_API_KEY = None
+# Resend allows 10 requests per second per account, shared with any other application using it.
+DMOJ_RESEND_REQUESTS_PER_SECOND = 4
+# Sender and reply-to address; None means DEFAULT_FROM_EMAIL and SITE_ADMIN_EMAIL.
+DMOJ_MASS_EMAIL_FROM = None
+DMOJ_MASS_EMAIL_REPLY_TO = None
+# Base of the links and images in those emails; None means https:// and the domain of the current Site.
+DMOJ_MASS_EMAIL_SITE_URL = None
+
 # At the bare minimum, dark and light theme CSS file locations must be declared
 DMOJ_THEME_CSS = {
     'light': 'style.css',
@@ -265,6 +277,15 @@ else:
                     ],
                 },
                 ('judge.BlogPost', 'fa-rss-square'),
+                {
+                    'model': 'judge.MassEmail',
+                    'icon': 'fa-envelope',
+                    'children': [
+                        'judge.MassEmail',
+                        # People who used the unsubscribe link, read from Resend.
+                        {'title': _('Unsubscribed people'), 'url': '/admin/judge/massemail/unsubscribed/'},
+                    ],
+                },
                 {
                     'model': 'judge.Comment',
                     'icon': 'fa-comment-o',
@@ -540,6 +561,19 @@ MARKDOWN_STYLES = {
     'contest_tag': MARKDOWN_STAFF_EDITABLE_STYLE,
     'organization-about': MARKDOWN_USER_LARGE_STYLE,
     'ticket': MARKDOWN_USER_LARGE_STYLE,
+    # Emails to users (judge/mass_email.py): HTML allowed and then cleaned, without what email programs cannot
+    # show (style sheets, audio, video) and without math, which needs MathJax.
+    'email': {
+        'safe_mode': False,
+        'nofollow': False,
+        'bleach': {
+            'tags': [tag for tag in BLEACH_USER_SAFE_TAGS if tag not in ('style', 'noscript', 'audio', 'video',
+                                                                          'source')],
+            'attributes': BLEACH_USER_SAFE_ATTRS,
+            'styles': True,
+            'strip': True,
+        },
+    },
 }
 
 MARTOR_ENABLE_CONFIGS = {

@@ -1,0 +1,85 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls %}
+{% comment %}
+    Confirmación del envío de un correo a usuarios: a quién va ahora mismo, desde qué dirección, ahora o a una
+    hora, y el número de personas escrito a mano. Ver judge/admin/mass_email.py, send_view.
+{% endcomment %}
+
+{% block extrastyle %}{{ block.super }}
+    <style>
+        .mass-email-summary { margin: 0 0 16px; border-collapse: collapse; }
+        .mass-email-summary th { padding: 6px 16px 6px 0; text-align: left; font-weight: bold; vertical-align: top;
+            border: 0; }
+        .mass-email-summary td { padding: 6px 0; border: 0; }
+        .mass-email-number { font-size: 22px; font-weight: bold; color: #1958c1; }
+        .mass-email-sample { color: #666; max-width: 900px; }
+        .mass-email-box { margin: 16px 0; padding: 12px 16px; background: #f8f8f8; border: 1px solid #ccc;
+            border-radius: 3px; max-width: 900px; line-height: 1.8; }
+        .mass-email-box label { font-weight: normal; }
+        .mass-email-confirm input[type="text"] { width: 8em; font-size: 16px; }
+        .mass-email-send { background: #00a92a !important; }
+    </style>
+{% endblock %}
+
+{% block breadcrumbs %}
+    <div class="breadcrumbs">
+        <a href="{% url 'admin:index' %}">{% translate "Home" %}</a>
+        &rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+        &rsaquo; <a href="{% url opts|admin_urlname:'change' mail.pk %}">{{ mail.subject }}</a>
+        &rsaquo; {% translate "Send" %}
+    </div>
+{% endblock %}
+
+{% block content_title %}{% endblock %}
+
+{% block content %}
+    <h1>{{ title }}</h1>
+
+    {% if not configured %}
+        <p class="errornote">{% translate "The Resend key is not configured yet, so nothing can be sent." %}</p>
+    {% endif %}
+    {% if error %}
+        <p class="errornote">{% translate "Could not read the list of unsubscribed people from Resend, so it is not sent now:" %} {{ error }}</p>
+    {% endif %}
+    {% for message in form_errors %}<p class="errornote">{{ message }}</p>{% endfor %}
+
+    <table class="mass-email-summary">
+        <tr><th>{% translate "From" %}</th><td>{{ sender }}</td></tr>
+        {% if reply_to %}<tr><th>{% translate "Replies go to" %}</th><td>{{ reply_to }}</td></tr>{% endif %}
+        <tr><th>{% translate "Subject" %}</th><td>{{ mail.subject }}</td></tr>
+        <tr><th>{% translate "Will receive it" %}</th><td>
+            <span class="mass-email-number">{{ receive }}</span>
+            {% if not filtered %}{% translate "(all accounts with a confirmed email)" %}{% endif %}
+            {% if unsubscribed %}<br>{{ unsubscribed_line }}{% endif %}
+            {% if sample %}<div class="mass-email-sample">{{ sample|join:", " }}{% if receive > sample|length %}, ...{% endif %}</div>{% endif %}
+            <a href="{% url 'admin:judge_massemail_change' mail.pk %}">{% translate "Change the filters" %}</a>
+            &middot; <a href="{% url 'admin:judge_massemail_email' mail.pk %}" target="_blank" rel="noopener">{% translate "See the email" %}</a>
+        </td></tr>
+    </table>
+
+    {% if configured and not error %}
+        <form method="post" class="mass-email-confirm">
+            {% csrf_token %}
+            <div class="mass-email-box">
+                <label><input type="radio" name="when" value="now" {% if when != 'later' %}checked{% endif %}>
+                    {% translate "Send now" %}</label><br>
+                <label><input type="radio" name="when" value="later" {% if when == 'later' %}checked{% endif %}>
+                    {% translate "Schedule for" %}</label>
+                <input type="datetime-local" name="scheduled_at" value="{{ scheduled_text }}" min="{{ minimum }}">
+                <span class="help">{{ timezone_name }}</span>
+                <p class="help">{% translate "The list of people is the one above, fixed now; people who sign up before the scheduled time are not added." %}</p>
+            </div>
+            <div class="mass-email-box">
+                <label for="id_confirm">{% translate "To confirm, type the number of people who will receive it:" %}</label>
+                <input type="text" name="confirm" id="id_confirm" value="{{ typed }}" autocomplete="off" inputmode="numeric">
+                <p class="help">{% translate "Once sent it cannot be undone: the emails reach their inboxes in a few minutes." %}</p>
+            </div>
+            <div class="submit-row">
+                <input type="submit" class="default mass-email-send" value="{% translate "Send" %}">
+                <a href="{% url 'admin:judge_massemail_change' mail.pk %}" class="button cancel-link">{% translate "Back" %}</a>
+            </div>
+        </form>
+    {% else %}
+        <p><a href="{% url 'admin:judge_massemail_change' mail.pk %}" class="button">{% translate "Back" %}</a></p>
+    {% endif %}
+{% endblock %}

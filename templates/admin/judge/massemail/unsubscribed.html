@@ -1,0 +1,55 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls %}
+{% comment %}
+    Quién usó el enlace de baja de los correos a usuarios, leído de Resend, y cómo volver a suscribir a quien lo
+    pida. Ver judge/admin/mass_email.py, unsubscribed_view.
+{% endcomment %}
+
+{% block breadcrumbs %}
+    <div class="breadcrumbs">
+        <a href="{% url 'admin:index' %}">{% translate "Home" %}</a>
+        &rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+        &rsaquo; {{ title }}
+    </div>
+{% endblock %}
+
+{% block content_title %}{% endblock %}
+
+{% block content %}
+    <h1>{{ title }}{% if rows is not None %}: {{ rows|length }}{% endif %}</h1>
+    {% if not configured %}
+        <p class="errornote">{% translate "The Resend key is not configured yet, so nothing can be sent." %}</p>
+    {% elif error %}
+        <p class="errornote">{{ error }}</p>
+    {% else %}
+        <p class="help">{% translate "People who used the unsubscribe link of an email to users. They still receive the emails of their account, such as password resets. Subscribe someone again only if they asked for it." %}</p>
+        <table>
+            <thead><tr><th>{% translate "Email" %}</th><th>{% translate "User" %}</th><th></th></tr></thead>
+            <tbody>
+            {% for row in rows %}
+                <tr>
+                    <td>{{ row.email }}</td>
+                    <td>{{ row.usernames|join:", "|default:"-" }}</td>
+                    <td>
+                        <form method="post" class="mass-email-resubscribe">
+                            {% csrf_token %}
+                            <input type="hidden" name="contact" value="{{ row.id }}">
+                            <input type="hidden" name="email" value="{{ row.email }}">
+                            <input type="submit" value="{% translate "Subscribe again" %}">
+                        </form>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="3">{% translate "Nobody has unsubscribed." %}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <script>
+            document.querySelectorAll('form.mass-email-resubscribe').forEach(function (form) {
+                form.addEventListener('submit', function (event) {
+                    if (!window.confirm('{{ confirm_question|escapejs }}')) event.preventDefault();
+                });
+            });
+        </script>
+    {% endif %}
+{% endblock %}

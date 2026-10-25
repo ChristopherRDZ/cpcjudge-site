@@ -1,0 +1,35 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls %}
+{% comment %}
+    A quién se entregó un correo ya enviado, como quedó en ese momento (MassEmailRecipient).
+{% endcomment %}
+
+{% block breadcrumbs %}
+    <div class="breadcrumbs">
+        <a href="{% url 'admin:index' %}">{% translate "Home" %}</a>
+        &rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+        &rsaquo; <a href="{% url opts|admin_urlname:'change' mail.pk %}">{{ mail.subject }}</a>
+        &rsaquo; {{ title }}
+    </div>
+{% endblock %}
+
+{% block content_title %}{% endblock %}
+
+{% block content %}
+    <h1>{{ title }}: {{ recipients|length }}</h1>
+    <p>
+        {% translate "Handed to Resend" %}: <strong>{{ counts.added }}</strong>
+        &middot; {% translate "Had unsubscribed" %}: <strong>{{ counts.unsubscribed }}</strong>
+        &middot; {% translate "Failed" %}: <strong>{{ counts.failed }}</strong>
+        {% if counts.pending %}&middot; {% translate "Pending" %}: <strong>{{ counts.pending }}</strong>{% endif %}
+    </p>
+    <table>
+        <thead><tr><th>#</th><th>{% translate "User" %}</th>{% if show_email %}<th>{% translate "Email" %}</th>{% endif %}<th>{% translate "State" %}</th></tr></thead>
+        <tbody>
+        {% for recipient in recipients %}
+            <tr><td>{{ forloop.counter }}</td><td>{{ recipient.username }}</td>{% if show_email %}<td>{{ recipient.email }}</td>{% endif %}
+                <td>{{ recipient.get_state_display }}{% if recipient.error %}: {{ recipient.error }}{% endif %}</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}

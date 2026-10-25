@@ -1,0 +1,222 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls %}
+{% comment %}
+    Correos a usuarios (judge/admin/mass_email.py). Arriba, el estado de un correo ya guardado y lo que se puede
+    hacer con él; abajo, el contador de destinatarios, la ayuda de formato y los botones de un borrador. Los
+    botones que van a otras páginas usan formaction sobre el mismo formulario: no hay formularios anidados.
+{% endcomment %}
+
+{% block extrahead %}{{ block.super }}
+    <style>
+        .mass-email-panel { margin: 0 0 40px; padding: 12px 16px; background: #f8f8f8; border: 1px solid #ccc;
+            border-radius: 3px; line-height: 1.6; }
+        .mass-email-panel p { margin: 0 0 6px; padding: 0; }
+        .mass-email-panel .mass-email-buttons { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; }
+        .mass-email-panel .mass-email-buttons form { display: inline; margin: 0; }
+        .mass-email-status { display: inline-block; padding: 1px 8px; border-radius: 3px; color: #fff;
+            font-weight: bold; }
+        .mass-email-status.draft, .mass-email-status.cancelled { background: #777; }
+        .mass-email-status.sending { background: #1958c1; }
+        .mass-email-status.scheduled { background: #b07800; }
+        .mass-email-status.sent { background: #00a92a; }
+        .mass-email-status.failed { background: #d52020; }
+        .mass-email-error { margin: 8px 0; padding: 8px 12px; background: #fff; border: 1px solid #ccc;
+            border-left: 4px solid #d52020; border-radius: 3px; white-space: pre-wrap; }
+        .mass-email-stats { border-collapse: collapse; margin: 8px 0; }
+        .mass-email-stats td { padding: 3px 14px 3px 0; border: 0; }
+        .mass-email-warning { margin: 0 0 16px; padding: 10px 14px; background: #fff; border: 1px solid #ccc;
+            border-left: 4px solid #b07800; border-radius: 3px; }
+        #mass-email-count { margin: 16px 0; padding: 12px 16px; background: #fff; border: 1px solid #ccc;
+            border-left: 4px solid #1958c1; border-radius: 3px; font-size: 14px; line-height: 1.6; }
+        #mass-email-count .mass-email-number { font-size: 20px; font-weight: bold; color: #1958c1; }
+        #mass-email-count .mass-email-sample { color: #666; }
+        #mass-email-count.mass-email-busy .mass-email-number { color: #999; }
+        #mass-email-count button { margin-left: 8px; }
+        #mass-email-format { margin: 8px 0 16px; padding: 8px 14px; background: #f8f8f8; border: 1px solid #ccc;
+            border-radius: 3px; }
+        #mass-email-format summary { cursor: pointer; font-weight: bold; }
+        #mass-email-format table { margin: 8px 0; border-collapse: collapse; }
+        #mass-email-format td { padding: 4px 14px 4px 0; border: 0; border-bottom: 1px solid #e4e4e4;
+            vertical-align: top; }
+        #mass-email-format code { font-family: Consolas, 'Courier New', monospace; background: #fff;
+            padding: 1px 4px; border: 1px solid #e4e4e4; border-radius: 3px; white-space: pre-wrap; }
+        #mass-email-count [hidden] { display: none !important; }
+    </style>
+{% endblock %}
+
+{% block content %}
+    {% if not resend_configured %}
+        <div class="mass-email-warning">
+            {% translate "The Resend key is not configured yet: you can write drafts and see who would receive them, but nothing can be sent. The server owner adds DMOJ_RESEND_API_KEY to the private settings." %}
+        </div>
+    {% endif %}
+    {% if mass_email and not mass_email.is_editable %}
+        <div class="mass-email-panel">
+            <p>
+                <span class="mass-email-status {{ mass_email.status }}">{{ mass_email.get_status_display }}</span>
+                {% if status_line %}&nbsp;{{ status_line }}{% endif %}
+            </p>
+            {% if mass_email.status == 'sending' %}
+                <p>{% translate "It is being handed to Resend. Reload this page in a moment." %}
+                    {% if mass_email.task_id %}<a href="{% url 'task_status' mass_email.task_id %}">{% translate "See progress" %}</a>{% endif %}</p>
+                {% if can_retry %}<p>{% translate "It has been like this for more than 15 minutes, so the delivery was interrupted. Retry continues where it stopped, without sending anything twice." %}</p>{% endif %}
+            {% endif %}
+            {% if mass_email.error %}<div class="mass-email-error">{{ mass_email.error }}</div>{% endif %}
+            {% if resend_status_label %}<p>{% translate "In Resend:" %} <strong>{{ resend_status_label }}</strong></p>{% endif %}
+            {% if stats %}
+                <table class="mass-email-stats">
+                    {% for label, value in stats_rows %}<tr><td>{{ label }}</td><td><strong>{{ value }}</strong></td></tr>{% endfor %}
+                </table>
+            {% endif %}
+            {% if stats_note %}<p>{{ stats_note }}</p>{% endif %}
+            <div class="mass-email-buttons">
+                <a class="button" href="{% url 'admin:judge_massemail_email' mass_email.pk %}" target="_blank" rel="noopener">{% translate "See the email" %}</a>
+                {% if mass_email.recipient_count is not None or mass_email.status == 'failed' %}
+                    <a class="button" href="{% url 'admin:judge_massemail_sent_to' mass_email.pk %}">{% translate "Who it was sent to" %}</a>
+                {% endif %}
+                {% if can_retry %}
+                    <form method="post" action="{% url 'admin:judge_massemail_retry' mass_email.pk %}">{% csrf_token %}
+                        <input type="submit" class="default" value="{% translate "Retry" %}">
+                    </form>
+                {% endif %}
+                {% if mass_email.status == 'scheduled' %}
+                    <form method="post" action="{% url 'admin:judge_massemail_cancel' mass_email.pk %}" class="mass-email-confirm"
+                          data-question="{% translate "Cancel this email? Nobody will receive it." %}">{% csrf_token %}
+                        <input type="submit" value="{% translate "Cancel the scheduled email" %}">
+                    </form>
+                {% endif %}
+                {% if mass_email.resend_broadcast_id and mass_email.status != 'cancelled' %}
+                    <form method="post" action="{% url 'admin:judge_massemail_stats' mass_email.pk %}">{% csrf_token %}
+                        <input type="submit" value="{% translate "Update figures" %}">
+                    </form>
+                    <a class="button" href="https://resend.com/broadcasts/{{ mass_email.resend_broadcast_id }}" target="_blank" rel="noopener">{% translate "Open in Resend" %}</a>
+                {% endif %}
+                <form method="post" action="{% url 'admin:judge_massemail_duplicate' mass_email.pk %}">{% csrf_token %}
+                    <input type="submit" value="{% translate "Duplicate as a new draft" %}">
+                </form>
+            </div>
+        </div>
+    {% endif %}
+    {{ block.super }}
+{% endblock %}
+
+{% block after_field_sets %}{{ block.super }}
+    {% if not mass_email or mass_email.is_editable %}
+        <div id="mass-email-count" data-url="{% url 'admin:judge_massemail_count' %}"
+             data-fields="{{ recipient_fields|join:',' }}">
+            <span class="mass-email-label">{% translate "Will receive it:" %}</span>
+            <span class="mass-email-number">&hellip;</span>
+            <span class="mass-email-people" data-one="{% translate "person" %}" data-many="{% translate "people" %}"></span>
+            <span class="mass-email-scope" data-all="{% translate "(all accounts with a confirmed email)" %}"></span>
+            <button type="submit" formaction="{% url 'admin:judge_massemail_recipients' %}" formtarget="_blank"
+                    formnovalidate name="_recipients">{% translate "See the list" %}</button>
+            <div class="mass-email-sample"></div>
+            <div class="mass-email-errors errornote" hidden></div>
+        </div>
+        <details id="mass-email-format">
+            <summary>{% translate "How to give it format" %}</summary>
+            <table>
+                <tr><td>{% translate "Bold" %}</td><td><code>**{% translate "text" %}**</code></td></tr>
+                <tr><td>{% translate "Subtitle" %}</td><td><code>## {% translate "Subtitle" %}</code></td></tr>
+                <tr><td>{% translate "Link" %}</td><td><code>[{% translate "text" %}](https://cpcjudge.com/contests/)</code></td></tr>
+                <tr><td>{% translate "List" %}</td><td><code>- {% translate "first" %}<br>- {% translate "second" %}</code></td></tr>
+                <tr><td>{% translate "Image" %}</td><td>{% translate "The image button of the editor uploads it to the site and writes this:" %} <code>![{% translate "description" %}](/media/martor/...)</code></td></tr>
+                <tr><td>{% translate "Button" %}</td><td><code>&lt;a class="button" href="https://cpcjudge.com/contests/"&gt;{% translate "Sign up" %}&lt;/a&gt;</code></td></tr>
+                <tr><td>{% translate "Grey box" %}</td><td><code>&lt;div class="note"&gt;{% translate "text" %}&lt;/div&gt;</code></td></tr>
+                <tr><td>{% translate "Warning box" %}</td><td><code>&lt;div class="alert"&gt;{% translate "text" %}&lt;/div&gt;</code></td></tr>
+                <tr><td>{% translate "Centered" %}</td><td><code>&lt;div class="center"&gt;...&lt;/div&gt;</code></td></tr>
+                <tr><td>{% translate "Color" %}</td><td><code>&lt;span style="color:#d52020"&gt;{% translate "text" %}&lt;/span&gt;</code></td></tr>
+                <tr><td>{% translate "Name of each person" %}</td><td><code>{% templatetag openvariable %}usuario{% templatetag closevariable %}</code> &mdash; {% translate "replaced by the username of whoever receives it." %}</td></tr>
+            </table>
+            <p>{% translate "Math formulas with ~ do not work in email. Use Preview to see it as it will arrive, on a computer and on a phone." %}</p>
+        </details>
+    {% endif %}
+{% endblock %}
+
+{% block submit_buttons_bottom %}
+    {% if not mass_email or mass_email.is_editable %}
+        {# La barra de abajo de wpadmin (admin/submit_line.html), con los botones de un borrador. #}
+        <div id="bottombar">
+            <button type="submit" name="_continue" title="{% translate "Save draft" %}"><i class="fa fa-lg fa-floppy-o"></i> <span class="text">{% translate "Save draft" %}</span></button>
+            <button type="submit" name="_preview" formaction="{% url 'admin:judge_massemail_preview' %}" formtarget="_blank" formnovalidate title="{% translate "Preview" %}"><i class="fa fa-lg fa-eye"></i> <span class="text">{% translate "Preview" %}</span></button>
+            <button type="submit" name="_send_test" title="{% translate "Save and send me a test" %}" {% if not resend_configured %}disabled{% endif %}><i class="fa fa-lg fa-floppy-o"></i><i class="fa fa-caret-right"></i><i class="fa fa-lg fa-flask"></i> <span class="text">{% translate "Save and send me a test" %}</span></button>
+            <button type="submit" name="_to_send" title="{% translate "Save and go to send" %}"><i class="fa fa-lg fa-floppy-o"></i><i class="fa fa-caret-right"></i><i class="fa fa-lg fa-paper-plane"></i> <span class="text">{% translate "Save and go to send" %}</span></button>
+            {% if mass_email and has_delete_permission %}
+                <a title="{% translate "Delete" %}" href="{% url opts|admin_urlname:'delete' original.pk|admin_urlquote %}" class="button deletelink"><i class="fa fa-lg fa-question"></i><i class="fa fa-caret-right"></i><i class="fa fa-trash-o fa-lg"></i> <span class="text">{% translate "Delete" %}</span></a>
+            {% endif %}
+        </div>
+    {% else %}
+        {{ block.super }}
+    {% endif %}
+{% endblock %}
+
+{% block after_related_objects %}{{ block.super }}
+    <script>
+        (function () {
+            document.querySelectorAll('form.mass-email-confirm').forEach(function (form) {
+                form.addEventListener('submit', function (event) {
+                    if (!window.confirm(form.dataset.question)) event.preventDefault();
+                });
+            });
+
+            var help = document.getElementById('mass-email-format');
+            var content = document.querySelector('.form-row.field-content');
+            if (help && content) content.parentNode.insertBefore(help, content.nextSibling);
+
+            var box = document.getElementById('mass-email-count');
+            var form = box && box.closest('form');
+            if (!form) return;
+            var fields = box.dataset.fields.split(',');
+            var number = box.querySelector('.mass-email-number');
+            var people = box.querySelector('.mass-email-people');
+            var scope = box.querySelector('.mass-email-scope');
+            var sample = box.querySelector('.mass-email-sample');
+            var errors = box.querySelector('.mass-email-errors');
+            var last = null, busy = false;
+
+            // The select2 boxes change their <select> without native events, so the form is read once a second
+            // and the count is asked again only when the filters changed.
+            function filters() {
+                var data = new FormData(form), body = new FormData(), key = [];
+                body.append('csrfmiddlewaretoken', data.get('csrfmiddlewaretoken'));
+                fields.forEach(function (name) {
+                    data.getAll(name).forEach(function (value) {
+                        body.append(name, value);
+                        key.push(name + '=' + value);
+                    });
+                });
+                return {body: body, key: key.join('&')};
+            }
+
+            function refresh() {
+                if (busy) return;
+                var current = filters();
+                if (current.key === last) return;
+                last = current.key;
+                busy = true;
+                box.classList.add('mass-email-busy');
+                fetch(box.dataset.url, {method: 'POST', body: current.body, credentials: 'same-origin'})
+                    .then(function (response) { return response.json(); })
+                    .then(function (data) {
+                        if (data.errors) {
+                            errors.textContent = data.errors.join(' ');
+                            errors.hidden = false;
+                            number.textContent = '?';
+                            return;
+                        }
+                        errors.hidden = true;
+                        number.textContent = data.count;
+                        people.textContent = data.count === 1 ? people.dataset.one : people.dataset.many;
+                        scope.textContent = data.filtered ? '' : scope.dataset.all;
+                        sample.textContent = data.sample.length ?
+                            data.sample.join(', ') + (data.count > data.sample.length ? ', ...' : '') : '';
+                    })
+                    .catch(function () { last = null; number.textContent = '?'; })
+                    .then(function () { busy = false; box.classList.remove('mass-email-busy'); });
+            }
+
+            refresh();
+            setInterval(refresh, 1000);
+        })();
+    </script>
+{% endblock %}
