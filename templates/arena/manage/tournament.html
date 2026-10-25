@@ -76,13 +76,14 @@ $(function () {
         stepOk: {{ _('Done')|tojson }},
         stepBank: {{ _('They will come from the bank')|tojson }},
         stepMissing: {{ _('Battles of the first round without problems:')|tojson }},
-        readyToCall: {{ _('Battles ready to call:')|tojson }}
+        readyToCall: {{ _('Battles ready to call:')|tojson }},
+        organizersSaved: {{ _('Organizers saved')|tojson }}
     };
     var languages = JSON.parse(document.getElementById('tm-languages').textContent);
     var state = JSON.parse(document.getElementById('tm-state').textContent);
     var ACTION = {{ url('arena_manage_tournament_action', state.tournament.slug)|tojson }};
     var STATE = {{ url('arena_manage_tournament_state', state.tournament.slug)|tojson }};
-    var participants = null, rules = null, problemsForm = false;
+    var participants = null, rules = null, problemsForm = false, organizers = null;
     var paint = W.painter();
 
     function matchUrl(id) { return {{ url('arena_manage_match', 0)|tojson }}.replace('/0/', '/' + id + '/'); }
@@ -121,6 +122,10 @@ $(function () {
             $('#tm-name').val(t.name);
             $('#tm-description').val(t.description);
             rules = W.rulesEditor(document.getElementById('tm-rules'), t.rules, languages);
+        }
+        if (!organizers) {
+            organizers = W.organizerList(document.getElementById('tm-organizers'), state.organizers.creator,
+                                         state.organizers.list, true);
         }
         if (!problemsForm) {
             problemsForm = true;
@@ -313,6 +318,13 @@ $(function () {
         });
     }
 
+    $('#tm-save-organizers').on('click', function () {
+        act({action: 'organizers', organizers: organizers.get().map(function (u) { return u.id; })}, function () {
+            organizers.set(state.organizers.list);
+            A.toast(TEXT.organizersSaved, 'ok', 2000);
+        });
+    });
+
     $('#tm-save').on('click', function () {
         act({action: 'update', name: $('#tm-name').val(), description: $('#tm-description').val(), rules: rules.get()},
             function () { A.toast(TEXT.saved, 'ok', 2000); });
@@ -441,6 +453,14 @@ $(function () {
             <section class="ar-panel">
                 <h3 class="ar-panel-head"><i class="fa fa-television" aria-hidden="true"></i> {{ _('Screens') }}</h3>
                 <div class="ar-panel-body"><div class="am-list" id="tm-screens"></div></div>
+            </section>
+            <section class="ar-panel">
+                <h3 class="ar-panel-head"><i class="fa fa-user-plus" aria-hidden="true"></i> {{ _('Organizers') }}</h3>
+                <div class="ar-panel-body">
+                    <p class="am-hint">{{ _('Besides whoever organizes all battles, only these people see and run this tournament and its battles. Add whoever helps you; they need a permission to organize battles.') }}</p>
+                    <div id="tm-organizers"></div>
+                    <div class="am-actions" style="margin-top: 1em;"><button type="button" class="ar-btn" id="tm-save-organizers">{{ _('Save organizers') }}</button></div>
+                </div>
             </section>
             <section class="ar-panel">
                 <h3 class="ar-panel-head"><i class="fa fa-sliders" aria-hidden="true"></i> {{ _('Tournament') }}</h3>

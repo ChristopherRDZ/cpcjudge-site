@@ -1,9 +1,25 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ LANGUAGE_CODE }}">
 <head>
     <meta charset="UTF-8">
-    <title>Task Progress - {{ SITE_LONG_NAME }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ _('Task progress') }} - {{ SITE_LONG_NAME }}</title>
     <link rel="stylesheet" href="{{ static('task_status.css') }}">
+    {# The site's own logo instead of the one of DMOJ, and a way back. Styles here: task_status.css is a hashed
+       static file, and changing it would need collectstatic. #}
+    <style>
+        .jumbotron .icon { width: 15rem; max-width: 70%; height: auto; margin-bottom: 2.5rem; }
+        .task-back { margin-top: 1.5rem; text-align: center; }
+        .task-back a { display: inline-block; padding: .5rem 1.25rem; border: 1px solid #1958c1; border-radius: 3px;
+                       color: #1958c1; background: #fff; text-decoration: none; font-weight: 600; }
+        .task-back a:hover { background: #1958c1; color: #fff; }
+        .task-back.task-failed a { background: #1958c1; color: #fff; }
+        .task-back .task-note { display: block; margin-top: .6rem; color: #666; font-size: .9rem; }
+        /* An error can be longer than one line. */
+        .jumbotron .progress.progress-failed { height: auto; min-height: 2rem; }
+        .jumbotron .progress.progress-failed .progress-bar { height: auto; min-height: 2rem; padding: .3rem .8rem;
+                                                             white-space: normal; line-height: 1.4; }
+    </style>
     <script src="{{ static('libs/jquery-3.4.1.min.js') }}"></script>
     <script type="text/javascript">
         $(function () {
@@ -18,6 +34,7 @@
             var $known_text = $known.find('.progress-text');
             var $fail = $jumbotron.find('.progress-failed');
             var $fail_text = $fail.find('.progress-bar');
+            var $back = $jumbotron.find('.task-back');
 
             function show_status(status) {
                 $progress.hide();
@@ -28,6 +45,7 @@
                     case 'FAILURE':
                         if (status.error) $fail_text.text(status.error);
                         $fail.show();
+                        $back.addClass('task-failed').find('.task-note').hide();
                         break;
                     case 'PROGRESS':
                         $known_bar.attr({
@@ -54,7 +72,7 @@
                 }).done(function (data) {
                     show_status(data);
                     if (data.code === 'SUCCESS') {
-                        window.location.href = redirect;
+                        if (redirect) window.location.href = redirect;
                     } else if (need_ajax(data)) {
                         setTimeout(do_ajax, 500);
                     }
@@ -77,7 +95,7 @@
 <div class="container">
     <div class="jumbotron" data-task-id="{{ task_id }}" data-task-status="{{ task_status }}"
          data-redirect="{{ redirect }}">
-        <img src="{{ static('icons/icon.svg') }}" class="icon" alt="DMOJ Icon">
+        <img src="{{ static('icons/logo.png') }}" class="icon" alt="{{ SITE_NAME }}">
         <p class="action">{{ message }}</p>
         <p class="stage"></p>
 
@@ -93,6 +111,10 @@
         </div>
         <div class="progress progress-failed">
             <div class="progress-bar" role="progressbar">{{ _('Failed!') }}</div>
+        </div>
+        <div class="task-back">
+            <a href="{{ back }}">{{ _('Go back') }}</a>
+            <span class="task-note">{{ _('You can leave this page: the task goes on by itself.') }}</span>
         </div>
     </div>
 </div>

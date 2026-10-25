@@ -19,7 +19,7 @@ from django.db.models import F, Max, Q
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
-from judge.arena import rules as arena_rules, scoring
+from judge.arena import access, rules as arena_rules, scoring
 from judge.models import Contest, ContestParticipation, ContestProblem, ContestSubmission, Judge, Problem, \
     Solution, Submission, SubmissionSource
 from judge.models.arena import ArenaAction, ArenaGame, ArenaGameProblem, ArenaMatch, ArenaScreen, \
@@ -396,7 +396,7 @@ def create_duel(actor, player_a, player_b, games, best_of=1, rules=None, display
         _set_problems(game, problems)
     _log('create', actor, match, best_of=best_of, games=len(cleaned))
     ensure_default_screen(actor)
-    screen = _free_screen()
+    screen = _free_screen(actor)
     if screen is not None:
         # The projector moves on to the new battle by itself, unless it is busy with another one still going.
         screen.mode, screen.match = ArenaScreen.MATCH, match
@@ -408,11 +408,13 @@ def create_duel(actor, player_a, player_b, games, best_of=1, rules=None, display
     return match
 
 
-def _free_screen():
+def _free_screen(actor=None):
     """The first screen with nothing to show for now: waiting, or still showing a battle that is over. Screens on
-    a bracket or a message, and screens with a battle still going, are left alone."""
+    a bracket or a message, and screens with a battle still going, are left alone. With an `actor`, only among the
+    screens they manage: a new battle never takes the projector of another organizer."""
+    screens = access.screens_of_actor(actor)
     # Only the screen rows are locked; the status of the battles they show is a plain read.
-    screens = list(ArenaScreen.objects.select_for_update().order_by('name', 'id'))
+    screens = list(screens.select_for_update().order_by('name', 'id'))
     statuses = dict(ArenaMatch.objects.filter(pk__in=[s.match_id for s in screens if s.match_id])
                     .values_list('pk', 'status'))
     for screen in screens:
@@ -1116,8 +1118,9 @@ def new_screen_token():
 
 
 def ensure_default_screen(actor):
-    """The first battle or tournament comes with a projector screen, so the panel has links to open."""
-    if not ArenaScreen.objects.exists():
+    """The first battle or tournament of an organizer comes with a projector screen, so the panel has links to open.
+    Whoever organizes only their own battles only sees their own screens, so they get one of their own."""
+    if not access.screens_of_actor(actor).exists():
         ArenaScreen.objects.create(name=_('Main screen'), token=new_screen_token(), created_by=actor)
 
 

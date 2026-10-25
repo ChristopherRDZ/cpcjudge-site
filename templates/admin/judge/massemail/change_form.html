@@ -4,6 +4,8 @@
     Correos a usuarios (judge/admin/mass_email.py). Arriba, el estado de un correo ya guardado y lo que se puede
     hacer con él; abajo, el contador de destinatarios, la ayuda de formato y los botones de un borrador. Los
     botones que van a otras páginas usan formaction sobre el mismo formulario: no hay formularios anidados.
+    «¿A quién le llega?» (2026-10-23) enseña sólo los campos de la opción elegida; sin JavaScript se ven todos y el
+    servidor ignora los que no tocan.
 {% endcomment %}
 
 {% block extrahead %}{{ block.super }}
@@ -41,6 +43,16 @@
         #mass-email-format code { font-family: Consolas, 'Courier New', monospace; background: #fff;
             padding: 1px 4px; border: 1px solid #e4e4e4; border-radius: 3px; white-space: pre-wrap; }
         #mass-email-count [hidden] { display: none !important; }
+        #mass-email-count .mass-email-summary { margin: 4px 0 6px; padding-left: 20px; color: #333; }
+        #mass-email-count .mass-email-summary li { margin: 0; list-style: disc; }
+        #mass-email-count .mass-email-summary li.mass-email-lead { list-style: none; margin-left: -20px; }
+        form .form-row[hidden] { display: none !important; }
+        .field-audience #id_audience { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; }
+        .field-audience #id_audience label { width: auto; float: none; font-weight: normal; padding: 0; }
+        .field-audience #id_audience input { margin-right: 6px; }
+        .mass-email-panel .mass-email-audience { margin: 0 0 6px; padding-left: 20px; }
+        .mass-email-panel .mass-email-audience li { list-style: disc; }
+        .mass-email-panel .mass-email-audience li.mass-email-lead { list-style: none; margin-left: -20px; }
     </style>
 {% endblock %}
 
@@ -60,6 +72,11 @@
                 <p>{% translate "It is being handed to Resend. Reload this page in a moment." %}
                     {% if mass_email.task_id %}<a href="{% url 'task_status' mass_email.task_id %}">{% translate "See progress" %}</a>{% endif %}</p>
                 {% if can_retry %}<p>{% translate "It has been like this for more than 15 minutes, so the delivery was interrupted. Retry continues where it stopped, without sending anything twice." %}</p>{% endif %}
+            {% endif %}
+            {% if audience_lines %}
+                <ul class="mass-email-audience">
+                    {% for line in audience_lines %}<li{% if forloop.first %} class="mass-email-lead"{% endif %}>{% if forloop.first %}<strong>{% translate "For:" %}</strong> {% endif %}{{ line }}</li>{% endfor %}
+                </ul>
             {% endif %}
             {% if mass_email.error %}<div class="mass-email-error">{{ mass_email.error }}</div>{% endif %}
             {% if resend_status_label %}<p>{% translate "In Resend:" %} <strong>{{ resend_status_label }}</strong></p>{% endif %}
@@ -103,13 +120,17 @@
 {% block after_field_sets %}{{ block.super }}
     {% if not mass_email or mass_email.is_editable %}
         <div id="mass-email-count" data-url="{% url 'admin:judge_massemail_count' %}"
-             data-fields="{{ recipient_fields|join:',' }}">
+             data-fields="{{ recipient_fields|join:',' }}"
+             data-label-chosen="{% translate "The people who will receive it" %}"
+             data-help-chosen="{% translate "Only these people, as long as their email is confirmed." %}"
+             data-label-also="{% translate "Also, always these people" %}"
+             data-help-also="{% translate "They receive it even if the filters leave them out, as long as their email is confirmed." %}">
             <span class="mass-email-label">{% translate "Will receive it:" %}</span>
             <span class="mass-email-number">&hellip;</span>
             <span class="mass-email-people" data-one="{% translate "person" %}" data-many="{% translate "people" %}"></span>
-            <span class="mass-email-scope" data-all="{% translate "(all accounts with a confirmed email)" %}"></span>
             <button type="submit" formaction="{% url 'admin:judge_massemail_recipients' %}" formtarget="_blank"
                     formnovalidate name="_recipients">{% translate "See the list" %}</button>
+            <ul class="mass-email-summary"></ul>
             <div class="mass-email-sample"></div>
             <div class="mass-email-errors errornote" hidden></div>
         </div>
@@ -169,10 +190,47 @@
             var fields = box.dataset.fields.split(',');
             var number = box.querySelector('.mass-email-number');
             var people = box.querySelector('.mass-email-people');
-            var scope = box.querySelector('.mass-email-scope');
+            var summary = box.querySelector('.mass-email-summary');
             var sample = box.querySelector('.mass-email-sample');
             var errors = box.querySelector('.mass-email-errors');
             var last = null, busy = false;
+
+            // «¿A quién le llega?»: only the fields of the chosen answer are shown. The list of people is the whole
+            // list with «Only the people I choose», and an addition to the filters with «Only who meets the filters»,
+            // so it moves next to what it completes and its label says which one it is.
+            var FILTER_ROWS = ['contests', 'include_virtual', 'organizations', 'groups', 'active_within_days',
+                               'joined_after', 'min_problems', 'min_rating'];
+            function row(name) { return form.querySelector('.form-row.field-' + name); }
+            var includeRow = row('include_users'), audienceRow = row('audience'), excludeRow = row('exclude_users');
+            var includeLabel = includeRow && includeRow.querySelector('label[for="id_include_users"]');
+            var includeHelp = includeRow && includeRow.querySelector('#id_include_users_helptext > div');
+            var suffix = includeLabel && /:\s*$/.test(includeLabel.textContent) ? ':' : '';
+            function audience() {
+                var checked = form.querySelector('input[name="audience"]:checked');
+                return checked ? checked.value : 'all';
+            }
+            function showAudience() {
+                if (!includeRow || !audienceRow || !excludeRow) return;
+                var mode = audience();
+                FILTER_ROWS.forEach(function (name) {
+                    var node = row(name);
+                    if (node) node.hidden = mode !== 'filters';
+                });
+                includeRow.hidden = mode === 'all';
+                if (mode === 'users') {
+                    audienceRow.parentNode.insertBefore(includeRow, audienceRow.nextSibling);
+                    if (includeLabel) includeLabel.textContent = box.dataset.labelChosen + suffix;
+                    if (includeHelp) includeHelp.textContent = box.dataset.helpChosen;
+                } else {
+                    excludeRow.parentNode.insertBefore(includeRow, excludeRow);
+                    if (includeLabel) includeLabel.textContent = box.dataset.labelAlso + suffix;
+                    if (includeHelp) includeHelp.textContent = box.dataset.helpAlso;
+                }
+            }
+            form.querySelectorAll('input[name="audience"]').forEach(function (input) {
+                input.addEventListener('change', showAudience);
+            });
+            showAudience();
 
             // The select2 boxes change their <select> without native events, so the form is read once a second
             // and the count is asked again only when the filters changed.
@@ -202,12 +260,20 @@
                             errors.textContent = data.errors.join(' ');
                             errors.hidden = false;
                             number.textContent = '?';
+                            while (summary.firstChild) summary.removeChild(summary.firstChild);
+                            sample.textContent = '';
                             return;
                         }
                         errors.hidden = true;
                         number.textContent = data.count;
                         people.textContent = data.count === 1 ? people.dataset.one : people.dataset.many;
-                        scope.textContent = data.filtered ? '' : scope.dataset.all;
+                        while (summary.firstChild) summary.removeChild(summary.firstChild);
+                        (data.summary || []).forEach(function (line, index) {
+                            var item = document.createElement('li');
+                            item.textContent = line;
+                            if (index === 0) item.className = 'mass-email-lead';
+                            summary.appendChild(item);
+                        });
                         sample.textContent = data.sample.length ?
                             data.sample.join(', ') + (data.count > data.sample.length ? ', ...' : '') : '';
                     })

@@ -476,7 +476,10 @@ def create_bank(actor, name, description=''):
 
 @transaction.atomic
 def set_bank_problems(actor, bank_id, entries):
-    """Replace the problems of a bank. `entries` is a list of {id, level, note}."""
+    """Replace the problems of a bank. `entries` is a list of {id, level, note}.
+
+    The problems already in the bank that `actor` cannot see are not shown to them (views/arena_manage.py,
+    manage_banks), so they never come back in `entries`: they are kept as they are, after the others."""
     bank = ArenaProblemBank.objects.select_for_update().filter(pk=bank_id).first()
     if bank is None:
         raise ArenaError(_('That bank does not exist.'), status=404)
@@ -506,13 +509,19 @@ def set_bank_problems(actor, bank_id, entries):
         rows.append((problem_id, level, note.strip()[:200], index))
     if len(set(ids)) != len(ids):
         raise ArenaError(_('The same problem cannot appear twice in a bank.'))
-    found = set(visible_problems(actor.user).filter(id__in=ids).values_list('id', flat=True))
-    if len(found) != len(ids):
+    existing = list(ArenaBankProblem.objects.filter(bank=bank))
+    visible = set(visible_problems(actor.user).filter(id__in=ids + [entry.problem_id for entry in existing])
+                  .values_list('id', flat=True))
+    if not visible.issuperset(ids):
         raise ArenaError(_('One of the problems does not exist or you cannot see it.'))
+    kept = [entry for entry in existing if entry.problem_id not in visible]
     ArenaBankProblem.objects.filter(bank=bank).delete()
     ArenaBankProblem.objects.bulk_create([ArenaBankProblem(bank=bank, problem_id=problem_id, level=level, note=note,
                                                            order=order)
-                                          for problem_id, level, note, order in rows])
+                                          for problem_id, level, note, order in rows] +
+                                         [ArenaBankProblem(bank=bank, problem_id=entry.problem_id, level=entry.level,
+                                                           note=entry.note, order=len(rows) + index)
+                                          for index, entry in enumerate(kept)])
     return bank
 
 

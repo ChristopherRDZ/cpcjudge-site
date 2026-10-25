@@ -33,17 +33,21 @@ def task_status(request, task_id):
     except ValueError:
         raise Http404()
 
-    redirect = request.GET.get('redirect')
-    if not url_has_allowed_host_and_scheme(redirect, allowed_hosts={request.get_host()}):
-        redirect = None
+    def safe(url):
+        return url if url and url_has_allowed_host_and_scheme(url, allowed_hosts={request.get_host()}) else None
+
+    redirect = safe(request.GET.get('redirect'))
 
     status = get_task_status(task_id)
     if status['code'] == 'SUCCESS' and redirect:
         return HttpResponseRedirect(redirect)
 
+    # The Back button: where the caller said, or the page the user came from, or the home page. Until 2026-10-23
+    # there was none, and a task that failed left the user on this page with no way back but the browser.
+    back = safe(request.GET.get('back')) or safe(request.META.get('HTTP_REFERER')) or reverse('home')
     return render(request, 'task_status.html', {
         'task_id': task_id, 'task_status': json.dumps(status),
-        'message': request.GET.get('message', ''), 'redirect': redirect or '',
+        'message': request.GET.get('message', ''), 'redirect': redirect or '', 'back': back,
     })
 
 

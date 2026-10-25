@@ -1,7 +1,9 @@
 """Emails to users: write one in the admin, see who will receive it, try it, and send it through Resend.
 
-Only superusers and whoever has `judge.send_mass_email` see this section. Once an email is sent it cannot be
-edited; "Duplicate" makes a new draft from it. See judge/mass_email.py for who receives what.
+Superusers and whoever has `judge.send_mass_email` (own emails) or `judge.edit_all_mass_email` (all of them, works by
+itself too) see this section; with the first one, only the emails one wrote, as with problems and contests. Once an
+email is sent it cannot be edited; "Duplicate" makes a new draft from it, written by whoever duplicates it. See
+judge/mass_email.py for who receives what.
 """
 import json
 import uuid
@@ -22,14 +24,15 @@ from django.utils.html import format_html
 from django.utils.translation import gettext, gettext_lazy as _, ngettext
 from django.views.decorators.http import require_POST
 
-from judge.mass_email import FILTER_FIELDS, MANY_FIELDS, NAME_PLACEHOLDERS, filters_from_form, filters_of, \
-    has_filters, preview_fragment, recipient_rows, render_email, reply_to, sender
+from judge.mass_email import FILTER_FIELDS, MANY_FIELDS, NAME_PLACEHOLDERS, describe, effective_audience, \
+    filters_from_form, filters_of, has_filters, preview_fragment, recipient_rows, render_email, reply_to, sender
 from judge.models import MassEmail, MassEmailRecipient
 from judge.utils.celery import task_status_url_by_id
 from judge.utils.resend import ResendClient, ResendError, is_configured
 from judge.widgets import AdminHeavySelect2MultipleWidget, AdminMartorWidget, AdminSelect2MultipleWidget
 
 PERMISSION = 'judge.send_mass_email'
+PERMISSION_ALL = 'judge.edit_all_mass_email'
 # The page of the email itself, and the frames of the preview, run no script and load nothing but images.
 EMAIL_CSP = "default-src 'none'; img-src https: http: data:; style-src 'unsafe-inline'"
 SCHEDULE_MIN = timedelta(minutes=5)
@@ -58,6 +61,10 @@ def recipient_widgets():
 
 class RecipientForm(forms.ModelForm):
     """Only the filters: validates them for the live count and the list, without needing the rest."""
+    # Not required: a form without it (a tab opened before 2026-10-23) keeps the old meaning, effective_audience.
+    audience = forms.ChoiceField(label=_('Who receives it'), choices=MassEmail.AUDIENCES, initial=MassEmail.ALL,
+                                 widget=forms.RadioSelect, required=False)
+
     class Meta:
         model = MassEmail
         fields = FILTER_FIELDS
@@ -67,6 +74,15 @@ class RecipientForm(forms.ModelForm):
         after, before = cleaned.get('joined_after'), cleaned.get('joined_before')
         if after and before and after > before:
             raise forms.ValidationError(gettext('The sign-up dates are reversed: the first one is after the second.'))
+        low, high = cleaned.get('min_rating'), cleaned.get('max_rating')
+        if low is not None and high is not None and low > high:
+            raise forms.ValidationError(gettext('The ratings are reversed: the minimum is above the maximum.'))
+        audience = cleaned.get('audience')
+        if audience == MassEmail.USERS and not cleaned.get('include_users'):
+            raise forms.ValidationError(gettext('Choose the people who will receive it.'))
+        if audience == MassEmail.FILTERS and not has_filters(filters_from_form(cleaned)):
+            raise forms.ValidationError(gettext('Choose at least one filter, or send it to all accounts with the first '
+                                                'choice.'))
         return cleaned
 
 
@@ -84,6 +100,11 @@ class MassEmailForm(RecipientForm):
         for name in MANY_FIELDS:
             if name in self.fields and hasattr(self.fields[name].widget, 'can_add_related'):
                 self.fields[name].widget.can_add_related = False
+        # A new email starts as «all»; a draft saved before `audience` existed shows the choice that means what it
+        # always meant.
+        if not self.instance.audience:
+            self.initial['audience'] = (effective_audience(filters_of(self.instance)) if self.instance.pk
+                                        else MassEmail.ALL)
 
     def clean_subject(self):
         subject = self.cleaned_data['subject']
@@ -100,11 +121,13 @@ class MassEmailAdmin(admin.ModelAdmin):
         (None, {'fields': ('subject', 'preheader', 'heading', 'language')}),
         (_('Content'), {'fields': ('content',)}),
         (_('Recipients'), {
-            'fields': ('contests', 'include_virtual', 'organizations', 'groups', 'active_within_days',
-                       ('joined_after', 'joined_before'), 'min_problems', 'include_users', 'exclude_users'),
-            'description': _('Only accounts with a confirmed email receive it. Without filters, all of them do. '
-                             'With several filters, people must meet all of them; inside one filter, one of the '
-                             'choices is enough.'),
+            'fields': ('audience', 'include_users', 'contests', 'include_virtual', 'organizations', 'groups',
+                       'active_within_days', ('joined_after', 'joined_before'), 'min_problems',
+                       ('min_rating', 'max_rating'), 'exclude_users'),
+            'description': _('Only accounts with a confirmed email receive it. Choose who among them: all, only who '
+                             'meets the filters, or only the people you name. With several filters, people must '
+                             'meet all of them; inside one filter, one of the choices is enough. «Never include» '
+                             'always wins.'),
         }),
     )
     list_display = ('subject', 'status_label', 'recipient_column', 'when', 'created_by')
@@ -117,26 +140,43 @@ class MassEmailAdmin(admin.ModelAdmin):
 
     @staticmethod
     def allowed(request):
-        return request.user.is_active and request.user.has_perm(PERMISSION)
+        return request.user.is_active and (request.user.has_perm(PERMISSION) or request.user.has_perm(PERMISSION_ALL))
+
+    @staticmethod
+    def sees_all(request):
+        return request.user.is_active and request.user.has_perm(PERMISSION_ALL)
+
+    def owns(self, request, obj):
+        profile = getattr(request, 'profile', None)
+        return self.sees_all(request) or (profile is not None and obj.created_by_id == profile.pk)
 
     def has_module_permission(self, request):
         return self.allowed(request)
 
     def has_view_permission(self, request, obj=None):
-        return self.allowed(request)
+        return self.allowed(request) and (obj is None or self.owns(request, obj))
 
     def has_add_permission(self, request):
         return self.allowed(request)
 
     def has_change_permission(self, request, obj=None):
-        return self.allowed(request) and (obj is None or obj.is_editable)
+        return self.allowed(request) and (obj is None or (self.owns(request, obj) and obj.is_editable))
 
     def has_delete_permission(self, request, obj=None):
         # Sent emails stay as a record of what went out and to whom.
-        return self.allowed(request) and (obj is None or obj.status in (MassEmail.DRAFT, MassEmail.CANCELLED))
+        return self.allowed(request) and (obj is None or (self.owns(request, obj) and
+                                                          obj.status in (MassEmail.DRAFT, MassEmail.CANCELLED)))
 
     def get_queryset(self, request):
-        return super().get_queryset(request).select_related('created_by__user')
+        queryset = super().get_queryset(request).select_related('created_by__user')
+        if not self.sees_all(request):
+            # Only one's own emails, as with problems and contests: the others are not even listed.
+            profile = getattr(request, 'profile', None)
+            queryset = queryset.filter(created_by=profile) if profile is not None else queryset.none()
+        return queryset
+
+    def mail_or_404(self, request, pk):
+        return get_object_or_404(self.get_queryset(request), pk=pk)
 
     def formfield_for_manytomany(self, db_field, request, **kwargs):
         # The boxes are select2: the admin's «hold down Control» note does not apply to them.
@@ -213,6 +253,7 @@ class MassEmailAdmin(admin.ModelAdmin):
                 note += ' ' + gettext('There are no figures yet, or the list is too long: see them in Resend.')
         return {
             'status_line': line,
+            'audience_lines': describe(filters_of(mail)),
             'resend_status_label': resend_labels.get(mail.resend_status, mail.resend_status),
             'stats': bool(stats),
             'stats_rows': [(stat_labels[kind], stats[kind]) for kind in STATS_KINDS if kind in stats],
@@ -302,7 +343,7 @@ class MassEmailAdmin(admin.ModelAdmin):
         return self.render_preview(request, self.unsaved(request))
 
     def email_view(self, request, pk):
-        mail = get_object_or_404(MassEmail, pk=pk)
+        mail = self.mail_or_404(request, pk)
         return self.render_preview(request, mail)
 
     def render_preview(self, request, mail):
@@ -321,8 +362,10 @@ class MassEmailAdmin(admin.ModelAdmin):
             return JsonResponse({'errors': [error for errors in form.errors.values() for error in errors]})
         filters = filters_from_form(form.cleaned_data)
         rows = recipient_rows(filters)
-        return JsonResponse({'count': len(rows), 'filtered': has_filters(filters) or bool(filters['exclude_users']),
-                             'sample': [row[1] for row in rows[:12]]})
+        audience = effective_audience(filters)
+        return JsonResponse({'count': len(rows), 'audience': audience,
+                             'filtered': audience != MassEmail.ALL or bool(filters['exclude_users']),
+                             'summary': describe(filters), 'sample': [row[1] for row in rows[:12]]})
 
     def recipients_view(self, request):
         form = RecipientForm(request.POST)
@@ -332,7 +375,7 @@ class MassEmailAdmin(admin.ModelAdmin):
             show_email=request.user.is_superuser))
 
     def sent_to_view(self, request, pk):
-        mail = get_object_or_404(MassEmail, pk=pk)
+        mail = self.mail_or_404(request, pk)
         recipients = list(mail.recipients.all())
         counts = {state: sum(1 for item in recipients if item.state == state)
                   for state, label in MassEmailRecipient.STATES}
@@ -353,7 +396,7 @@ class MassEmailAdmin(admin.ModelAdmin):
         return rows, gone, None
 
     def send_view(self, request, pk):
-        mail = get_object_or_404(MassEmail, pk=pk)
+        mail = self.mail_or_404(request, pk)
         if mail.status != MassEmail.DRAFT:
             messages.warning(request, gettext('This email is no longer a draft.'))
             return HttpResponseRedirect(self.change_url(mail))
@@ -394,7 +437,7 @@ class MassEmailAdmin(admin.ModelAdmin):
             sender=sender(), reply_to=reply_to(), form_errors=form_errors, typed=typed, when=when,
             scheduled_text=scheduled_text, timezone_name=timezone.get_current_timezone_name(),
             minimum=timezone.localtime(timezone.now() + SCHEDULE_MIN + timedelta(minutes=1)).strftime('%Y-%m-%dT%H:%M'),
-            filtered=has_filters(filters_of(mail))))
+            filtered=effective_audience(filters_of(mail)) != MassEmail.ALL, summary=describe(filters_of(mail))))
 
     def start_sending(self, request, mail, rows, gone, scheduled_at):
         task_id = str(uuid.uuid4())
@@ -427,10 +470,11 @@ class MassEmailAdmin(admin.ModelAdmin):
             messages.error(request, gettext('The email could not be queued. Try again in a moment.'))
             return HttpResponseRedirect(self.change_url(mail))
         return HttpResponseRedirect(task_status_url_by_id(
-            task_id, message=gettext('Handing the email to Resend...'), redirect=self.change_url(mail)))
+            task_id, message=gettext('Handing the email to Resend...'), redirect=self.change_url(mail),
+            back=self.change_url(mail)))
 
     def retry_view(self, request, pk):
-        mail = get_object_or_404(MassEmail, pk=pk)
+        mail = self.mail_or_404(request, pk)
         task_id = str(uuid.uuid4())
         if not MassEmail.objects.filter(Q(status=MassEmail.FAILED) | stuck(), pk=pk).update(
                 status=MassEmail.SENDING, task_id=task_id, error='', updated=timezone.now()):
@@ -441,12 +485,15 @@ class MassEmailAdmin(admin.ModelAdmin):
         return self.enqueue(request, mail, task_id)
 
     def duplicate_view(self, request, pk):
-        mail = get_object_or_404(MassEmail, pk=pk)
+        mail = self.mail_or_404(request, pk)
+        # The copy says who it is for explicitly, also when the original was saved before `audience` existed.
         copy = MassEmail(created_by=request.profile, status=MassEmail.DRAFT,
+                         audience=effective_audience(filters_of(mail)),
                          **{field: getattr(mail, field) for field in ('subject', 'preheader', 'heading', 'content',
                                                                       'language', 'include_virtual',
                                                                       'active_within_days', 'joined_after',
-                                                                      'joined_before', 'min_problems')})
+                                                                      'joined_before', 'min_problems',
+                                                                      'min_rating', 'max_rating')})
         copy.save()
         for field in MANY_FIELDS:
             getattr(copy, field).set(getattr(mail, field).all())
@@ -456,7 +503,7 @@ class MassEmailAdmin(admin.ModelAdmin):
         return HttpResponseRedirect(self.change_url(copy))
 
     def cancel_view(self, request, pk):
-        mail = get_object_or_404(MassEmail, pk=pk)
+        mail = self.mail_or_404(request, pk)
         if mail.status != MassEmail.SCHEDULED or not mail.resend_broadcast_id:
             messages.warning(request, gettext('Only a scheduled email can be cancelled.'))
             return HttpResponseRedirect(self.change_url(mail))
@@ -473,7 +520,7 @@ class MassEmailAdmin(admin.ModelAdmin):
         return HttpResponseRedirect(self.change_url(mail))
 
     def stats_view(self, request, pk):
-        mail = get_object_or_404(MassEmail, pk=pk)
+        mail = self.mail_or_404(request, pk)
         if not mail.resend_broadcast_id:
             raise Http404()
         try:
@@ -494,7 +541,13 @@ class MassEmailAdmin(admin.ModelAdmin):
             return TemplateResponse(request, 'admin/judge/massemail/unsubscribed.html', self.context(
                 request, gettext('Unsubscribed people'), configured=False))
         client = ResendClient()
+        # The list is the same for everybody with the permission; subscribing someone again is for whoever manages
+        # all emails. Only a superuser sees the addresses, as in the other lists of this section.
+        can_resubscribe = self.sees_all(request)
+        show_email = request.user.is_superuser
         if request.method == 'POST':
+            if not can_resubscribe:
+                raise PermissionDenied()
             contact_id = request.POST.get('contact', '')
             try:
                 client.resubscribe(contact_id)
@@ -512,9 +565,15 @@ class MassEmailAdmin(admin.ModelAdmin):
         users = {}
         for username, email in User.objects.filter(email__contains='@').values_list('username', 'email'):
             users.setdefault(email.strip().lower(), []).append(username)
-        rows = sorted(({'id': contact['id'], 'email': contact['email'],
+        rows = sorted(({'id': contact['id'], 'email': contact['email'] if show_email else masked(contact['email']),
                         'usernames': users.get(contact['email'].strip().lower(), [])} for contact in contacts),
-                      key=lambda row: row['email'].lower())
+                      key=lambda row: (row['usernames'] or [row['email']])[0].lower())
         return TemplateResponse(request, 'admin/judge/massemail/unsubscribed.html', self.context(
-            request, gettext('Unsubscribed people'), configured=True, rows=rows,
+            request, gettext('Unsubscribed people'), configured=True, rows=rows, can_resubscribe=can_resubscribe,
             confirm_question=gettext('Subscribe this person again? Do it only if they asked for it.')))
+
+
+def masked(email):
+    """ab***@example.com: enough to tell two people apart, not to write to them."""
+    local, _at, domain = (email or '').partition('@')
+    return '%s***@%s' % (local[:2], domain) if domain else '***'

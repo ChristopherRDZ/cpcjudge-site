@@ -134,8 +134,10 @@ $(function () {
             decided: {{ _('battle decided')|tojson }}, finalize: {{ _('decided with the verdicts so far')|tojson }},
             cancel: {{ _('cancelled the battle')|tojson }}, problems: {{ _('chose problems')|tojson }},
             update: {{ _('changed settings')|tojson }}, replace: {{ _('replaced a player')|tojson }},
-            set_winner: {{ _('corrected the winner')|tojson }}, screen: {{ _('put it on a screen')|tojson }}
+            set_winner: {{ _('corrected the winner')|tojson }}, screen: {{ _('put it on a screen')|tojson }},
+            organizers: {{ _('changed the organizers')|tojson }}
         },
+        organizersSaved: {{ _('Organizers saved')|tojson }},
         system: {{ _('system')|tojson }}
     };
     var languages = JSON.parse(document.getElementById('mm-languages').textContent);
@@ -145,7 +147,7 @@ $(function () {
     var DRAW = {{ url('arena_manage_draw', state.match.id)|tojson }};
     var CODE = {{ url('arena_manage')|tojson }} + 'game/';
     var problemRows = {};   // game number -> {node, editor, saved, dirty()}
-    var rulesEditor = null;
+    var rulesEditor = null, organizers = null;
     var editors = {}, codeSeq = {a: 0, b: 0}, codeGame = null;
     // How long a submission has waited, when a player was last seen and how far the code went move by themselves.
     var paint = W.painter(['queued_for', 'seen_ago', 'code_seq']);
@@ -227,6 +229,13 @@ $(function () {
             $('#mm-display-a').val(state.players.a.display_name || '');
             $('#mm-display-b').val(state.players.b.display_name || '');
             $('#mm-display').prop('hidden', !match.quick);
+        }
+        if (!organizers) {
+            // Filled once, like the settings: a refresh must not undo who is being added.
+            var team = state.organizers;
+            organizers = W.organizerList(document.getElementById('mm-organizers'), team.creator, team.list, !team.tournament);
+            $('#mm-organizers-quick').prop('hidden', team.tournament);
+            $('#mm-organizers-tournament').prop('hidden', !team.tournament);
         }
     }
 
@@ -599,6 +608,13 @@ $(function () {
         });
     }
 
+    $('#mm-save-organizers').on('click', function () {
+        act({action: 'organizers', organizers: organizers.get().map(function (u) { return u.id; })}, function () {
+            organizers.set(state.organizers.list);
+            A.toast(TEXT.organizersSaved, 'ok', 2000);
+        });
+    });
+
     $('#mm-save-settings').on('click', function () {
         act({action: 'update', best_of: parseInt($('#mm-best-of').val(), 10), rules: rulesEditor.get(),
              title: $('#mm-title').val(), display_a: state.match.quick ? $('#mm-display-a').val() : undefined,
@@ -721,6 +737,16 @@ $(function () {
                     </div>
                     <div id="mm-rules"></div>
                     <div class="am-actions mm-section"><button type="button" class="ar-btn" id="mm-save-settings">{{ _('Save settings') }}</button></div>
+                </div>
+            </section>
+            <section class="ar-panel">
+                <h3 class="ar-panel-head"><i class="fa fa-user-plus" aria-hidden="true"></i> {{ _('Organizers') }}</h3>
+                <div class="ar-panel-body">
+                    <p class="am-hint" id="mm-organizers-quick">{{ _('Besides whoever organizes all battles, only these people see and run this battle. Add whoever helps you; they need a permission to organize battles.') }}</p>
+                    <p class="am-hint" id="mm-organizers-tournament" hidden>{{ _('The battles of a tournament are run by the organizers of the tournament. Change them on the page of the tournament.') }}
+                        {% if state.match.tournament %}<a href="{{ url('arena_manage_tournament', state.match.tournament.slug) }}">{{ state.match.tournament.name }}</a>{% endif %}</p>
+                    <div id="mm-organizers"></div>
+                    <div class="am-actions mm-section" id="mm-organizers-actions"{% if state.match.tournament %} hidden{% endif %}><button type="button" class="ar-btn" id="mm-save-organizers">{{ _('Save organizers') }}</button></div>
                 </div>
             </section>
             <section class="ar-panel">

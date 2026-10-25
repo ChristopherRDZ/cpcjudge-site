@@ -23,6 +23,7 @@
         <p class="errornote">{{ error }}</p>
     {% else %}
         <p class="help">{% translate "People who used the unsubscribe link of an email to users. They still receive the emails of their account, such as password resets. Subscribe someone again only if they asked for it." %}</p>
+        {% if not can_resubscribe %}<p class="help">{% translate "Only whoever can edit all emails to users subscribes people again." %}</p>{% endif %}
         <table>
             <thead><tr><th>{% translate "Email" %}</th><th>{% translate "User" %}</th><th></th></tr></thead>
             <tbody>
@@ -31,12 +32,14 @@
                     <td>{{ row.email }}</td>
                     <td>{{ row.usernames|join:", "|default:"-" }}</td>
                     <td>
+                        {% if can_resubscribe %}
                         <form method="post" class="mass-email-resubscribe">
                             {% csrf_token %}
                             <input type="hidden" name="contact" value="{{ row.id }}">
                             <input type="hidden" name="email" value="{{ row.email }}">
                             <input type="submit" value="{% translate "Subscribe again" %}">
                         </form>
+                        {% endif %}
                     </td>
                 </tr>
             {% empty %}

@@ -11,8 +11,10 @@ __all__ = ['MassEmail', 'MassEmailRecipient']
 class MassEmail(models.Model):
     """An email written in the admin and sent to many users at once, through Resend Broadcasts.
 
-    Only accounts that confirmed their email can receive it. Without filters it goes to all of them; each filter
-    narrows the list, and within a filter with several choices (contests, organizations, groups) one is enough.
+    Only accounts that confirmed their email can receive it. `audience` says who among them: all, only who meets the
+    filters (each filter narrows the list, and within a filter with several choices one is enough), or only the
+    people chosen by name. Emails saved before 2026-10-23 have it empty and keep their meaning: with filters, the
+    filters; without them, all (judge/mass_email.py, effective_audience).
     """
     DRAFT, SENDING, SCHEDULED, SENT, FAILED, CANCELLED = 'draft', 'sending', 'scheduled', 'sent', 'failed', 'cancelled'
     STATUS = (
@@ -27,6 +29,12 @@ class MassEmail(models.Model):
         ('es', _('Spanish')),
         ('en', _('English')),
     )
+    ALL, FILTERS, USERS = 'all', 'filters', 'users'
+    AUDIENCES = (
+        (ALL, _('All accounts with a confirmed email')),
+        (FILTERS, _('Only who meets the filters below')),
+        (USERS, _('Only the people I choose')),
+    )
 
     subject = models.CharField(verbose_name=_('subject'), max_length=150)
     preheader = models.CharField(verbose_name=_('preview text'), max_length=200, blank=True,
@@ -39,6 +47,11 @@ class MassEmail(models.Model):
                                 help_text=_('The language of the lines the site adds at the end, such as the '
                                             'unsubscribe link. Write the content in the language you prefer.'))
 
+    # Empty means the meaning from before this field existed (judge/mass_email.py, effective_audience): the emails
+    # saved before it, those the code before it inserts (db_default) and any created without saying. The form of the
+    # admin always says it, «all» unless chosen otherwise.
+    audience = models.CharField(verbose_name=_('who receives it'), max_length=10, choices=AUDIENCES, default='',
+                                db_default='', blank=True)
     contests = models.ManyToManyField(Contest, verbose_name=_('took part in any of these contests'), blank=True,
                                       related_name='+',
                                       help_text=_('Registered in or took part in at least one of them, team members '
@@ -59,6 +72,10 @@ class MassEmail(models.Model):
     joined_before = models.DateField(verbose_name=_('signed up on or before'), null=True, blank=True)
     min_problems = models.PositiveIntegerField(verbose_name=_('solved at least this many problems'), null=True,
                                                blank=True)
+    min_rating = models.IntegerField(verbose_name=_('rating of at least'), null=True, blank=True,
+                                     help_text=_('Accounts without a rating are left out.'))
+    max_rating = models.IntegerField(verbose_name=_('rating of at most'), null=True, blank=True,
+                                     help_text=_('Accounts without a rating count as below any number.'))
     include_users = models.ManyToManyField(Profile, verbose_name=_('always include'), blank=True,
                                            related_name='+',
                                            help_text=_('They receive it even if the filters leave them out, as long '
@@ -89,8 +106,10 @@ class MassEmail(models.Model):
 
     class Meta:
         ordering = ('-id',)
+        # As with problems and contests: one's own emails, or all of them (the second works by itself too).
         permissions = (
-            ('send_mass_email', _('Write and send emails to users')),
+            ('send_mass_email', _('Write and send own emails to users')),
+            ('edit_all_mass_email', _('Edit and send all emails to users')),
         )
         verbose_name = _('email to users')
         verbose_name_plural = _('emails to users')

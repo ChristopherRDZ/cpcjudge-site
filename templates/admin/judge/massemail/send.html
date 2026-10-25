@@ -18,6 +18,9 @@
         .mass-email-box label { font-weight: normal; }
         .mass-email-confirm input[type="text"] { width: 8em; font-size: 16px; }
         .mass-email-send { background: #00a92a !important; }
+        .mass-email-who { margin: 4px 0; padding-left: 20px; }
+        .mass-email-who li { list-style: disc; }
+        .mass-email-who li.mass-email-lead { list-style: none; margin-left: -20px; }
     </style>
 {% endblock %}
 
@@ -49,8 +52,10 @@
         <tr><th>{% translate "Subject" %}</th><td>{{ mail.subject }}</td></tr>
         <tr><th>{% translate "Will receive it" %}</th><td>
             <span class="mass-email-number">{{ receive }}</span>
-            {% if not filtered %}{% translate "(all accounts with a confirmed email)" %}{% endif %}
-            {% if unsubscribed %}<br>{{ unsubscribed_line }}{% endif %}
+            <ul class="mass-email-who">
+                {% for line in summary %}<li{% if forloop.first %} class="mass-email-lead"{% endif %}>{{ line }}</li>{% endfor %}
+            </ul>
+            {% if unsubscribed %}{{ unsubscribed_line }}{% endif %}
             {% if sample %}<div class="mass-email-sample">{{ sample|join:", " }}{% if receive > sample|length %}, ...{% endif %}</div>{% endif %}
             <a href="{% url 'admin:judge_massemail_change' mail.pk %}">{% translate "Change the filters" %}</a>
             &middot; <a href="{% url 'admin:judge_massemail_email' mail.pk %}" target="_blank" rel="noopener">{% translate "See the email" %}</a>

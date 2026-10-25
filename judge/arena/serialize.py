@@ -15,7 +15,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
-from judge.arena import engine, live_code, rules as arena_rules, scoring
+from judge.arena import access, engine, live_code, rules as arena_rules, scoring
 from judge.arena.tournament import draw_settings, round_count, round_name
 from judge.jinja2.gravatar import gravatar
 from judge.models import Language, ProblemTranslation, Submission, SubmissionTestCase
@@ -368,7 +368,21 @@ def _organizer_game(game, now, language, with_submissions=False):
     return data
 
 
-def organizer_match_state(match, language, now=None):
+def organizer_card(profile):
+    return {'id': profile.pk, 'name': profile.display_name, 'username': profile.username,
+            'avatar': gravatar(profile, 48)}
+
+
+def organizers_view(obj):
+    """Who runs a tournament or a quick battle with the permission to organize only their own battles: its creator
+    and its co-organizers. Whoever organizes all battles runs it too, without being listed."""
+    return {'creator': organizer_card(obj.created_by) if obj.created_by_id else None,
+            'list': [organizer_card(profile) for profile in
+                     obj.organizers.select_related('user').order_by('user__username')]}
+
+
+def organizer_match_state(match, language, now=None, user=None):
+    """`user`: who asks; the screens are only theirs (judge/arena/access.py). Without one, all of them."""
     match = _tick_active(match)
     now = timezone.now()
     games, active, last_done, prepared = _current_games(match)
@@ -405,7 +419,10 @@ def organizer_match_state(match, language, now=None):
                   for game in games],
         'current': current.pk if current is not None else None,
         'warnings': [],
-        'screens': screens_overview(),
+        'screens': screens_overview(user),
+        # A battle of a tournament is run by the organizers of the tournament: the panel shows them, read only.
+        'organizers': dict(organizers_view(match.tournament if match.tournament_id else match),
+                           tournament=bool(match.tournament_id)),
         'log': [{'time': ts(action.time), 'action': action.action,
                  'actor': action.actor.display_name if action.actor_id else '', 'data': action.data}
                 for action in ArenaAction.objects.filter(match=match).select_related('actor__user')
@@ -417,20 +434,24 @@ def organizer_match_state(match, language, now=None):
     return data
 
 
-def screens_overview():
+def screens_overview(user=None):
+    """The screens `user` manages (with their secret links), or all of them without a user."""
+    screens = access.screens_for(user) if user is not None else ArenaScreen.objects.all()
     return [{'id': screen.pk, 'name': screen.name, 'mode': screen.mode, 'match': screen.match_id,
              'tournament': screen.tournament_id, 'follow_live': screen.follow_live, 'message': screen.message,
              'token': screen.token, 'version': screen.version}
-            for screen in ArenaScreen.objects.order_by('name', 'id')]
+            for screen in screens.order_by('name', 'id')]
 
 
-def overview(now=None):
-    """Everything the dashboard lists."""
+def overview(now=None, user=None):
+    """Everything the dashboard lists: with a `user`, only what they organize (judge/arena/access.py)."""
     now = now or timezone.now()
-    active = ArenaMatch.objects.filter(status__in=(ArenaMatch.READY, ArenaMatch.CALLED, ArenaMatch.PLAYING),
-                                       tournament__isnull=True).select_related('player_a__user', 'player_b__user')
-    recent = ArenaMatch.objects.filter(status__in=(ArenaMatch.DECIDED, ArenaMatch.CANCELLED),
-                                       tournament__isnull=True).select_related('player_a__user', 'player_b__user') \
+    matches = access.matches_for(user) if user is not None else ArenaMatch.objects.all()
+    tournaments = access.tournaments_for(user) if user is not None else ArenaTournament.objects.all()
+    active = matches.filter(status__in=(ArenaMatch.READY, ArenaMatch.CALLED, ArenaMatch.PLAYING),
+                            tournament__isnull=True).select_related('player_a__user', 'player_b__user')
+    recent = matches.filter(status__in=(ArenaMatch.DECIDED, ArenaMatch.CANCELLED),
+                            tournament__isnull=True).select_related('player_a__user', 'player_b__user') \
         .order_by('-decided_at', '-id')[:15]
 
     def row(match):
@@ -439,7 +460,7 @@ def overview(now=None):
                 'status': match.status, 'wins': {'a': match.wins_a, 'b': match.wins_b}, 'best_of': match.best_of,
                 'winner': match.winner_slot or None, 'live': live.status if live else None,
                 'decided_at': ts(match.decided_at)}
-    tournaments = ArenaTournament.objects.exclude(status=ArenaTournament.ARCHIVED).order_by('-created_at')[:30]
+    tournaments = tournaments.exclude(status=ArenaTournament.ARCHIVED).order_by('-created_at')[:30]
     return {
         'now': ts(now),
         'duels': [row(match) for match in active.order_by('-id')],
@@ -448,7 +469,7 @@ def overview(now=None):
                          'participants': t.participants.count(),
                          'live': ArenaMatch.objects.filter(tournament=t, status=ArenaMatch.PLAYING).count()}
                         for t in tournaments],
-        'screens': screens_overview(),
+        'screens': screens_overview(user),
     }
 
 
@@ -473,7 +494,8 @@ def _problem_readiness(tournament):
     return result
 
 
-def tournament_state(tournament, language, now=None):
+def tournament_state(tournament, language, now=None, user=None):
+    """`user`: who asks; the screens are only theirs (judge/arena/access.py). Without one, all of them."""
     now = now or timezone.now()
     for match in ArenaMatch.objects.filter(tournament=tournament, status=ArenaMatch.PLAYING):
         _tick_active(match)
@@ -500,7 +522,8 @@ def tournament_state(tournament, language, now=None):
         'draw': {'auto': bool((tournament.rules or {}).get('auto_draw')),
                  'count': (tournament.rules or {}).get('draw_count') or 1, 'bank': tournament.bank_id},
         'bracket': _with_readiness(bracket_view(tournament, rounds), _problem_readiness(tournament)),
-        'screens': screens_overview(),
+        'screens': screens_overview(user),
+        'organizers': organizers_view(tournament),
     }
 
 

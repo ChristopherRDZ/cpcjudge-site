@@ -52,12 +52,16 @@ class Progress:
             self.done = self._total
 
 
-def task_status_url_by_id(result_id, message=None, redirect=None):
+def task_status_url_by_id(result_id, message=None, redirect=None, back=None):
+    """The page that follows a task. `redirect`: where it goes by itself when the task succeeds. `back`: where its
+    Back button goes, also when the task fails; without one, the page the user came from."""
     args = {}
     if message:
         args['message'] = message
     if redirect:
         args['redirect'] = redirect
+    if back:
+        args['back'] = back
     url = reverse('task_status', args=[result_id])
     if args:
         url += '?' + urlencode(args)

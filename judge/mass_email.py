@@ -1,10 +1,16 @@
 """Emails to many users: who receives them and what they look like.
 
 Recipients. Only accounts that confirmed their email (`User.is_active`) can receive one; accounts that never
-confirmed it, or that an administrator deactivated, never do. Without filters the email goes to all confirmed
-accounts. Each filter narrows the list and all of them must hold; inside a filter with several choices
-(contests, organizations, groups) one is enough. "Always include" adds people the filters left out, and "never
-include" wins over everything. Two accounts with the same address get a single email.
+confirmed it, or that an administrator deactivated, never do. Among them, the email says who (`audience`):
+
+* all of them;
+* only who meets the filters: each filter narrows the list and all of them must hold; inside a filter with several
+  choices (contests, organizations, groups) one is enough; "always include" adds people the filters left out;
+* only the people chosen by name ("always include" is then the whole list).
+
+"Never include" wins over everything, and two accounts with the same address get a single email. Until 2026-10-23
+there was no `audience`: an email without filters went to everybody even if it named people to include, which
+looked like "only these people" and was not. Those emails keep that meaning (effective_audience).
 
 Content. Markdown, as in news posts, with HTML allowed and then cleaned. Email programs ignore most of a page's
 CSS, so every element gets its style inline, links and images become absolute, and the text goes inside the same
@@ -20,20 +26,27 @@ from urllib.parse import urljoin, urlsplit
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.sites.models import Site
+from django.contrib.auth.models import Group
 from django.db.models import Q
 from django.template import loader
-from django.utils import timezone, translation
+from django.utils import formats, timezone, translation
 from django.utils.html import escape
-from django.utils.translation import gettext
+from django.utils.translation import gettext, ngettext
 from markupsafe import Markup
 
 from judge.jinja2.markdown import fragment_tree_to_str, fragments_to_tree, markdown
-from judge.models import ContestParticipation, Profile
+from judge.models import Contest, ContestParticipation, MassEmail, Organization, Profile
 from judge.models.team import ContestTeamMember
 
-FILTER_FIELDS = ('contests', 'include_virtual', 'organizations', 'groups', 'active_within_days', 'joined_after',
-                 'joined_before', 'min_problems', 'include_users', 'exclude_users')
+FILTER_FIELDS = ('audience', 'contests', 'include_virtual', 'organizations', 'groups', 'active_within_days',
+                 'joined_after', 'joined_before', 'min_problems', 'min_rating', 'max_rating', 'include_users',
+                 'exclude_users')
 MANY_FIELDS = ('contests', 'organizations', 'groups', 'include_users', 'exclude_users')
+# The filters that narrow the list, used only when the email goes to who meets the filters.
+NARROWING_FIELDS = ('contests', 'organizations', 'groups', 'active_within_days', 'joined_after', 'joined_before',
+                    'min_problems', 'min_rating', 'max_rating')
+# A rating of 0 is a rating; the other numbers mean nothing at 0, as before.
+ZERO_COUNTS = ('min_rating', 'max_rating')
 
 # What the author writes to greet each person by name, and what Resend replaces for each contact.
 NAME_PLACEHOLDERS = ('{{usuario}}', '{{username}}')
@@ -46,7 +59,9 @@ EMAIL_SHAPE = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
 # --- recipients ------------------------------------------------------------------------------------------------
 
 def empty_filters():
-    return {name: ([] if name in MANY_FIELDS else None) for name in FILTER_FIELDS}
+    filters = {name: ([] if name in MANY_FIELDS else None) for name in FILTER_FIELDS}
+    filters['audience'] = ''
+    return filters
 
 
 def filters_of(mail):
@@ -69,9 +84,22 @@ def filters_from_form(cleaned_data):
     return filters
 
 
+def is_set(filters, name):
+    value = filters.get(name)
+    return value is not None if name in ZERO_COUNTS else bool(value)
+
+
 def has_filters(filters):
-    return any(filters[name] for name in FILTER_FIELDS if name not in ('include_virtual', 'include_users',
-                                                                       'exclude_users'))
+    return any(is_set(filters, name) for name in NARROWING_FIELDS)
+
+
+def effective_audience(filters):
+    """all, filters or users. An email saved before `audience` existed has it empty: as then, with filters it goes
+    to who meets them, and without them to everybody."""
+    audience = filters.get('audience')
+    if audience in (MassEmail.ALL, MassEmail.FILTERS, MassEmail.USERS):
+        return audience
+    return MassEmail.FILTERS if has_filters(filters) else MassEmail.ALL
 
 
 def _start_of(day):
@@ -83,6 +111,23 @@ def confirmed_profiles():
 
 
 def recipient_profiles(filters):
+    audience = effective_audience(filters)
+    profiles = confirmed_profiles()
+    if audience == MassEmail.USERS:
+        profiles = profiles.filter(id__in=filters['include_users'] or [])
+    elif audience == MassEmail.FILTERS:
+        # Who meets every filter, plus who is always included. With no filter at all, nobody: the form asks for
+        # one, and "all" is said with the first choice, not by leaving the filters empty.
+        selected = reduce(and_, _conditions(filters), Q()) if has_filters(filters) else Q(pk__in=[])
+        if filters['include_users']:
+            selected |= Q(id__in=filters['include_users'])
+        profiles = profiles.filter(selected)
+    if filters['exclude_users']:
+        profiles = profiles.exclude(id__in=filters['exclude_users'])
+    return profiles
+
+
+def _conditions(filters):
     conditions = []
     if filters['contests']:
         participations = ContestParticipation.objects.filter(contest_id__in=filters['contests'])
@@ -106,16 +151,67 @@ def recipient_profiles(filters):
         conditions.append(Q(user__date_joined__lt=_start_of(filters['joined_before'] + timedelta(days=1))))
     if filters['min_problems']:
         conditions.append(Q(problem_count__gte=filters['min_problems']))
+    if is_set(filters, 'min_rating'):
+        conditions.append(Q(rating__gte=filters['min_rating']))
+    if is_set(filters, 'max_rating'):
+        conditions.append(Q(rating__lte=filters['max_rating']) | Q(rating__isnull=True))
+    return conditions
 
-    profiles = confirmed_profiles()
-    if conditions:
-        selected = reduce(and_, conditions)
-        if filters['include_users']:
-            selected |= Q(id__in=filters['include_users'])
-        profiles = profiles.filter(selected)
-    if filters['exclude_users']:
-        profiles = profiles.exclude(id__in=filters['exclude_users'])
-    return profiles
+
+def _names(model, ids, field, limit=3):
+    names = list(model.objects.filter(pk__in=ids).order_by(field).values_list(field, flat=True)[:limit])
+    if len(ids) > limit:
+        names.append(ngettext('%(count)d more', '%(count)d more', len(ids) - limit) % {'count': len(ids) - limit})
+    return ', '.join(names)
+
+
+def describe(filters):
+    """Who receives an email, in words, one line per part: what the counter, the send page and a sent email say."""
+    audience = effective_audience(filters)
+    people = len(filters['include_users'] or [])
+    if audience == MassEmail.ALL:
+        lines = [gettext('All accounts with a confirmed email.')]
+    elif audience == MassEmail.USERS:
+        lines = [ngettext('Only %(count)d chosen person.', 'Only %(count)d chosen people.', people) %
+                 {'count': people}]
+    else:
+        lines = [gettext('Accounts with a confirmed email that:')]
+        if filters['contests']:
+            lines.append((gettext('took part in any of these contests, virtual participations included: %(names)s')
+                          if filters['include_virtual'] else
+                          gettext('took part in any of these contests: %(names)s')) %
+                         {'names': _names(Contest, filters['contests'], 'name')})
+        if filters['organizations']:
+            lines.append(gettext('are members of any of these organizations: %(names)s') %
+                         {'names': _names(Organization, filters['organizations'], 'name')})
+        if filters['groups']:
+            lines.append(gettext('are in any of these permission groups: %(names)s') %
+                         {'names': _names(Group, filters['groups'], 'name')})
+        if filters['active_within_days']:
+            lines.append(gettext('visited the site in the last %(days)d days') %
+                         {'days': filters['active_within_days']})
+        if filters['joined_after']:
+            lines.append(gettext('signed up on or after %(date)s') %
+                         {'date': formats.date_format(filters['joined_after'], 'SHORT_DATE_FORMAT')})
+        if filters['joined_before']:
+            lines.append(gettext('signed up on or before %(date)s') %
+                         {'date': formats.date_format(filters['joined_before'], 'SHORT_DATE_FORMAT')})
+        if filters['min_problems']:
+            lines.append(gettext('solved at least %(count)d problems') % {'count': filters['min_problems']})
+        if is_set(filters, 'min_rating'):
+            lines.append(gettext('have a rating of at least %(rating)d') % {'rating': filters['min_rating']})
+        if is_set(filters, 'max_rating'):
+            lines.append(gettext('have a rating of at most %(rating)d, or no rating') %
+                         {'rating': filters['max_rating']})
+        if not has_filters(filters):
+            lines.append(gettext('(no filter chosen yet)'))
+        if people:
+            lines.append(ngettext('Also %(count)d person chosen by name.', 'Also %(count)d people chosen by name.',
+                                  people) % {'count': people})
+    excluded = len(filters['exclude_users'] or [])
+    if excluded:
+        lines.append(ngettext('Never: %(count)d person.', 'Never: %(count)d people.', excluded) % {'count': excluded})
+    return lines
 
 
 def recipient_rows(filters):

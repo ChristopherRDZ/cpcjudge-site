@@ -19,7 +19,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
-from judge.arena import engine, live_code, serialize
+from judge.arena import access, engine, live_code, serialize
 from judge.arena.engine import ArenaError
 from judge.models import ProblemTranslation
 from judge.models.arena import ArenaGame, ArenaGameProblem, ArenaScreen
@@ -94,7 +94,8 @@ def read_json(request, limit=MAX_BODY):
 
 
 def can_manage(user):
-    return user.is_authenticated and user.has_perm('judge.manage_arena')
+    """May open the battle panel: with either permission (judge/arena/access.py says which battles)."""
+    return access.can_manage(user)
 
 
 def _ace_context():
@@ -167,7 +168,8 @@ def arena_statement(request, game, order):
     game = ArenaGame.objects.select_related('match').filter(pk=game).first()
     if game is None:
         raise Http404()
-    if game.match.slot_of(request.profile.pk) is None and not can_manage(request.user):
+    # Besides its two players, only who organizes that battle: the problems of a game are not for every organizer.
+    if game.match.slot_of(request.profile.pk) is None and not access.can_manage_match(request.user, game.match):
         raise Http404()
     response = render(request, 'arena/statement.html', _statement_context(request, game, order))
     response['Cache-Control'] = 'no-store'

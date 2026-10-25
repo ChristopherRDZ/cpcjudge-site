@@ -242,6 +242,10 @@ $(function () {
 <div class="am-page">
     <p class="ar-row am-guide-row"><span class="ar-muted">{{ _('First time organizing? Each part of this panel is explained step by step in the guide.') }}</span>
         <a class="ar-btn ar-btn-plain" href="{{ url('arena_manage_guide') }}" target="_blank" rel="noopener"><i class="fa fa-question-circle"></i> {{ _('Guide for organizers') }}</a></p>
+    {% if not sees_all %}
+        <p class="am-hint" id="am-own-only">{{ _('You see the battles and tournaments you created or were added to as an organizer, and your own screens and banks.') }}
+            <a href="{{ url('arena_manage_guide') }}#organizadores" target="_blank" rel="noopener">{{ _('Who organizes what?') }}</a></p>
+    {% endif %}
     <div class="am-grid">
         <div class="am-stack">
             <section class="ar-panel">

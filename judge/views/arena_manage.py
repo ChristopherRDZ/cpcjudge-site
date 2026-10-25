@@ -1,8 +1,10 @@
 """The organizer side of the arena: the panel, quick battles, tournaments, problem banks and projector screens.
 
-Everything here requires `judge.manage_arena`; anybody else is told the page does not exist. Every change is a
-JSON POST carrying the version of the object it was made on, so two organizers working at once get a conflict
-instead of overwriting each other, and the panel refreshes itself every couple of seconds.
+Everything here requires `judge.manage_arena` (own battles) or `judge.manage_all_arena` (all of them); anybody else
+is told the page does not exist, and so is an organizer who opens a battle, tournament, screen or bank that is not
+theirs (judge/arena/access.py). Every change is a JSON POST carrying the version of the object it was made on, so
+two organizers working at once get a conflict instead of overwriting each other, and the panel refreshes itself
+every couple of seconds.
 """
 import logging
 from functools import wraps
@@ -14,7 +16,7 @@ from django.urls import reverse
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_GET, require_POST
 
-from judge.arena import engine, rules as arena_rules, serialize, tournament as arena_tournament
+from judge.arena import access, engine, rules as arena_rules, serialize, tournament as arena_tournament
 from judge.arena.engine import ArenaError
 from judge.jinja2.gravatar import gravatar
 from judge.models import Language, Profile, Submission
@@ -25,6 +27,7 @@ from judge.views.arena import _ace_context, can_manage, json_error, json_respons
 logger = logging.getLogger('judge.arena')
 
 SEARCH_LIMIT = 20
+MAX_ORGANIZERS = 20
 
 __all__ = ['manage_guide', 'manage_dashboard', 'manage_overview', 'manage_duel_create', 'manage_match', 'manage_match_state',
            'manage_match_action', 'manage_game_code', 'manage_submission_source', 'manage_problem_search',
@@ -82,6 +85,69 @@ def _slot(value):
     return value
 
 
+# Somebody else's battle, tournament, screen or bank is answered as if it did not exist, like any other page here.
+
+def _own_match(request, match_id, page=False):
+    match = ArenaMatch.objects.select_related('tournament').filter(pk=match_id).first()
+    if match is None or not access.can_manage_match(request.user, match):
+        if page:
+            raise Http404()
+        raise ArenaError(_('That battle does not exist.'), status=404)
+    return match
+
+
+def _own_tournament(request, slug, page=False):
+    tournament = ArenaTournament.objects.filter(slug=slug).first()
+    if tournament is None or not access.can_manage_tournament(request.user, tournament):
+        if page:
+            raise Http404()
+        raise ArenaError(_('That tournament does not exist.'), status=404)
+    return tournament
+
+
+def _own_game(request, game_id):
+    game = ArenaGame.objects.select_related('match', 'match__tournament').filter(pk=game_id).first()
+    if game is None or not access.can_manage_match(request.user, game.match):
+        raise Http404()
+    return game
+
+
+def _bank_choices(user, current=None):
+    """The banks a tournament of `user` can take: theirs, plus the one it already has even if it is somebody else's,
+    so that saving the page does not drop it."""
+    banks = access.banks_for(user)
+    if current is not None:
+        banks = banks | ArenaProblemBank.objects.filter(pk=current)
+    return list(banks.order_by('name').values('id', 'name'))
+
+
+def _organizers(values, exclude=None):
+    """The co-organizers sent by a page: only accounts that can organize battles."""
+    if not isinstance(values, list) or len(values) > MAX_ORGANIZERS * 2:
+        raise ArenaError(_('Invalid list of organizers.'))
+    profiles, seen = [], set()
+    for value in values:
+        profile = _profile(value)
+        if profile is None:
+            raise ArenaError(_('One of the organizers does not exist.'))
+        if profile.pk in seen or profile.pk == exclude:
+            continue
+        if not access.is_eligible_organizer(profile):
+            raise ArenaError(_('%(name)s cannot organize battles: give them a permission to organize battles first.')
+                             % {'name': profile.username})
+        seen.add(profile.pk)
+        profiles.append(profile)
+    if len(profiles) > MAX_ORGANIZERS:
+        raise ArenaError(_('A battle or tournament can have at most %(count)d co-organizers.') %
+                         {'count': MAX_ORGANIZERS})
+    return profiles
+
+
+def _set_organizers(actor, obj, profiles, **where):
+    obj.organizers.set(profiles)
+    engine._log('organizers', actor, organizers=[profile.username for profile in profiles], **where)
+
+
 # ---------------------------------------------------------------------------------------------------------------
 # Pages
 # ---------------------------------------------------------------------------------------------------------------
@@ -92,10 +158,11 @@ def manage_dashboard(request):
     # A plain read: the first screen is created with the first battle or tournament, which are POSTs.
     return render(request, 'arena/manage/dashboard.html', {
         'title': _('Battle panel'),
-        'state': serialize.overview(),
+        'state': serialize.overview(user=request.user),
         'defaults': arena_rules.DEFAULTS,
         'languages': _languages(),
-        'banks': list(ArenaProblemBank.objects.order_by('name').values('id', 'name')),
+        'banks': _bank_choices(request.user),
+        'sees_all': access.manages_all(request.user),
     })
 
 
@@ -103,16 +170,16 @@ def manage_dashboard(request):
 @require_GET
 def manage_overview(request):
     request.no_profile_update = True
-    return json_response(serialize.overview())
+    return json_response(serialize.overview(user=request.user))
 
 
 @manager_required
 @require_GET
 def manage_match(request, match):
-    match = get_object_or_404(ArenaMatch, pk=match)
+    match = _own_match(request, match, page=True)
     context = {
         'title': _('Battle: %(name)s') % {'name': str(match)},
-        'state': serialize.organizer_match_state(match, request.LANGUAGE_CODE),
+        'state': serialize.organizer_match_state(match, request.LANGUAGE_CODE, user=request.user),
         'defaults': arena_rules.DEFAULTS,
         'languages': _languages(),
     }
@@ -123,13 +190,13 @@ def manage_match(request, match):
 @manager_required
 @require_GET
 def manage_tournament(request, slug):
-    tournament = get_object_or_404(ArenaTournament, slug=slug)
+    tournament = _own_tournament(request, slug, page=True)
     return render(request, 'arena/manage/tournament.html', {
         'title': _('Tournament: %(name)s') % {'name': tournament.name},
-        'state': serialize.tournament_state(tournament, request.LANGUAGE_CODE),
+        'state': serialize.tournament_state(tournament, request.LANGUAGE_CODE, user=request.user),
         'defaults': arena_rules.DEFAULTS,
         'languages': _languages(),
-        'banks': list(ArenaProblemBank.objects.order_by('name').values('id', 'name')),
+        'banks': _bank_choices(request.user, tournament.bank_id),
     })
 
 
@@ -142,20 +209,27 @@ def manage_guide(request):
 @manager_required
 @require_GET
 def manage_banks(request):
-    banks = ArenaProblemBank.objects.order_by('name')
+    banks = access.banks_for(request.user).order_by('name')
     selected = None
     if request.GET.get('bank', '').isdigit():
-        selected = ArenaProblemBank.objects.filter(pk=int(request.GET['bank'])).first()
-    entries = []
+        selected = banks.filter(pk=int(request.GET['bank'])).first()
+    entries, hidden = [], 0
     if selected is not None:
+        rows = list(ArenaBankProblem.objects.filter(bank=selected).select_related('problem'))
+        visible = set(engine.visible_problems(request.user).filter(id__in=[e.problem_id for e in rows])
+                      .values_list('id', flat=True))
+        # A problem this organizer cannot see (somebody else added it, or it became private) is not shown: saving
+        # the bank keeps it as it is (tournament.set_bank_problems).
         entries = [{'id': e.problem_id, 'code': e.problem.code, 'name': e.problem.name, 'level': e.level,
-                    'note': e.note, 'public': e.problem.is_public}
-                   for e in ArenaBankProblem.objects.filter(bank=selected).select_related('problem')]
+                    'note': e.note, 'public': e.problem.is_public} for e in rows if e.problem_id in visible]
+        hidden = len(rows) - len(entries)
     return render(request, 'arena/manage/bank.html', {
         'title': _('Problem banks'),
         'banks': banks,
         'selected': selected,
         'entries': entries,
+        'hidden': hidden,
+        'sees_all': access.manages_all(request.user),
     })
 
 
@@ -181,14 +255,15 @@ def manage_duel_create(request):
 @require_GET
 def manage_match_state(request, match):
     request.no_profile_update = True
-    match = get_object_or_404(ArenaMatch, pk=match)
-    return json_response(serialize.organizer_match_state(match, request.LANGUAGE_CODE))
+    match = _own_match(request, match, page=True)
+    return json_response(serialize.organizer_match_state(match, request.LANGUAGE_CODE, user=request.user))
 
 
 @manager_required
 @require_POST
 @arena_errors
 def manage_match_action(request, match):
+    match_obj = _own_match(request, match)
     data = read_json(request)
     action = data.get('action')
     version = data.get('version')
@@ -227,10 +302,15 @@ def manage_match_action(request, match):
     elif action == 'replace':
         engine.replace_player(actor, match, _slot(data.get('slot')), _profile(data.get('profile')),
                               data.get('display', ''), version)
+    elif action == 'organizers':
+        if match_obj.tournament_id:
+            raise ArenaError(_('The battles of a tournament are run by the organizers of the tournament.'))
+        _set_organizers(actor, match_obj, _organizers(data.get('organizers'), exclude=match_obj.created_by_id),
+                        match=match_obj)
     else:
         raise ArenaError(_('Unknown action.'))
     match_obj = ArenaMatch.objects.get(pk=match)
-    result['state'] = serialize.organizer_match_state(match_obj, request.LANGUAGE_CODE)
+    result['state'] = serialize.organizer_match_state(match_obj, request.LANGUAGE_CODE, user=request.user)
     return json_response(result)
 
 
@@ -238,7 +318,7 @@ def manage_match_action(request, match):
 @require_GET
 def manage_game_code(request, game):
     request.no_profile_update = True
-    game = get_object_or_404(ArenaGame, pk=game)
+    game = _own_game(request, game)
     since = {}
     for slot in (SLOT_A, SLOT_B):
         try:
@@ -253,10 +333,11 @@ def manage_game_code(request, game):
 def manage_submission_source(request, submission):
     submission = get_object_or_404(Submission.objects.select_related('language', 'source', 'contest_object'),
                                    pk=submission)
-    game = ArenaGame.objects.filter(contest_id=submission.contest_object_id).first() \
-        if submission.contest_object_id else None
-    if game is None:
-        # Only arena submissions: this is not a way around the normal submission permissions.
+    game = ArenaGame.objects.select_related('match', 'match__tournament') \
+        .filter(contest_id=submission.contest_object_id).first() if submission.contest_object_id else None
+    if game is None or not access.can_manage_match(request.user, game.match):
+        # Only arena submissions, and only of one's own battles: this is not a way around the normal submission
+        # permissions.
         raise Http404()
     return json_response({'id': submission.pk, 'language': submission.language.name,
                           'source': submission.source.source, 'status': submission.status,
@@ -282,7 +363,7 @@ def manage_problem_search(request):
     used = set()
     match = None
     if request.GET.get('match', '').isdigit():
-        match = ArenaMatch.objects.filter(pk=int(request.GET['match'])).first()
+        match = access.matches_for(request.user).filter(pk=int(request.GET['match'])).first()
         if match is not None and match.tournament_id:
             used = engine.problems_used_in_tournament(match.tournament)
     results = []
@@ -302,8 +383,10 @@ def manage_user_search(request):
     term = request.GET.get('term', '').strip()[:100]
     if not term:
         return json_response({'results': []})
-    profiles = Profile.objects.filter(user__is_active=True) \
-        .filter(Q(user__username__icontains=term) | Q(username_display_override__icontains=term)) \
+    # ?organizers=1: only who could be a co-organizer, that is, who has a permission to organize battles.
+    profiles = access.eligible_organizers() if request.GET.get('organizers') else \
+        Profile.objects.filter(user__is_active=True)
+    profiles = profiles.filter(Q(user__username__icontains=term) | Q(username_display_override__icontains=term)) \
         .select_related('user').order_by('user__username')[:SEARCH_LIMIT]
     return json_response({'results': [{
         'id': profile.pk, 'username': profile.username, 'name': profile.display_name,
@@ -317,7 +400,8 @@ def manage_user_search(request):
 # Tournaments
 # ---------------------------------------------------------------------------------------------------------------
 
-def _bank(value):
+def _bank(value, user, current=None):
+    """A bank `user` may give to a tournament: one of theirs, or the one the tournament already has."""
     if value in (None, '', 0):
         return None
     if isinstance(value, str) and value.isdigit():
@@ -325,7 +409,7 @@ def _bank(value):
     if isinstance(value, bool) or not isinstance(value, int):
         raise ArenaError(_('Invalid problem bank.'))
     bank = ArenaProblemBank.objects.filter(pk=value).first()
-    if bank is None:
+    if bank is None or (bank.pk != current and not access.can_manage_bank(user, bank)):
         raise ArenaError(_('That bank does not exist.'))
     return bank
 
@@ -350,7 +434,8 @@ def manage_tournament_create(request):
     tournament = arena_tournament.create_tournament(
         request.profile, data.get('name'), _profiles(data.get('participants') or []),
         seeding=data.get('seeding', ArenaTournament.SEED_MANUAL), third_place=bool(data.get('third_place')),
-        rules=data.get('rules') or {}, description=data.get('description', ''), bank=_bank(data.get('bank')),
+        rules=data.get('rules') or {}, description=data.get('description', ''),
+        bank=_bank(data.get('bank'), request.user),
     )
     return json_response({'slug': tournament.slug,
                           'url': reverse('arena_manage_tournament', args=[tournament.slug])})
@@ -360,15 +445,15 @@ def manage_tournament_create(request):
 @require_GET
 def manage_tournament_state(request, slug):
     request.no_profile_update = True
-    tournament = get_object_or_404(ArenaTournament, slug=slug)
-    return json_response(serialize.tournament_state(tournament, request.LANGUAGE_CODE))
+    tournament = _own_tournament(request, slug, page=True)
+    return json_response(serialize.tournament_state(tournament, request.LANGUAGE_CODE, user=request.user))
 
 
 @manager_required
 @require_POST
 @arena_errors
 def manage_tournament_action(request, slug):
-    tournament = get_object_or_404(ArenaTournament, slug=slug)
+    tournament = _own_tournament(request, slug)
     data = read_json(request)
     action = data.get('action')
     version = data.get('version')
@@ -377,7 +462,8 @@ def manage_tournament_action(request, slug):
     if action == 'update':
         arena_tournament.update_tournament(
             actor, tournament.pk, version, name=data.get('name'), description=data.get('description'),
-            rules=data.get('rules'), bank=_bank(data.get('bank')) if 'bank' in data else False,
+            rules=data.get('rules'),
+            bank=_bank(data.get('bank'), request.user, tournament.bank_id) if 'bank' in data else False,
             third_place=data.get('third_place'), draw=data.get('draw'))
     elif action == 'participants':
         arena_tournament.set_participants(actor, tournament.pk, _profiles(data.get('participants') or []),
@@ -397,10 +483,13 @@ def manage_tournament_action(request, slug):
         arena_tournament.archive_tournament(actor, tournament.pk, version)
     elif action == 'fill':
         result['filled'] = arena_tournament.fill_ready_matches(actor, tournament.pk)
+    elif action == 'organizers':
+        _set_organizers(actor, tournament, _organizers(data.get('organizers'), exclude=tournament.created_by_id),
+                        tournament=tournament)
     else:
         raise ArenaError(_('Unknown action.'))
     tournament.refresh_from_db()
-    result['state'] = serialize.tournament_state(tournament, request.LANGUAGE_CODE)
+    result['state'] = serialize.tournament_state(tournament, request.LANGUAGE_CODE, user=request.user)
     return json_response(result)
 
 
@@ -411,7 +500,7 @@ def manage_draw(request, match):
     """Suggest problems for one game from the tournament bank, with the count and difficulties of its round.
     Nothing is saved: the suggestion goes into the list, and the organizer saves it or changes it."""
     data = read_json(request)
-    match_obj = get_object_or_404(ArenaMatch.objects.select_related('tournament', 'round'), pk=match)
+    match_obj = _own_match(request, match)
     game_id, number = _id(data.get('game')), _id(data.get('number'))
     games = ArenaGame.objects.filter(match=match_obj)
     game = games.filter(pk=game_id).first() if game_id else (games.filter(number=number).first() if number else None)
@@ -440,7 +529,7 @@ def manage_bank_action(request):
     if action == 'create':
         bank = arena_tournament.create_bank(request.profile, data.get('name'), data.get('description', ''))
     elif action == 'problems':
-        bank = _bank(data.get('bank'))
+        bank = _bank(data.get('bank'), request.user)
         if bank is None:
             raise ArenaError(_('That bank does not exist.'))
         bank = arena_tournament.set_bank_problems(request.profile, bank.pk, data.get('problems'))
@@ -449,21 +538,21 @@ def manage_bank_action(request):
     return json_response({'id': bank.pk, 'url': reverse('arena_manage_banks') + '?bank=%d' % bank.pk})
 
 
-def _match_arg(value):
+def _match_arg(value, user):
     value = _id(value)
     if value is None:
         return None
-    match = ArenaMatch.objects.filter(pk=value).first()
+    match = access.matches_for(user).filter(pk=value).first()
     if match is None:
         raise ArenaError(_('That battle does not exist.'), status=404)
     return match
 
 
-def _tournament_arg(value):
+def _tournament_arg(value, user):
     value = _id(value)
     if value is None:
         return None
-    tournament = ArenaTournament.objects.filter(pk=value).first()
+    tournament = access.tournaments_for(user).filter(pk=value).first()
     if tournament is None:
         raise ArenaError(_('That tournament does not exist.'), status=404)
     return tournament
@@ -476,16 +565,21 @@ def manage_screen_action(request):
     data = read_json(request)
     action = data.get('action')
     actor = request.profile
+    if action != 'create':
+        screen_id = _id(data.get('screen'), True)
+        if not access.screens_for(request.user).filter(pk=screen_id).exists():
+            raise ArenaError(_('That screen does not exist.'), status=404)
     if action == 'create':
         engine.create_screen(actor, data.get('name'))
     elif action == 'show':
-        engine.show_on_screen(actor, _id(data.get('screen'), True), data.get('mode'), match=_match_arg(data.get('match')),
-                              tournament=_tournament_arg(data.get('tournament')), message=data.get('message', ''),
-                              follow_live=data.get('follow_live'), version=data.get('version'))
+        engine.show_on_screen(actor, screen_id, data.get('mode'), match=_match_arg(data.get('match'), request.user),
+                              tournament=_tournament_arg(data.get('tournament'), request.user),
+                              message=data.get('message', ''), follow_live=data.get('follow_live'),
+                              version=data.get('version'))
     elif action == 'rename':
-        engine.rename_screen(actor, _id(data.get('screen'), True), data.get('name'))
+        engine.rename_screen(actor, screen_id, data.get('name'))
     elif action == 'regenerate':
-        engine.regenerate_screen_token(actor, _id(data.get('screen'), True))
+        engine.regenerate_screen_token(actor, screen_id)
     else:
         raise ArenaError(_('Unknown action.'))
-    return json_response({'screens': serialize.screens_overview()})
+    return json_response({'screens': serialize.screens_overview(request.user)})

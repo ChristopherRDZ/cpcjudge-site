@@ -64,6 +64,9 @@ window.ArenaWidgets = (function () {
         down: {{ _('Move down')|tojson }},
         points: {{ _('points')|tojson }},
         privileged: {{ _('Staff account: on a club laptop use an account without permissions')|tojson }},
+        creator: {{ _('Created it')|tojson }},
+        noOrganizers: {{ _('Nobody else yet.')|tojson }},
+        searchOrganizers: {{ _('Search people who can organize battles...')|tojson }},
         busy: {{ _('Already in another battle')|tojson }},
         warnings: {
             'public': {{ _('Public problem')|tojson }},
@@ -218,6 +221,47 @@ window.ArenaWidgets = (function () {
                 ]));
             });
             if (onChange) onChange(users);
+        }
+        draw();
+        return {get: function () { return users.slice(); }, set: function (rows) { users = rows.slice(); draw(); }};
+    };
+
+    // Co-organizers of a tournament or a quick battle: only people with a permission to organize battles are
+    // offered. Its creator is shown first and cannot be removed. Returns {get(), set(rows)}.
+    W.fetchOrganizers = function (term) {
+        return A.get({{ url('arena_manage_users')|tojson }} + '?organizers=1&term=' + encodeURIComponent(term))
+            .then(function (data) { return data.results; });
+    };
+
+    W.organizerList = function (container, creator, initial, editable) {
+        var users = (initial || []).slice();
+        var list = A.el('div', {'class': 'am-list'});
+        if (editable) {
+            var search = A.el('div');
+            container.appendChild(search);
+            W.searchBox(search, {fetch: W.fetchOrganizers, row: W.userRow, placeholder: W.TEXT.searchOrganizers,
+                                 pick: function (user) {
+                if ((creator && user.id === creator.id) || users.some(function (u) { return u.id === user.id; })) return;
+                users.push(user); draw();
+            }});
+        }
+        container.appendChild(list);
+        function card(user, extra) {
+            return A.el('div', {'class': 'am-item'}, [
+                user.avatar ? A.el('img', {src: user.avatar, alt: '', style: 'width:24px;height:24px;border-radius:3px;'}) : null,
+                A.el('b', {text: user.name}),
+                user.name !== user.username ? A.el('span', {'class': 'ar-muted', text: user.username}) : null,
+                A.el('span', {'class': 'ar-grow'})
+            ].concat(extra || []));
+        }
+        function draw() {
+            A.clear(list);
+            if (creator) list.appendChild(card(creator, [W.badge(W.TEXT.creator, 'none')]));
+            users.forEach(function (user, index) {
+                list.appendChild(card(user, editable ? [A.el('button', {type: 'button', 'class': 'am-icon-btn', title: W.TEXT.remove,
+                    text: '✕', onclick: function () { users.splice(index, 1); draw(); }})] : []));
+            });
+            if (!creator && !users.length) list.appendChild(A.el('span', {'class': 'ar-muted', text: W.TEXT.noOrganizers}));
         }
         draw();
         return {get: function () { return users.slice(); }, set: function (rows) { users = rows.slice(); draw(); }};

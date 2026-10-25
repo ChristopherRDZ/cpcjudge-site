@@ -94,6 +94,9 @@ class ArenaTournament(models.Model):
     rules = models.JSONField(verbose_name=_('rules'), default=dict, blank=True)
     created_by = models.ForeignKey(Profile, verbose_name=_('created by'), null=True, blank=True,
                                    on_delete=models.SET_NULL, related_name='+')
+    # Besides its creator, who else runs it with the permission to organize only their own battles
+    # (judge/arena/access.py). They also run the battles of its bracket.
+    organizers = models.ManyToManyField(Profile, verbose_name=_('co-organizers'), blank=True, related_name='+')
     created_at = models.DateTimeField(verbose_name=_('created at'), default=timezone.now)
     started_at = models.DateTimeField(verbose_name=_('started at'), null=True, blank=True)
     finished_at = models.DateTimeField(verbose_name=_('finished at'), null=True, blank=True)
@@ -194,6 +197,8 @@ class ArenaMatch(models.Model):
     decided_at = models.DateTimeField(verbose_name=_('decided at'), null=True, blank=True)
     created_by = models.ForeignKey(Profile, verbose_name=_('created by'), null=True, blank=True,
                                    on_delete=models.SET_NULL, related_name='+')
+    # Only for quick battles: the battles of a tournament are run by the organizers of the tournament.
+    organizers = models.ManyToManyField(Profile, verbose_name=_('co-organizers'), blank=True, related_name='+')
     created_at = models.DateTimeField(verbose_name=_('created at'), default=timezone.now)
     version = models.PositiveIntegerField(default=0)
 
@@ -240,7 +245,8 @@ class ArenaMatch(models.Model):
         ordering = ('-created_at', '-id')
         indexes = [models.Index(fields=['tournament', 'round', 'position'])]
         permissions = (
-            ('manage_arena', _('Organize arena battles')),
+            ('manage_arena', _('Organize own arena battles')),
+            ('manage_all_arena', _('Organize all arena battles')),
         )
         verbose_name = _('arena match')
         verbose_name_plural = _('arena matches')

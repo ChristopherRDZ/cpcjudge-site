@@ -11346,3 +11346,281 @@ msgid "Sent to %(count)d person."
 msgid_plural "Sent to %(count)d people."
 msgstr[0] "Enviado a %(count)d persona."
 msgstr[1] "Enviado a %(count)d personas."
+
+#: cpc 2026-10-23
+msgid "Organize own arena battles"
+msgstr "Organizar sus propias batallas de duelos"
+
+#: cpc 2026-10-23
+msgid "Organize all arena battles"
+msgstr "Organizar todas las batallas de duelos"
+
+#: cpc 2026-10-23
+msgid "Write and send own emails to users"
+msgstr "Escribir y enviar sus propios correos a usuarios"
+
+#: cpc 2026-10-23
+msgid "Edit and send all emails to users"
+msgstr "Editar y enviar todos los correos a usuarios"
+
+#: cpc 2026-10-23
+msgid "co-organizers"
+msgstr "co-organizadores"
+
+#: cpc 2026-10-23
+msgid "who receives it"
+msgstr "a quién le llega"
+
+#: cpc 2026-10-23
+msgid "Who receives it"
+msgstr "A quién le llega"
+
+#: cpc 2026-10-23
+msgid "All accounts with a confirmed email"
+msgstr "Todas las cuentas con el correo confirmado"
+
+#: cpc 2026-10-23
+msgid "Only who meets the filters below"
+msgstr "Sólo quienes cumplan los filtros de abajo"
+
+#: cpc 2026-10-23
+msgid "Only the people I choose"
+msgstr "Sólo las personas que yo elija"
+
+#: cpc 2026-10-23
+msgid "rating of at least"
+msgstr "rating de al menos"
+
+#: cpc 2026-10-23
+msgid "rating of at most"
+msgstr "rating de a lo más"
+
+#: cpc 2026-10-23
+msgid "Accounts without a rating are left out."
+msgstr "Las cuentas sin rating quedan fuera."
+
+#: cpc 2026-10-23
+msgid "Accounts without a rating count as below any number."
+msgstr "Las cuentas sin rating cuentan como por debajo de cualquier número."
+
+#: cpc 2026-10-23
+msgid "Only accounts with a confirmed email receive it. Choose who among them: all, only who meets the filters, or only the people you name. With several filters, people must meet all of them; inside one filter, one of the choices is enough. «Never include» always wins."
+msgstr "Sólo lo reciben las cuentas con el correo confirmado. Elige a quién de ellas: a todas, sólo a quienes cumplan los filtros, o sólo a las personas que nombres. Con varios filtros, hay que cumplirlos todos; dentro de un filtro, basta con una de sus opciones. «Nunca incluir» siempre gana."
+
+#: cpc 2026-10-23
+msgid "The ratings are reversed: the minimum is above the maximum."
+msgstr "Los ratings están al revés: el mínimo es mayor que el máximo."
+
+#: cpc 2026-10-23
+msgid "Choose the people who will receive it."
+msgstr "Elige a las personas que lo recibirán."
+
+#: cpc 2026-10-23
+msgid "Choose at least one filter, or send it to all accounts with the first choice."
+msgstr "Elige al menos un filtro, o mándalo a todas las cuentas con la primera opción."
+
+#: cpc 2026-10-23
+msgid "The people who will receive it"
+msgstr "Las personas que lo recibirán"
+
+#: cpc 2026-10-23
+msgid "Only these people, as long as their email is confirmed."
+msgstr "Sólo estas personas, siempre que tengan el correo confirmado."
+
+#: cpc 2026-10-23
+msgid "Also, always these people"
+msgstr "Además, siempre a estas personas"
+
+#: cpc 2026-10-23
+msgid "For:"
+msgstr "Para:"
+
+#: cpc 2026-10-23
+msgid "All accounts with a confirmed email."
+msgstr "Todas las cuentas con el correo confirmado."
+
+#: cpc 2026-10-23
+msgid "Accounts with a confirmed email that:"
+msgstr "Las cuentas con el correo confirmado que:"
+
+#: cpc 2026-10-23
+#, python-format
+msgid "took part in any of these contests: %(names)s"
+msgstr "participaron en alguno de estos concursos: %(names)s"
+
+#: cpc 2026-10-23
+#, python-format
+msgid "took part in any of these contests, virtual participations included: %(names)s"
+msgstr "participaron en alguno de estos concursos, contando las participaciones virtuales: %(names)s"
+
+#: cpc 2026-10-23
+#, python-format
+msgid "are members of any of these organizations: %(names)s"
+msgstr "son miembros de alguna de estas organizaciones: %(names)s"
+
+#: cpc 2026-10-23
+#, python-format
+msgid "are in any of these permission groups: %(names)s"
+msgstr "están en alguno de estos grupos de permisos: %(names)s"
+
+#: cpc 2026-10-23
+#, python-format
+msgid "visited the site in the last %(days)d days"
+msgstr "entraron al sitio en los últimos %(days)d días"
+
+#: cpc 2026-10-23
+#, python-format
+msgid "signed up on or after %(date)s"
+msgstr "se registraron el %(date)s o después"
+
+#: cpc 2026-10-23
+#, python-format
+msgid "signed up on or before %(date)s"
+msgstr "se registraron el %(date)s o antes"
+
+#: cpc 2026-10-23
+#, python-format
+msgid "solved at least %(count)d problems"
+msgstr "resolvieron al menos %(count)d problemas"
+
+#: cpc 2026-10-23
+#, python-format
+msgid "have a rating of at least %(rating)d"
+msgstr "tienen un rating de al menos %(rating)d"
+
+#: cpc 2026-10-23
+#, python-format
+msgid "have a rating of at most %(rating)d, or no rating"
+msgstr "tienen un rating de a lo más %(rating)d, o no tienen rating"
+
+#: cpc 2026-10-23
+msgid "(no filter chosen yet)"
+msgstr "(todavía no hay ningún filtro elegido)"
+
+#: cpc 2026-10-23
+msgid "Only whoever can edit all emails to users subscribes people again."
+msgstr "Sólo quien puede editar todos los correos a usuarios vuelve a suscribir a alguien."
+
+#: cpc 2026-10-23
+#, python-format
+msgid "First error: %(error)s"
+msgstr "Primer error: %(error)s"
+
+#: cpc 2026-10-23
+msgid "Task progress"
+msgstr "Progreso de la tarea"
+
+#: cpc 2026-10-23
+msgid "Go back"
+msgstr "Volver"
+
+#: cpc 2026-10-23
+msgid "You can leave this page: the task goes on by itself."
+msgstr "Puedes salir de esta página: la tarea sigue por su cuenta."
+
+#: cpc 2026-10-23
+#, python-format
+msgid "%(name)s cannot organize battles: give them a permission to organize battles first."
+msgstr "%(name)s no puede organizar batallas: primero dale un permiso para organizar batallas."
+
+#: cpc 2026-10-23
+#, python-format
+msgid "A battle or tournament can have at most %(count)d co-organizers."
+msgstr "Una batalla o un torneo puede tener a lo más %(count)d co-organizadores."
+
+#: cpc 2026-10-23
+msgid "Invalid list of organizers."
+msgstr "Lista de organizadores no válida."
+
+#: cpc 2026-10-23
+msgid "One of the organizers does not exist."
+msgstr "Uno de los organizadores no existe."
+
+#: cpc 2026-10-23
+msgid "The battles of a tournament are run by the organizers of the tournament."
+msgstr "Las batallas de un torneo las manejan los organizadores del torneo."
+
+#: cpc 2026-10-23
+msgid "The battles of a tournament are run by the organizers of the tournament. Change them on the page of the tournament."
+msgstr "Las batallas de un torneo las manejan los organizadores del torneo. Cámbialos en la página del torneo."
+
+#: cpc 2026-10-23
+msgid "Besides whoever organizes all battles, only these people see and run this battle. Add whoever helps you; they need a permission to organize battles."
+msgstr "Además de quien organiza todas las batallas, sólo estas personas ven y manejan esta batalla. Agrega a quien te ayude; necesita un permiso para organizar batallas."
+
+#: cpc 2026-10-23
+msgid "Besides whoever organizes all battles, only these people see and run this tournament and its battles. Add whoever helps you; they need a permission to organize battles."
+msgstr "Además de quien organiza todas las batallas, sólo estas personas ven y manejan este torneo y sus batallas. Agrega a quien te ayude; necesita un permiso para organizar batallas."
+
+#: cpc 2026-10-23
+msgid "Organizers"
+msgstr "Organizadores"
+
+#: cpc 2026-10-23
+msgid "Save organizers"
+msgstr "Guardar organizadores"
+
+#: cpc 2026-10-23
+msgid "Organizers saved"
+msgstr "Organizadores guardados"
+
+#: cpc 2026-10-23
+msgid "changed the organizers"
+msgstr "cambió los organizadores"
+
+#: cpc 2026-10-23
+msgid "Created it"
+msgstr "Lo creó"
+
+#: cpc 2026-10-23
+msgid "Nobody else yet."
+msgstr "Nadie más todavía."
+
+#: cpc 2026-10-23
+msgid "Search people who can organize battles..."
+msgstr "Buscar personas que pueden organizar batallas..."
+
+#: cpc 2026-10-23
+msgid "You see the battles and tournaments you created or were added to as an organizer, and your own screens and banks."
+msgstr "Ves las batallas y los torneos que creaste o en los que te agregaron como organizador, y tus propias pantallas y bancos."
+
+#: cpc 2026-10-23
+msgid "Who organizes what?"
+msgstr "¿Quién organiza qué?"
+
+#: cpc 2026-10-23
+msgid "Only your own banks."
+msgstr "Sólo tus bancos."
+
+#: cpc 2026-10-23
+#, python-format
+msgid "This bank also has %(count)s problems you cannot see. They are not listed here, and saving keeps them."
+msgstr "Este banco tiene además %(count)s problemas que no puedes ver. No aparecen aquí, y al guardar se conservan."
+
+#: cpc 2026-10-23
+#, python-format
+msgid "%(count)d more"
+msgid_plural "%(count)d more"
+msgstr[0] "%(count)d más"
+msgstr[1] "%(count)d más"
+
+#: cpc 2026-10-23
+#, python-format
+msgid "Also %(count)d person chosen by name."
+msgid_plural "Also %(count)d people chosen by name."
+msgstr[0] "Además, %(count)d persona elegida por nombre."
+msgstr[1] "Además, %(count)d personas elegidas por nombre."
+
+#: cpc 2026-10-23
+#, python-format
+msgid "Never: %(count)d person."
+msgid_plural "Never: %(count)d people."
+msgstr[0] "Nunca: %(count)d persona."
+msgstr[1] "Nunca: %(count)d personas."
+
+#: cpc 2026-10-23
+#, python-format
+msgid "Only %(count)d chosen person."
+msgid_plural "Only %(count)d chosen people."
+msgstr[0] "Sólo %(count)d persona elegida."
+msgstr[1] "Sólo %(count)d personas elegidas."

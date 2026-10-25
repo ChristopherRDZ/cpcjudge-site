@@ -92,6 +92,7 @@ $(function () {
                     <div class="ar-panel-body">
                         {% if selected.description %}<p>{{ selected.description }}</p>{% endif %}
                         <p class="am-hint">{{ _('A bank is a list of problems prepared in advance for tournaments. A tournament can give its battles problems from it by itself, or suggest them for you to check; it never repeats a problem in the tournament and avoids those the players already tried. Give each problem a difficulty so harder rounds can get harder problems.') }}</p>
+                        {% if hidden %}<p class="ar-alert ar-alert-info" id="bk-hidden">{{ _('This bank also has %(count)s problems you cannot see. They are not listed here, and saving keeps them.', count=hidden) }}</p>{% endif %}
                         <div id="bk-add"></div>
                         <table class="am-table" id="bk-table" style="margin-top: .8em;">
                             <thead><tr><th>{{ _('Code') }}</th><th>{{ _('Problem') }}</th><th>{{ _('Difficulty (1 easy, 5 hard)') }}</th><th>{{ _('Note') }}</th><th></th></tr></thead>
@@ -107,6 +108,7 @@ $(function () {
         <div class="am-stack">
             <section class="ar-panel">
                 <h3 class="ar-panel-head">{{ _('Problem banks') }}</h3>
+                {% if not sees_all %}<p class="am-hint" style="padding: 0 .8em;">{{ _('Only your own banks.') }}</p>{% endif %}
                 <table class="am-table">
                     {% for bank in banks %}
                         <tr><td><a href="?bank={{ bank.id }}">{% if selected and selected.id == bank.id %}<b>{{ bank.name }}</b>{% else %}{{ bank.name }}{% endif %}</a></td></tr>

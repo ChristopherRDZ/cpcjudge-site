@@ -3,6 +3,9 @@
 Battles are run from the panel of the duels (/duelos/manage/), which keeps every rule in one place: who may play,
 what can change while a game runs, how results move a bracket forward. The lists here are for looking things up. Only
 superusers can edit a row, and deleting stays with the server owner, as everywhere in this admin.
+
+Who organizes only their own battles (`judge.manage_arena`) sees here only those, with their games, screens and banks;
+`judge.manage_all_arena` sees everything (judge/arena/access.py).
 """
 from django.contrib import admin
 from django.core.exceptions import PermissionDenied
@@ -14,15 +17,26 @@ from django.utils.text import capfirst
 from django.utils.translation import gettext_lazy as _
 
 from judge.admin.purge import contest_plan, purge_contest
+from judge.arena import access
 from judge.models import ArenaGame, Contest
 
 
 def _can_view(request):
-    return request.user.is_active and (request.user.is_superuser or request.user.has_perm('judge.manage_arena'))
+    return access.can_manage(request.user)
 
 
 class ArenaViewMixin:
-    """Organizers see the lists; only superusers change rows; nobody adds rows here."""
+    """Organizers see the lists, of what they organize; only superusers change rows; nobody adds rows here."""
+
+    def scoped(self, request, queryset):
+        """The rows of the list that `request.user` organizes."""
+        return queryset
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        if access.manages_all(request.user):
+            return queryset
+        return self.scoped(request, queryset)
 
     def has_module_permission(self, request):
         return _can_view(request)
@@ -55,9 +69,12 @@ class ArenaMatchAdmin(ArenaViewMixin, admin.ModelAdmin):
     list_filter = ('status', 'tournament')
     search_fields = ('player_a__user__username', 'player_b__user__username', 'display_name_a', 'display_name_b',
                      'title')
-    raw_id_fields = ('player_a', 'player_b', 'next_match', 'loser_next_match', 'created_by')
+    raw_id_fields = ('player_a', 'player_b', 'next_match', 'loser_next_match', 'created_by', 'organizers')
     readonly_fields = ('version', 'created_at', 'decided_at', 'called_at')
     list_select_related = ('player_a__user', 'player_b__user', 'tournament', 'round')
+
+    def scoped(self, request, queryset):
+        return queryset.filter(pk__in=access.matches_for(request.user).values('pk'))
 
     @admin.display(description=_('players'))
     def show_players(self, obj):
@@ -87,6 +104,9 @@ class ArenaGameAdmin(ArenaViewMixin, admin.ModelAdmin):
     raw_id_fields = ('match', 'contest', 'participation_a', 'participation_b', 'decided_by')
     readonly_fields = ('created_at',)
     list_select_related = ('match__player_a__user', 'match__player_b__user', 'match__tournament', 'contest')
+
+    def scoped(self, request, queryset):
+        return queryset.filter(match__in=access.matches_for(request.user).values('pk'))
 
     @admin.display(description=_('tournament'), ordering='match__tournament__name')
     def show_tournament(self, obj):
@@ -130,8 +150,11 @@ class ArenaTournamentAdmin(ArenaViewMixin, admin.ModelAdmin):
     list_display = ('name', 'slug', 'status', 'seeding', 'created_at', 'panel_link')
     list_filter = ('status',)
     search_fields = ('name', 'slug')
-    raw_id_fields = ('created_by', 'bank')
+    raw_id_fields = ('created_by', 'bank', 'organizers')
     readonly_fields = ('version', 'created_at', 'started_at', 'finished_at')
+
+    def scoped(self, request, queryset):
+        return queryset.filter(pk__in=access.tournaments_for(request.user).values('pk'))
 
     @admin.display(description=_('panel'))
     def panel_link(self, obj):
@@ -144,6 +167,9 @@ class ArenaProblemBankAdmin(ArenaViewMixin, admin.ModelAdmin):
     search_fields = ('name',)
     raw_id_fields = ('created_by',)
 
+    def scoped(self, request, queryset):
+        return queryset.filter(pk__in=access.banks_for(request.user).values('pk'))
+
 
 class ArenaScreenAdmin(ArenaViewMixin, admin.ModelAdmin):
     list_display = ('name', 'mode', 'match', 'tournament', 'follow_live', 'updated_at')
@@ -151,6 +177,9 @@ class ArenaScreenAdmin(ArenaViewMixin, admin.ModelAdmin):
     exclude = ('token',)
     raw_id_fields = ('match', 'tournament', 'created_by')
     readonly_fields = ('version',)
+
+    def scoped(self, request, queryset):
+        return queryset.filter(pk__in=access.screens_for(request.user).values('pk'))
 
 
 __all__ = ['ArenaPanelAdmin', 'ArenaMatchAdmin', 'ArenaGameAdmin', 'ArenaTournamentAdmin', 'ArenaProblemBankAdmin',

@@ -3,6 +3,7 @@ from datetime import timezone as dt_timezone
 
 from celery import shared_task
 from django.db import transaction
+from django.utils import translation
 from django.utils.translation import gettext as _
 
 from judge.mass_email import render_email, reply_to, sender
@@ -34,12 +35,16 @@ def send_mass_email(self, mail_id):
         mail = MassEmail.objects.select_for_update().get(pk=mail_id)
         if mail.status != MassEmail.SENDING:
             return 'not sending: %s' % mail.status
-    try:
-        return _send(self, mail, ResendClient())
-    except Exception as error:
-        message = str(error) if isinstance(error, ResendError) else '%s: %s' % (type(error).__name__, error)
-        _save(mail, status=MassEmail.FAILED, error=message[:2000])
-        raise
+    # Celery has no request, so without this its messages (the progress page, the error kept with the email) came
+    # out in the language of the settings, English, on a site in Spanish. The language of the email is the best
+    # guess of the language of whoever wrote it.
+    with translation.override(mail.language or 'es'):
+        try:
+            return _send(self, mail, ResendClient())
+        except Exception as error:
+            message = str(error) if isinstance(error, ResendError) else '%s: %s' % (type(error).__name__, error)
+            _save(mail, status=MassEmail.FAILED, error=message[:2000])
+            raise
 
 
 def _free_segments(client, mail):
@@ -103,7 +108,13 @@ def _send(task, mail, client):
 
         added = mail.recipients.filter(state=MassEmailRecipient.ADDED).count()
         if not added:
-            raise ResendError(_('Nobody could be added to the list in Resend, so nothing was sent.'))
+            # What Resend answered for the first of them says why, without having to open "Who it was sent to".
+            first = mail.recipients.filter(state=MassEmailRecipient.FAILED).exclude(error='') \
+                .values_list('error', flat=True).first()
+            message = _('Nobody could be added to the list in Resend, so nothing was sent.')
+            if first:
+                message += ' ' + _('First error: %(error)s') % {'error': first}
+            raise ResendError(message)
 
         if not mail.resend_broadcast_id and mail.broadcast_requested:
             # A previous attempt asked for the broadcast and did not hear back: it may exist already. If it stayed
