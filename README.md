@@ -1,9 +1,9 @@
 <h1 align="center">
   <img src="logo.png" alt="DMOJ" width="120">
   <br>
-  CPC Online Judge
+  CPC UAEH Online Judge
 </h1>
-<p align="center">A DMOJ fork for programming practice and ICPC-style contests.</p>
+<p align="center">The online judge of the Club de Programación Competitiva UAEH (CPC UAEH):<br>a DMOJ fork for programming practice and ICPC-style contests.</p>
 <p align="center">
   <a href="LICENSE"><img alt="License: AGPL v3" src="https://img.shields.io/badge/license-AGPL--3.0-blue"></a>
   <a href="docs/setup-guide.md">Installation</a> ·
@@ -18,8 +18,9 @@
 
 Run individual or team contests with frozen scoreboards, an interactive reveal
 ceremony, balloon delivery tools and a Spanish interface, and 1v1 duels and
-knockout tournaments on a projector. This fork is maintained
-by **CPC-UAEH** and builds on [DMOJ](https://github.com/DMOJ/online-judge), with
+knockout tournaments on a projector. This fork is maintained by **CPC-UAEH**, the
+Club de Programación Competitiva UAEH, and runs at [cpcjudge.com](https://cpcjudge.com).
+It builds on [DMOJ](https://github.com/DMOJ/online-judge), with
 additional contest, administration and deployment features.
 
 **Get started:** follow the [installation guide](docs/setup-guide.md) to configure
