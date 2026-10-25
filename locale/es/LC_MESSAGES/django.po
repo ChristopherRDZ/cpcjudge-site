@@ -11624,3 +11624,16 @@ msgid "Only %(count)d chosen person."
 msgid_plural "Only %(count)d chosen people."
 msgstr[0] "Sólo %(count)d persona elegida."
 msgstr[1] "Sólo %(count)d personas elegidas."
+
+#: cpc 2026-10-24 (terminos-privacidad-20261024/correos-pie)
+msgid "CPC-UAEH is an independent student club; it is not an official UAEH service."
+msgstr "CPC-UAEH es un club estudiantil independiente; no es un servicio oficial de la UAEH."
+
+#: cpc 2026-10-24
+msgid "Privacy notice"
+msgstr "Aviso de privacidad"
+
+#: cpc 2026-10-24
+#, python-format
+msgid "Privacy notice: %(url)s"
+msgstr "Aviso de privacidad: %(url)s"

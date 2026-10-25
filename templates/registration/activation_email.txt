@@ -19,6 +19,7 @@ This link expires in {{ count }} days.
 
 --
 {{ _('This is an automatic message from %(site_name)s.', site_name=site.name) }}
+{{ _('CPC-UAEH is an independent student club; it is not an official UAEH service.') }}
 {% if SITE_ADMIN_EMAIL is defined and SITE_ADMIN_EMAIL %}{{ _('Questions? Write to us at %(email)s.', email=SITE_ADMIN_EMAIL) }}
 {% endif %}{{ request.scheme }}://{{ site.domain }}
 {%- endautoescape %}

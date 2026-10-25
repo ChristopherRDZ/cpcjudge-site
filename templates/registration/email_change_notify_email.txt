@@ -14,5 +14,6 @@
 
 --
 {{ _('This is an automatic message from %(site_name)s.', site_name=site_name) }}
+{{ _('CPC-UAEH is an independent student club; it is not an official UAEH service.') }}
 {{ protocol }}://{{ domain }}
 {%- endautoescape %}

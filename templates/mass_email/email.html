@@ -14,7 +14,10 @@
 {% block footer %}
 {{ _('You receive this email because you have an account on %(site_name)s.', site_name=site_name) }}
 <br>
+{{ _('CPC-UAEH is an independent student club; it is not an official UAEH service.') }}
+<br>
 <a href="{{ unsubscribe_url }}" style="color:#555555;">{{ _('Unsubscribe from these emails') }}</a>
+&middot; <a href="{{ protocol }}://{{ domain }}/privacidad/" style="color:#555555;">{{ _('Privacy notice') }}</a>
 {%- if site_admin_email %}
 <br>
 {%- with link='<a href="mailto:%(email)s" style="color:#555555;">%(email)s</a>'|safe|format(email=site_admin_email) %}

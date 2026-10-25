@@ -65,6 +65,8 @@
 <td align="center" style="padding:16px 24px 8px;{{ _font }}font-size:12px;line-height:1.6;color:#777777;">
 {% block footer %}
 {{ _('This is an automatic message from %(site_name)s.', site_name=_site_name) }}
+<br>
+{{ _('CPC-UAEH is an independent student club; it is not an official UAEH service.') }}
 {%- if _admin_email %}
 <br>
 {%- with link='<a href="mailto:%(email)s" style="color:#555555;">%(email)s</a>'|safe|format(email=_admin_email) %}

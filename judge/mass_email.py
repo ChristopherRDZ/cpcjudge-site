@@ -392,7 +392,9 @@ def render_email(mail, username='', for_resend=False):
         })
         footer = [gettext('You receive this email because you have an account on %(site_name)s.') %
                   {'site_name': site_name},
+                  gettext('CPC-UAEH is an independent student club; it is not an official UAEH service.'),
                   gettext('To stop receiving these emails: %(url)s') % {'url': unsubscribe_url},
+                  gettext('Privacy notice: %(url)s') % {'url': base_url + '/privacidad/'},
                   base_url]
     text = '\n\n'.join(filter(None, [mail.heading, html_to_text(body)])) + '\n\n--\n' + '\n'.join(footer) + '\n'
     name_html = RESEND_NAME if for_resend else str(escape(username))
