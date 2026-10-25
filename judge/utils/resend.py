@@ -125,8 +125,9 @@ class ResendClient:
 
     def create_contact(self, email, first_name, segment_id):
         # `unsubscribed` is never sent: a new contact starts subscribed, and an existing one keeps its choice.
+        # Each segment goes as an object with its id: a bare id is refused with «expected object, received string».
         return self.request('POST', '/contacts', json={'email': email, 'first_name': first_name,
-                                                       'segments': [segment_id]})['id']
+                                                       'segments': [{'id': segment_id}]})['id']
 
     def add_to_segment(self, contact_id, segment_id):
         self.request('POST', '/contacts/%s/segments/%s' % (quote(contact_id, safe=''), quote(segment_id, safe='')))
