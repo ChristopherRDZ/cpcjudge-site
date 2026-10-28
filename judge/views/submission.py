@@ -725,6 +725,12 @@ class TeamContestSubmissions(ForceContestMixin, AllSubmissions):
         queryset = super().get_queryset().filter(contest__participation=self.team_entry)
         if 'problem' in self.kwargs:
             queryset = queryset.filter(problem__code=self.kwargs['problem'])
+        # As on the page of one person (UserAllContestSubmissions): whoever is neither in the team nor runs the
+        # contest only sees the submissions to problems they can see.
+        user = self.request.user
+        if not (user.is_authenticated and (self.team_entry.contains_profile(self.request.profile.pk) or
+                                           self.request.profile.id in self.contest.editor_ids)):
+            filter_submissions_by_visible_problems(queryset, user)
         return queryset.distinct()
 
     def get_title(self):

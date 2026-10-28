@@ -206,7 +206,8 @@ else:
             'title': 'DMOJ Admin',
             'menu': {
                 'top': 'wpadmin.menu.menus.BasicTopMenu',
-                'left': 'wpadmin.menu.custom.CustomModelLeftMenuWithDashboard',
+                # CPC: wpadmin's menu without the links that lead to a 403 (judge/admin/interface.py).
+                'left': 'judge.admin.interface.AllowedLeftMenu',
             },
             'custom_menu': [
                 {

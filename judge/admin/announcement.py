@@ -84,6 +84,18 @@ class AnnouncementAdmin(admin.ModelAdmin):
             Q(contest__isnull=True) | Q(contest__authors=request.profile) | Q(contest__curators=request.profile),
         ).distinct()
 
+    def has_change_permission(self, request, obj=None):
+        # An announcement to the whole site is only for who may announce to the whole site. Without this, someone
+        # who runs contests could open it and save it into one of their contests, taking it off the site.
+        if obj is not None and obj.contest_id is None and not request.user.has_perm('judge.announce_site'):
+            return False
+        return super().has_change_permission(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        if obj is not None and obj.contest_id is None and not request.user.has_perm('judge.announce_site'):
+            return False
+        return super().has_delete_permission(request, obj)
+
     def get_form(self, request, obj=None, **kwargs):
         form = super().get_form(request, obj, **kwargs)
         if 'contest' in form.base_fields:

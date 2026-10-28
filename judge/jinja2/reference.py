@@ -174,6 +174,13 @@ def absolute_links(text, url):
         href = anchor.get('href')
         if href:
             anchor.set('href', urljoin(url, href))
+    # CPC: the images too. pdfoid prints the statement from a local file, so an image uploaded with the editor
+    # (src="/martor/...") was looked up in file:///martor/... and came out broken in the PDF.
+    # iter() and not xpath('.//img'): it also sees a statement that is nothing but one image.
+    for image in tree.iter('img'):
+        src = (image.get('src') or '').strip()
+        if src:
+            image.set('src', urljoin(url, src))
     return tree
 
 

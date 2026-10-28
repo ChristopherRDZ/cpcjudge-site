@@ -166,3 +166,61 @@ class LogEntryAdmin(admin.ModelAdmin):
 
     def queryset(self, request):
         return super().queryset(request).prefetch_related('content_type')
+
+
+# CPC: the side menu of the administration (WPADMIN['admin']['menu']['left'] in dmoj/settings.py). wpadmin draws the
+# «+» to add next to every model of the menu, and a plain link for entries like «Duel contests»; both led to a 403
+# for whoever could not add there (submissions, profiles, the duel objects made from the battle panel) or could not
+# see that list (organizers of battles, for «Duel contests»). Here they only appear when Django would let you in.
+try:
+    from wpadmin.menu.custom import CustomModelLeftMenuWithDashboard, SubModelMenu
+    from wpadmin.utils import get_admin_site, get_admin_site_name, get_wpadmin_settings
+except ImportError:  # wpadmin is optional for DMOJ; without it this menu is never used
+    pass
+else:
+    from urllib.parse import urlsplit
+
+    class AllowedSubModelMenu(SubModelMenu):
+        def init_with_context(self, context):
+            super().init_with_context(context)
+            request = context.get('request')
+            site = get_admin_site(context)
+            lists, adds = set(), set()
+            for app in site.get_app_list(request):
+                for model in app['models']:
+                    if model.get('admin_url'):
+                        lists.add(model['admin_url'])
+                    if model.get('add_url'):
+                        adds.add(model['add_url'])
+            # The list of every registered model, seen or not: a plain link is only dropped when it goes to one of
+            # them that this person cannot open. Links to views of their own (the unsubscribed people of the mass
+            # emails) check their permission themselves and stay as they were.
+            changelists = set()
+            for model in site._registry:
+                try:
+                    changelists.add(reverse('%s:%s_%s_changelist' % (get_admin_site_name(context),
+                                                                    model._meta.app_label, model._meta.model_name)))
+                except NoReverseMatch:
+                    pass
+            kept = []
+            for child in self.children:
+                if isinstance(child, SubModelMenu):
+                    # Its own children are worked out when the menu is drawn: same rules there.
+                    child.__class__ = AllowedSubModelMenu
+                elif child.url and not child.add_url:
+                    path = urlsplit(child.url).path
+                    if path in changelists and path not in lists:
+                        continue
+                if child.add_url and child.add_url not in adds:
+                    child.add_url = None
+                kept.append(child)
+            self.children = kept
+
+    class AllowedLeftMenu(CustomModelLeftMenuWithDashboard):
+        def get_model_children(self, context):
+            if not self.is_user_allowed(context.get('request').user):
+                return []
+            tree = get_wpadmin_settings(get_admin_site_name(context)).get('custom_menu', [])
+            menu = AllowedSubModelMenu('', tree)
+            menu.init_with_context(context)
+            return menu.children

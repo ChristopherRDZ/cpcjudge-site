@@ -102,11 +102,24 @@ class UrlSitemap(Sitemap):
         return obj.get('changefreq', 'daily') if isinstance(obj, dict) else 'daily'
 
 
+class FlatPageSitemap(Sitemap):
+    """CPC: the static pages the site has (terms, privacy notice...). The list used to name /about/, which this site
+    does not have, so the sitemap sent search engines to a 404."""
+    priority = 0.5
+    changefreq = 'monthly'
+
+    def items(self):
+        from django.contrib.flatpages.models import FlatPage
+        from django.contrib.sites.models import Site
+        return FlatPage.objects.filter(sites=Site.objects.get_current(), registration_required=False).order_by('url')
+
+    def location(self, obj):
+        return obj.url
+
+
 sitemaps = {
     'home': HomePageSitemap,
-    'pages': UrlSitemap([
-        {'location': '/about/', 'priority': 0.9},
-    ]),
+    'pages': FlatPageSitemap,
     'problem': ProblemSitemap,
     'solutions': SolutionSitemap,
     'blog': BlogPostSitemap,

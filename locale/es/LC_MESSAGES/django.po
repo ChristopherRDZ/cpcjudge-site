@@ -11637,3 +11637,110 @@ msgstr "Aviso de privacidad"
 #, python-format
 msgid "Privacy notice: %(url)s"
 msgstr "Aviso de privacidad: %(url)s"
+
+#: cpc 2026-10-25 (revision-20261025)
+msgid "Username or Email"
+msgstr "Usuario o correo electrónico"
+
+#: cpc 2026-10-25 (revision-20261025)
+msgid "That problem belongs to a different contest."
+msgstr "Ese problema es de otro concurso."
+
+#: cpc 2026-10-25 (revision-20261025)
+msgid "Create private problems"
+msgstr "Crear problemas privados"
+
+#: cpc 2026-10-25 (revision-20261025)
+msgid "Rate users even if they make no submissions."
+msgstr "Calificar también a quienes no hagan ningún envío."
+
+#: cpc 2026-10-25 (revision-20261025)
+#, python-format
+msgid "%(team)s en %(contest)s"
+msgstr "%(team)s en %(contest)s"
+
+#: cpc 2026-10-25 (revision-20261025)
+#, python-format
+msgid "%(owner)s no era integrante de «%(team)s» y se añadió, porque un equipo cuyo propietario no es integrante queda inaccesible para esa cuenta."
+msgstr "%(owner)s no era integrante de «%(team)s» y se añadió, porque un equipo cuyo propietario no es integrante queda inaccesible para esa cuenta."
+
+#: cpc 2026-10-25 (revision-20261025)
+msgid "Apellidos"
+msgstr "Apellidos"
+
+#: cpc 2026-10-25 (revision-20261025)
+msgid "El máximo debe ser mayor o igual al mínimo."
+msgstr "El máximo debe ser mayor o igual al mínimo."
+
+#: cpc 2026-10-25 (revision-20261025)
+msgid "Entrar al concurso"
+msgstr "Entrar al concurso"
+
+#: cpc 2026-10-25 (revision-20261025)
+#, python-format
+msgid "Envíos de %(team)s en %(contest)s"
+msgstr "Envíos de %(team)s en %(contest)s"
+
+#: cpc 2026-10-25 (revision-20261025)
+msgid "Equipos"
+msgstr "Equipos"
+
+#: cpc 2026-10-25 (revision-20261025)
+msgid "Equipos autorizados"
+msgstr "Equipos autorizados"
+
+#: cpc 2026-10-25 (revision-20261025)
+msgid "Equipos que pueden acceder e inscribirse en este concurso privado."
+msgstr "Equipos que pueden acceder e inscribirse en este concurso privado."
+
+#: cpc 2026-10-25 (revision-20261025)
+msgid "Esta participación ya no admite envíos."
+msgstr "Esta participación ya no admite envíos."
+
+#: cpc 2026-10-25 (revision-20261025)
+msgid "Este concurso sólo admite participaciones oficiales por equipo."
+msgstr "Este concurso sólo admite participaciones oficiales por equipo."
+
+#: cpc 2026-10-25 (revision-20261025)
+msgid "Este usuario ya tiene una inscripción oficial en el concurso."
+msgstr "Este usuario ya tiene una inscripción oficial en el concurso."
+
+#: cpc 2026-10-25 (revision-20261025)
+msgid "Individuales"
+msgstr "Individuales"
+
+#: cpc 2026-10-25 (revision-20261025)
+msgid "Los concursos exclusivos de equipos no pueden ser calificados."
+msgstr "Los concursos exclusivos de equipos no pueden ser calificados."
+
+#: cpc 2026-10-25 (revision-20261025)
+msgid "Mixto"
+msgstr "Mixto"
+
+#: cpc 2026-10-25 (revision-20261025)
+msgid "Modalidad de participación"
+msgstr "Modalidad de participación"
+
+#: cpc 2026-10-25 (revision-20261025)
+msgid "Máximo de integrantes"
+msgstr "Máximo de integrantes"
+
+#: cpc 2026-10-25 (revision-20261025)
+msgid "Mínimo de integrantes"
+msgstr "Mínimo de integrantes"
+
+#: cpc 2026-10-25 (revision-20261025)
+msgid "No se puede cambiar la modalidad después de la primera participación."
+msgstr "No se puede cambiar la modalidad después de la primera participación."
+
+#: cpc 2026-10-25 (revision-20261025)
+msgid "Nombre"
+msgstr "Nombre"
+
+#: cpc 2026-10-25 (revision-20261025)
+msgid "Rankings del concurso"
+msgstr "Rankings del concurso"
+
+#: cpc 2026-10-25 (revision-20261025)
+msgid "Te has registrado exitosamente. Para confirmar tu cuenta checa el correo que se envió a tu dirección que proporcionaste. P.D.: Revisa la bandeja de Spam :c"
+msgstr "Te has registrado exitosamente. Para confirmar tu cuenta checa el correo que se envió a tu dirección que proporcionaste. P.D.: Revisa la bandeja de Spam :c"
