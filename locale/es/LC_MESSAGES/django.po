@@ -11744,3 +11744,11 @@ msgstr "Rankings del concurso"
 #: cpc 2026-10-25 (revision-20261025)
 msgid "Te has registrado exitosamente. Para confirmar tu cuenta checa el correo que se envió a tu dirección que proporcionaste. P.D.: Revisa la bandeja de Spam :c"
 msgstr "Te has registrado exitosamente. Para confirmar tu cuenta checa el correo que se envió a tu dirección que proporcionaste. P.D.: Revisa la bandeja de Spam :c"
+
+#: cpc 2026-10-25 (anuncios-concurso-20261025)
+msgid "Post an announcement"
+msgstr "Publicar un anuncio"
+
+#: cpc 2026-10-25 (anuncios-concurso-20261025)
+msgid "It pops up on the screen of everyone in the contest and stays on this tab."
+msgstr "Aparece en la pantalla de todos los que están en el concurso y se queda en esta pestaña."

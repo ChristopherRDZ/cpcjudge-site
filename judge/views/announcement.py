@@ -205,6 +205,19 @@ class ContestAnnouncements(ContestMixin, TitleMixin, DetailView):
         participation = self.request.profile.current_contest
         return participation is not None and participation.contest_id == self.object.id
 
+    def announce_url(self):
+        """Where the button to announce to this contest goes, or None for whoever may not.
+
+        Free announcements are written in the administration, whose form only offers the contests you run, and the
+        whole site only with a permission of its own. The button asks what that form asks —running this contest,
+        entering the administration, adding announcements— so that it never leads to a 403.
+        """
+        user = self.request.user
+        if not (self.can_edit and user.is_staff and user.has_perm('judge.add_announcement')):
+            return None
+        from judge.admin.announcement import add_for_contest_url
+        return add_for_contest_url(self.object)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         profile = self.request.profile if self.request.user.is_authenticated else None
@@ -218,6 +231,7 @@ class ContestAnnouncements(ContestMixin, TitleMixin, DetailView):
         context['clarifications'] = _visible_clarifications(self.object, profile, self.can_edit).order_by('-asked')
         context['can_ask'] = self.can_ask()
         context['ask_form'] = ClarificationForm(contest=self.object) if context['can_ask'] else None
+        context['announce_url'] = self.announce_url()
         context['max_question'] = MAX_QUESTION
         context['clarification_errors'] = self.request.session.pop('clarification_errors', [])
         context['tab'] = self.tab

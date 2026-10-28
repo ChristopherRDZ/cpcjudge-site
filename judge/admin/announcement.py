@@ -1,14 +1,27 @@
 from datetime import timedelta
+from urllib.parse import urlencode
 
 from django import forms
 from django.contrib import admin
+from django.contrib.admin.options import IS_POPUP_VAR
 from django.core.exceptions import ValidationError
 from django.db.models import Q
+from django.http import HttpResponseRedirect
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.translation import gettext, gettext_lazy as _
 
 from judge.models import Announcement, Contest
+
+# The button on the clarifications tab of a contest (judge/views/announcement.py) opens the form below with the
+# contest already chosen and this in the address, so that saving goes back to that tab.
+FROM_CONTEST_TAB = 'desde_pestana'
+
+
+def add_for_contest_url(contest):
+    """The form to write an announcement to `contest`, opened from its clarifications tab."""
+    return '%s?%s' % (reverse('admin:judge_announcement_add'), urlencode({'contest': contest.pk, FROM_CONTEST_TAB: 1}))
 
 
 class AnnouncementForm(forms.ModelForm):
@@ -54,7 +67,9 @@ class AnnouncementAdmin(admin.ModelAdmin):
     form = AnnouncementForm
     fields = ('contest', 'body', 'minutes', 'expires', 'is_visible')
     list_display = ('created', 'target', 'summary', 'expires', 'author', 'is_visible')
-    list_filter = ('is_visible', 'contest')
+    # Only the contests with a row this person can see. A plain 'contest' offered the name of every contest, hidden
+    # and private ones included, to whoever runs any contest.
+    list_filter = ('is_visible', ('contest', admin.RelatedOnlyFieldListFilter))
     search_fields = ('body',)
     date_hierarchy = 'created'
 
@@ -121,3 +136,12 @@ class AnnouncementAdmin(admin.ModelAdmin):
         if not change or obj.author_id is None:
             obj.author = request.profile
         super().save_model(request, obj, form, change)
+
+    def response_add(self, request, obj, post_url_continue=None):
+        # Opened from the button on the clarifications tab: a plain «Save» goes back to that tab, where the
+        # announcement now shows at the top. The tab comes from the saved announcement, never from the address, so
+        # the parameter cannot send anybody anywhere else. The other buttons do what they always did.
+        if (request.GET.get(FROM_CONTEST_TAB) and obj.contest_id and
+                not any(key in request.POST for key in ('_continue', '_addanother', '_saveasnew', IS_POPUP_VAR))):
+            return HttpResponseRedirect(reverse('contest_announcements', args=[obj.contest.key]))
+        return super().response_add(request, obj, post_url_continue)

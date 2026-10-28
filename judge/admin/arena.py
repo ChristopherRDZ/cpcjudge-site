@@ -66,7 +66,8 @@ class ArenaPanelAdmin(ArenaViewMixin, admin.ModelAdmin):
 class ArenaMatchAdmin(ArenaViewMixin, admin.ModelAdmin):
     list_display = ('id', 'show_players', 'tournament', 'round', 'best_of', 'show_score', 'status', 'created_at',
                     'panel_link')
-    list_filter = ('status', 'tournament')
+    # Only the tournaments of the rows this person sees: a plain 'tournament' offered every tournament by name.
+    list_filter = ('status', ('tournament', admin.RelatedOnlyFieldListFilter))
     search_fields = ('player_a__user__username', 'player_b__user__username', 'display_name_a', 'display_name_b',
                      'title')
     raw_id_fields = ('player_a', 'player_b', 'next_match', 'loser_next_match', 'created_by', 'organizers')
@@ -98,7 +99,7 @@ class ArenaGameAdmin(ArenaViewMixin, admin.ModelAdmin):
     the contests stayed behind and filled the list of contests."""
     list_display = ('id', 'match', 'show_tournament', 'number', 'status', 'winner_slot', 'reason', 'started_at',
                     'contest')
-    list_filter = ('status', 'match__tournament')
+    list_filter = ('status', ('match__tournament', admin.RelatedOnlyFieldListFilter))
     search_fields = ('match__player_a__user__username', 'match__player_b__user__username', 'match__display_name_a',
                      'match__display_name_b', 'match__title', 'match__tournament__name')
     raw_id_fields = ('match', 'contest', 'participation_a', 'participation_b', 'decided_by')

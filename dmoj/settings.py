@@ -237,6 +237,16 @@ else:
                     ],
                 },
                 {
+                    # CPC: announcements and the questions of the contests, in a section of their own. They were only
+                    # on the dashboard, among the models of «Online Judge».
+                    'model': 'judge.Announcement',
+                    'icon': 'fa-bullhorn',
+                    'children': [
+                        'judge.Announcement',
+                        'judge.ContestClarification',
+                    ],
+                },
+                {
                     # Opens the battle panel; the children are the lists, for looking things up.
                     'model': 'judge.ArenaPanel',
                     'icon': 'fa-bolt',

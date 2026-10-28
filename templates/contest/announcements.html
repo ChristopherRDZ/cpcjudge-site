@@ -82,9 +82,26 @@
             margin-bottom: 0.5em;
         }
 
+        .clarification-announce {
+            margin-bottom: 1.2em;
+        }
+
+        .clarification-announce .button {
+            display: inline-block;
+        }
+
+        .clarification-announce .clarification-meta {
+            margin: 0.4em 0 0 0;
+        }
+
         @media (max-width: 760px) {
             .clarification-form input[type="submit"] {
                 width: 100%;
+                padding: 0.8em 0;
+            }
+
+            .clarification-announce .button {
+                display: block;
                 padding: 0.8em 0;
             }
         }
@@ -92,6 +109,16 @@
 {% endblock %}
 
 {% block body %}
+    {# Only for whoever runs this contest and may write announcements (ContestAnnouncements.announce_url). #}
+    {% if announce_url %}
+        <div class="clarification-announce">
+            <a class="unselectable button" href="{{ announce_url }}">
+                <i class="fa fa-bullhorn"></i> {{ _('Post an announcement') }}
+            </a>
+            <div class="clarification-meta">{{ _('It pops up on the screen of everyone in the contest and stays on this tab.') }}</div>
+        </div>
+    {% endif %}
+
     {% if clarification_errors %}
         <div class="clarification-errors">
             {% for error in clarification_errors %}

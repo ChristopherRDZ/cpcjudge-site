@@ -28,7 +28,8 @@ class ContestClarificationAdmin(admin.ModelAdmin):
     form = ContestClarificationForm
     fields = ('contest', 'problem', 'user', 'question', 'answer', 'is_public')
     list_display = ('asked', 'contest', 'user', 'summary', 'answered', 'is_public')
-    list_filter = ('is_public', 'contest')
+    # Only the contests with a question this person can see: a plain 'contest' offered every contest by name.
+    list_filter = ('is_public', ('contest', admin.RelatedOnlyFieldListFilter))
     search_fields = ('question', 'answer')
     date_hierarchy = 'asked'
     raw_id_fields = ('user', 'problem')
