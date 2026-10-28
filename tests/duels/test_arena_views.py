@@ -68,8 +68,12 @@ class PermissionTests(ArenaViewTestCase):
             self.login(self.superuser)
             self.assertEqual(self.client.get(url).status_code, 200, url)
 
-    def test_arena_requires_login(self):
+    def test_the_cover_is_public_and_the_battle_needs_an_account(self):
         response = self.client.get(reverse('arena_home'))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('%s?next=%s' % (reverse('auth_login'), '/duelos/'),
+                      response.content.decode().replace('%2F', '/'))
+        response = self.client.get(reverse('arena_state'))
         self.assertEqual(response.status_code, 302)
         self.assertIn('login', response['Location'])
 
