@@ -1,19 +1,22 @@
 {# Full-screen arena pages (the player's page and the projector screens) keep base.html for the site's stylesheet,
    jQuery and MathJax, and hide the rest of the site that would cover a game or a projector: footer, the floating
    contest timer and the announcement and team pop-ups. The player's page keeps the site's navigation bar (since
-   2026-10-19); the projector hides it as well (screen.html). #}
+   2026-10-19); the projector hides it as well (screen.html). With no battle, the player's page sets html.ar-site and
+   keeps the frame of the site too (2026-10-26): its width, margins, title and footer, like the tournaments; called to
+   a battle, it takes the whole window again. #}
 <style>
-    footer, #contest-info, #announcement, #announcement-overlay, #team-notification,
-    #page-container > br, #noscript { display: none !important; }
-    html, body { background: var(--ar-page) !important; }
-    body { max-width: none !important; margin: 0 !important; }
-    #page-container { min-height: 100vh; padding: 0 !important; }
-    #content {
+    #contest-info, #announcement, #announcement-overlay, #team-notification, #noscript { display: none !important; }
+    html:not(.ar-site) footer, html:not(.ar-site) #page-container > br { display: none !important; }
+    html:not(.ar-site), html:not(.ar-site) body { background: var(--ar-page) !important; }
+    html:not(.ar-site) body { max-width: none !important; margin: 0 !important; }
+    html:not(.ar-site) #page-container { min-height: 100vh; padding: 0 !important; }
+    html:not(.ar-site) #content {
         width: 100% !important;
         max-width: none !important;
         margin: 0 !important;
         padding: 0 !important;
     }
-    #content > h2, #content > hr { display: none !important; }
-    #content-body { padding: 0 !important; }
+    html:not(.ar-site) #content > h2, html:not(.ar-site) #content > hr,
+    html:not(.ar-site) #content > .tabs { display: none !important; }
+    html:not(.ar-site) #content-body { padding: 0 !important; }
 </style>

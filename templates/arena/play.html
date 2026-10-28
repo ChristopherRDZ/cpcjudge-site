@@ -1,7 +1,9 @@
 {% extends "base.html" %}
 
 {% block title %}{{ _('Arena') }} - {{ SITE_LONG_NAME }}{% endblock %}
-{% block title_row %}{% endblock %}
+{# With no battle, the title and the tabs of the duels where every page of the site has them (2026-10-26); hidden by
+   _chrome.html while there is a battle. #}
+{% block title_row %}{% include "arena/history/_tabs.html" %}{% endblock %}
 {% block title_ruler %}{% endblock %}
 
 {% block media %}
@@ -9,6 +11,8 @@
 {% include "arena/_chrome.html" %}
 {# Held in a battle: known before anything is drawn, so the tabs of the site never flash (see .ar-nav-battle). #}
 <script>document.documentElement.classList.toggle('ar-locked', {{ (state.locked or False)|tojson }});</script>
+{# No battle: the frame of the site (_chrome.html), also known before anything is drawn. show() keeps it up to date. #}
+<script>document.documentElement.classList.toggle('ar-site', {{ (state.phase == 'idle')|tojson }});</script>
 <style>
     /* The page sits under the navigation bar of the site, the same as every other page (2026-10-19): same logo for
        each theme, same colours, height, letters and tabs. --ar-nav is its height, measured on load and on resize;
@@ -17,8 +21,13 @@
     @media (max-width: 760px) { :root { --ar-nav: 36px; } }
     /* The room for the fixed bar is the top padding of the page, not a margin of .ar-app: that one would fall through
        to the page and push it a bar's height past the window. */
-    #page-container { min-height: 100vh; box-sizing: border-box; padding-top: var(--ar-nav) !important; }
+    html:not(.ar-site) #page-container {
+        min-height: 100vh;
+        box-sizing: border-box;
+        padding-top: var(--ar-nav) !important;
+    }
     .ar-app { min-height: calc(100vh - var(--ar-nav)); display: flex; flex-direction: column; color: var(--ar-fg); }
+    html.ar-site .ar-app { min-height: 0; }
 
     /* While held in a battle, the tabs of the site would only send the player back here: the battle takes their place
        in the same bar, with its title, game and clock. */
@@ -78,10 +87,10 @@
         padding: 3em 1em;
         text-align: center;
     }
-    /* With no battle, the tabs of the duels on top and the tournaments of the history below (2026-10-25). Only this
-       section: the waiting room, the countdown and the game keep their place in the middle. */
-    .ar-center.ar-idle { justify-content: flex-start; padding-top: 0; }
-    .ar-idle .ar-history-tabs { align-self: stretch; width: 100%; max-width: 64em; margin: 0 auto; text-align: left; }
+    /* With no battle, the page in the frame of the site and the tournaments of the history below (2026-10-25, the
+       frame since 2026-10-26). Only this section: the waiting room, the countdown and the game keep their place in
+       the middle of the window. */
+    .ar-center.ar-idle { justify-content: flex-start; padding: 1.2em 0 0; }
     .ar-big-icon { font-size: 4em; color: var(--ar-muted); }
     .ar-lead { font-size: 1.5em; }
     .ar-help { color: var(--ar-muted); max-width: 40em; line-height: 1.5; font-size: 1.05em; }
@@ -713,6 +722,7 @@ $(function () {
             $('#' + name).prop('hidden', name !== id);
         });
         document.querySelector('.ar-app').classList.toggle('ar-playing', id === 'ar-play');
+        document.documentElement.classList.toggle('ar-site', id === 'ar-idle');
         if (id === 'ar-play') { applySide(); editor.resize(); }
     }
 
@@ -1506,7 +1516,6 @@ $(function () {
     </header>
 
     <section class="ar-center ar-idle" id="ar-idle" hidden>
-        {% include "arena/history/_tabs.html" %}
         <i class="fa fa-bolt ar-big-icon" aria-hidden="true"></i>
         <div class="ar-lead">{{ _('Your battle will appear here when you are called.') }}</div>
         <div class="ar-help">{{ _('Keep this page open. When the organizer calls you, it moves on by itself to the waiting room and then to the countdown.') }}</div>
