@@ -147,6 +147,10 @@ $(function () {
         </p>
     {% endif %}
     {% if t.description %}<p class="ah-description">{{ t.description }}</p>{% endif %}
+    {% if t.ranking == 'counts' %}
+        <p class="ah-counts"><i class="fa fa-signal" aria-hidden="true"></i> {{ _('Its games count for the ranking of the duels.') }}
+            <a href="{{ url('arena_ranking') }}">{{ _('See the ranking') }}</a></p>
+    {% endif %}
 
     {% if can_change %}
         <div class="ah-change">

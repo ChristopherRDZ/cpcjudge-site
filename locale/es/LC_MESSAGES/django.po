@@ -12071,3 +12071,394 @@ msgstr "La fecha prevista puede ser, a lo más, dentro de dos años."
 #, python-format
 msgid "The duel tournament %(name)s is being played right now."
 msgstr "Se está jugando ahora mismo el torneo de duelos «%(name)s»."
+
+#: cpc 2026-10-26
+msgid "Not decided yet"
+msgstr "Por decidir"
+
+#: cpc 2026-10-26
+msgid "Counts"
+msgstr "Cuenta"
+
+#: cpc 2026-10-26
+msgid "Does not count"
+msgstr "No cuenta"
+
+#: cpc 2026-10-26
+msgid "By contest rating"
+msgstr "Por rating de concursos"
+
+#: cpc 2026-10-26
+msgid "By duel rating"
+msgstr "Por rating de duelos"
+
+#: cpc 2026-10-26
+msgid "ranking of the duels"
+msgstr "ranking de Duelos"
+
+#: cpc 2026-10-26
+msgid "rating deviation"
+msgstr "desviación del rating"
+
+#: cpc 2026-10-26
+msgid "rating volatility"
+msgstr "volatilidad del rating"
+
+#: cpc 2026-10-26
+msgid "games counted"
+msgstr "partidas contadas"
+
+#: cpc 2026-10-26
+msgid "battles counted"
+msgstr "batallas contadas"
+
+#: cpc 2026-10-26
+msgid "last counted game"
+msgstr "última partida contada"
+
+#: cpc 2026-10-26
+msgid "Decide which tournaments and duels count for the ranking of the duels"
+msgstr "Decidir qué torneos y duelos cuentan para el ranking de Duelos"
+
+#: cpc 2026-10-26
+msgid "duel rating"
+msgstr "rating de duelos"
+
+#: cpc 2026-10-26
+msgid "duel ratings"
+msgstr "ratings de duelos"
+
+#: cpc 2026-10-26
+msgid "rating before"
+msgstr "rating antes"
+
+#: cpc 2026-10-26
+msgid "rating after"
+msgstr "rating después"
+
+#: cpc 2026-10-26
+msgid "rating deviation after"
+msgstr "desviación del rating después"
+
+#: cpc 2026-10-26
+msgid "rating volatility after"
+msgstr "volatilidad del rating después"
+
+#: cpc 2026-10-26
+msgid "games counted so far"
+msgstr "partidas contadas hasta ahora"
+
+#: cpc 2026-10-26
+msgid "duel rating change"
+msgstr "cambio de rating de duelos"
+
+#: cpc 2026-10-26
+msgid "duel rating changes"
+msgstr "cambios de rating de duelos"
+
+#: cpc 2026-10-26
+#, python-format
+msgid "Decision saved for %(count)d rows. The ranking is worked out again by itself."
+msgstr "Decisión guardada en %(count)d filas. El ranking se vuelve a calcular solo."
+
+#: cpc 2026-10-26
+msgid "Counts for the ranking of the duels"
+msgstr "Cuenta para el ranking de Duelos"
+
+#: cpc 2026-10-26
+msgid "Does not count for the ranking of the duels"
+msgstr "No cuenta para el ranking de Duelos"
+
+#: cpc 2026-10-26
+msgid "Back to not decided yet"
+msgstr "Volver a «Por decidir»"
+
+#: cpc 2026-10-26
+msgid "Never counts"
+msgstr "Nunca cuenta"
+
+#: cpc 2026-10-26
+#, python-format
+msgid "As its tournament: %(decision)s"
+msgstr "Como su torneo: %(decision)s"
+
+#: cpc 2026-10-26
+msgid "Invalid decision."
+msgstr "Decisión no válida."
+
+#: cpc 2026-10-26
+msgid "A battle of a tournament counts when its tournament counts; it can only be left out."
+msgstr "Una batalla de un torneo cuenta cuando cuenta su torneo; sólo se puede dejar fuera."
+
+#: cpc 2026-10-26
+msgid "Only whoever decides the ranking of the duels can choose whether it counts."
+msgstr "Sólo quien decide el ranking de Duelos puede elegir si cuenta."
+
+#: cpc 2026-10-26
+msgid "Cancelled: it never counts."
+msgstr "Cancelada: nunca cuenta."
+
+#: cpc 2026-10-26
+msgid "A bye, nobody to play against: it never counts."
+msgstr "Pase directo, sin rival: nunca cuenta."
+
+#: cpc 2026-10-26
+msgid "Won without playing on: it never counts."
+msgstr "Ganada sin jugar: nunca cuenta."
+
+#: cpc 2026-10-26
+msgid "Played on a club laptop with a typed name: it never counts."
+msgstr "Jugada en una laptop del club con un nombre escrito: nunca cuenta."
+
+#: cpc 2026-10-26
+msgid "The ranking is being worked out right now. Try again in a moment."
+msgstr "El ranking se está calculando en este momento. Inténtalo de nuevo en un momento."
+
+#: cpc 2026-10-26
+msgid "Ranking"
+msgstr "Ranking"
+
+#: cpc 2026-10-26
+msgid "Ranking of the duels"
+msgstr "Ranking de Duelos"
+
+#: cpc 2026-10-26
+msgid "See the whole ranking"
+msgstr "Ver el ranking completo"
+
+#: cpc 2026-10-26
+msgid "Its games count for the ranking of the duels."
+msgstr "Sus partidas cuentan para el ranking de Duelos."
+
+#: cpc 2026-10-26
+msgid "See the ranking"
+msgstr "Ver el ranking"
+
+#: cpc 2026-10-26
+msgid "The ranking of the duels counts the games of the tournaments and quick battles chosen to count for it. Everybody starts at 1500: beating somebody stronger gives more points than beating somebody weaker."
+msgstr "El ranking de Duelos cuenta las partidas de los torneos y duelos rápidos que se eligieron para contar. Todos empiezan con 1500: ganarle a alguien más fuerte da más puntos que ganarle a alguien más débil."
+
+#: cpc 2026-10-26
+msgid "Decide what counts"
+msgstr "Decidir qué cuenta"
+
+#: cpc 2026-10-26
+#, python-format
+msgid "Not decided yet: %(number)s."
+msgstr "Por decidir: %(number)s."
+
+#: cpc 2026-10-26
+msgid "Nothing left to decide."
+msgstr "No queda nada por decidir."
+
+#: cpc 2026-10-26
+msgid "Duel rating"
+msgstr "Rating"
+
+#: cpc 2026-10-26
+msgid "Last game"
+msgstr "Última partida"
+
+#: cpc 2026-10-26
+msgid "M j, Y"
+msgstr "j M Y"
+
+#: cpc 2026-10-26
+#, python-format
+msgid "Nobody has a rating yet. A number appears after %(number)s games that count."
+msgstr "Todavía nadie tiene rating. El número aparece después de %(number)s partidas que cuenten."
+
+#: cpc 2026-10-26
+msgid "Without a rating yet"
+msgstr "Todavía sin rating"
+
+#: cpc 2026-10-26
+#, python-format
+msgid "Their number appears after %(number)s games that count: until then it moves a lot and says little."
+msgstr "Su número aparece después de %(number)s partidas que cuenten: antes se mueve mucho y dice poco."
+
+#: cpc 2026-10-26
+msgid "Games that count"
+msgstr "Partidas que cuentan"
+
+#: cpc 2026-10-26
+msgid "Not enough games yet"
+msgstr "Todavía no tiene suficientes partidas"
+
+#: cpc 2026-10-26
+#, python-format
+msgid "%(games)s of %(needed)s"
+msgstr "%(games)s de %(needed)s"
+
+#: cpc 2026-10-26
+#, python-format
+msgid "Inactive: no game that counts in the last %(days)s days"
+msgstr "Inactivos: sin partidas que cuenten en los últimos %(days)s días"
+
+#: cpc 2026-10-26
+msgid "They come back to the ranking as soon as they play a game that counts."
+msgstr "Vuelven al ranking en cuanto juegan una partida que cuente."
+
+#: cpc 2026-10-26
+msgid "How is it worked out?"
+msgstr "¿Cómo se calcula?"
+
+#: cpc 2026-10-26
+msgid "Only the tournaments and quick battles that somebody with the permission to decide the ranking marked as counting enter it. Tests and practice games are left out."
+msgstr "Sólo entran los torneos y duelos rápidos que alguien con el permiso de decidir el ranking marcó como «Cuenta». Las pruebas y las prácticas quedan fuera."
+
+#: cpc 2026-10-26
+msgid "Every game that ended with a winner counts: in a series at best of three, each game counts on its own."
+msgstr "Cuenta cada partida que terminó con ganador: en una serie al mejor de 3, cada partida cuenta por su lado."
+
+#: cpc 2026-10-26
+msgid "Beating somebody with a higher rating gives more points; losing to somebody with a lower rating takes more away."
+msgstr "Ganarle a alguien con más rating da más puntos; perder contra alguien con menos rating quita más."
+
+#: cpc 2026-10-26
+msgid "At the start the number moves a lot, because it is not known yet how strong you are; with more games it moves less. After some weeks without playing it moves more again."
+msgstr "Al principio el número se mueve mucho, porque todavía no se sabe qué tan fuerte eres; con más partidas se mueve menos. Tras unas semanas sin jugar vuelve a moverse más."
+
+#: cpc 2026-10-26
+#, python-format
+msgid "The number appears after %(number)s games that count. Whoever spends %(days)s days without a game that counts leaves the main table until they play again."
+msgstr "El número aparece después de %(number)s partidas que cuenten. Quien pasa %(days)s días sin una partida que cuente sale de la tabla principal hasta que vuelva a jugar."
+
+#: cpc 2026-10-26
+msgid "They never count: ties, voided games, cancelled battles, byes, battles won without playing on and battles played on a club laptop with a typed name."
+msgstr "Nunca cuentan: los empates, las partidas anuladas, las batallas canceladas, los pases directos, las batallas ganadas sin jugar y las jugadas en una laptop del club con un nombre escrito."
+
+#: cpc 2026-10-26
+msgid "Nobody changes a rating by hand. The rating of the contests does not change. It is worked out with Glicko-2."
+msgstr "Nadie cambia un rating a mano. El rating de los concursos no cambia. Se calcula con Glicko-2."
+
+#: cpc 2026-10-26
+msgid "Decide what counts for the ranking"
+msgstr "Decidir qué cuenta para el ranking"
+
+#: cpc 2026-10-26
+msgid "Saved. The ranking is worked out again by itself."
+msgstr "Guardado. El ranking se vuelve a calcular solo."
+
+#: cpc 2026-10-26
+msgid "vs"
+msgstr "vs"
+
+#: cpc 2026-10-26
+msgid "Here you decide whether each tournament and quick battle counts for the ranking of the duels. Until somebody decides, it does not count. You can change it at any moment: the ranking is worked out again by itself, in the order the games were played."
+msgstr "Aquí decides si cada torneo y cada duelo rápido cuenta para el ranking de Duelos. Mientras nadie lo decida, no cuenta. Puedes cambiarlo cuando quieras: el ranking se vuelve a calcular solo, en el orden en que se jugaron las partidas."
+
+#: cpc 2026-10-26
+msgid "Only the results show here, never statements, code or submissions. Whoever organizes a battle does not decide whether it counts."
+msgstr "Aquí sólo se ven los resultados, nunca enunciados, código ni envíos. Quien organiza una batalla no decide si cuenta."
+
+#: cpc 2026-10-26
+msgid "The ranking is not up to date with these decisions. It is usually worked out again by itself; press the button to do it now."
+msgstr "El ranking no está al día con estas decisiones. Normalmente se vuelve a calcular solo; pulsa el botón para hacerlo ahora."
+
+#: cpc 2026-10-26
+msgid "Work it out again"
+msgstr "Recalcular ahora"
+
+#: cpc 2026-10-26
+msgid "Only what is not decided yet"
+msgstr "Sólo lo que falta por decidir"
+
+#: cpc 2026-10-26
+msgid "Open in the battle panel"
+msgstr "Abrir en el panel de batallas"
+
+#: cpc 2026-10-26
+#, python-format
+msgid "Its battles (%(number)s): leave one out if it should not count"
+msgstr "Sus batallas (%(number)s): deja fuera la que no deba contar"
+
+#: cpc 2026-10-26
+msgid "Round"
+msgstr "Ronda"
+
+#: cpc 2026-10-26
+msgid "Players"
+msgstr "Jugadores"
+
+#: cpc 2026-10-26
+msgid "Games with a winner"
+msgstr "Partidas con ganador"
+
+#: cpc 2026-10-26
+msgid "In the ranking"
+msgstr "En el ranking"
+
+#: cpc 2026-10-26
+msgid "Left out"
+msgstr "Fuera"
+
+#: cpc 2026-10-26
+msgid "Count it with its tournament"
+msgstr "Volver a contarla con su torneo"
+
+#: cpc 2026-10-26
+msgid "As its tournament"
+msgstr "Como su torneo"
+
+#: cpc 2026-10-26
+msgid "Leave it out"
+msgstr "Dejarla fuera"
+
+#: cpc 2026-10-26
+msgid "No tournament left to decide."
+msgstr "No queda ningún torneo por decidir."
+
+#: cpc 2026-10-26
+msgid "Quick battles"
+msgstr "Duelos rápidos"
+
+#: cpc 2026-10-26
+msgid "No quick battles yet."
+msgstr "Todavía no hay duelos rápidos."
+
+#: cpc 2026-10-26
+msgid "No quick battle left to decide."
+msgstr "No queda ningún duelo rápido por decidir."
+
+#: cpc 2026-10-26
+#, python-format
+msgid "Ranking of the duels: %(rating)s (%(change)s)."
+msgstr "Ranking de Duelos: %(rating)s (%(change)s)."
+
+#: cpc 2026-10-26
+#, python-format
+msgid "It counts for the ranking of the duels. Your number appears after %(needed)s games that count; you have %(games)s."
+msgstr "Cuenta para el ranking de Duelos. Tu rating aparece después de %(needed)s partidas que cuenten; llevas %(games)s."
+
+#: cpc 2026-10-26
+msgid "It counts for the ranking of the duels, but no game ended with a winner."
+msgstr "Cuenta para el ranking de Duelos, pero ninguna partida terminó con ganador."
+
+#: cpc 2026-10-26
+msgid "Whether this battle counts for the ranking of the duels is not decided yet. If it counts, your change shows in Duels → Ranking."
+msgstr "Todavía no se decide si esta batalla cuenta para el ranking de Duelos. Si cuenta, verás tu cambio en Duelos → Ranking."
+
+#: cpc 2026-10-26
+msgid "This battle does not count for the ranking of the duels."
+msgstr "Esta batalla no cuenta para el ranking de Duelos."
+
+#: cpc 2026-10-26
+msgid "Does not count (a test or a practice)"
+msgstr "No cuenta (prueba o práctica)"
+
+#: cpc 2026-10-26
+msgid "You can also decide it later, in Duels → Ranking → Decide what counts."
+msgstr "También puedes decidirlo después, en Duelos → Ranking → Decidir qué cuenta."
+
+#: cpc 2026-10-26
+msgid "Whether its games count for the ranking of the duels is decided by whoever has the permission to decide the ranking, not by whoever organizes. Until then they do not count."
+msgstr "Si sus partidas cuentan para el ranking de Duelos lo decide quien tiene el permiso de decidir el ranking, no quien organiza. Mientras tanto, no cuentan."
+
+#: cpc 2026-10-26
+msgid "As its tournament."
+msgstr "Igual que su torneo."
+
+#: cpc 2026-10-26
+msgid "Left out of the ranking, although its tournament counts."
+msgstr "Fuera del ranking, aunque su torneo cuenta."

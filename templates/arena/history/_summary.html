@@ -15,6 +15,8 @@
     .ah-live-dot { color: var(--ar-bad-solid); }
     .ah-note { padding: .6em .8em; margin: 0; }
     .ah-actions { text-align: right; white-space: nowrap; }
+    .ah-place { width: 2.5em; }
+    .ah-rating { text-align: right; font-variant-numeric: tabular-nums; }
     @media (max-width: 760px) { .ah-wide { display: none; } }
 </style>
 {% macro person(item) -%}
@@ -80,6 +82,23 @@
             <p class="ah-note ar-muted">{{ _('No tournament has finished yet. When one ends, its bracket and results stay here.') }}</p>
         {% endif %}
     </section>
+
+    {% if not full and sections.ranking %}
+        {# The first of the ranking of the duels (judge/arena/rating.py, 2026-10-26). #}
+        <section class="ar-panel">
+            <h3 class="ar-panel-head"><i class="fa fa-signal" aria-hidden="true"></i> {{ _('Ranking of the duels') }}</h3>
+            <table class="ah-table"><tbody>
+                {% for entry in sections.ranking %}
+                    <tr>
+                        <td class="ah-place"><b>{{ entry.place }}</b></td>
+                        <td>{{ person(entry.person) }}</td>
+                        <td class="ah-rating"><b>{{ entry.rating }}</b></td>
+                    </tr>
+                {% endfor %}
+            </tbody></table>
+            <p class="ah-note"><a href="{{ url('arena_ranking') }}">{{ _('See the whole ranking') }} <i class="fa fa-arrow-right" aria-hidden="true"></i></a></p>
+        </section>
+    {% endif %}
 
     {% if full and sections.hidden %}
         <section class="ar-panel">

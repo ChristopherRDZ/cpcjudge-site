@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{# /duelos/ranking/ (judge/views/arena_ranking.py, 2026-10-26): the ranking of the duels, for anybody, even without an
+   account. Who has a fixed rating, who does not yet and who has not played for a year (judge/arena/rating.py), and
+   how it is worked out, in words. Same look as the rest of the duels, under the site's own bar and tabs. #}
+
+{% block title %}{{ title }} - {{ SITE_LONG_NAME }}{% endblock %}
+
+{% block media %}
+{% include "arena/_style.html" %}
+<style>
+    .ak-page { max-width: 64em; margin: 0 auto; padding: 0 0 2em; display: flex; flex-direction: column; gap: 1em; }
+    .ak-intro { font-size: 1.1em; line-height: 1.5; margin: .2em 0 0; }
+    .ak-table { width: 100%; border-collapse: collapse; }
+    .ak-table th, .ak-table td { padding: .45em .6em; border-bottom: 1px solid var(--ar-soft-border); text-align: left;
+                                 vertical-align: middle; }
+    .ak-table th { background: var(--ar-soft); font-weight: 600; }
+    .ak-table tr:last-child td { border-bottom: 0; }
+    .ak-table .ak-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .ak-place { width: 3em; font-weight: 600; }
+    .ak-rating { font-weight: 700; font-size: 1.1em; }
+    .ak-person { display: inline-flex; align-items: center; gap: .4em; }
+    .ak-person img { width: 1.6em; height: 1.6em; border-radius: 3px; }
+    .ak-note { padding: .6em .8em; margin: 0; line-height: 1.5; }
+    .ak-medal { white-space: nowrap; margin-right: .6em; }
+    .ak-gold { color: #b8901c; }
+    .ak-silver { color: #7d8791; }
+    .ak-bronze { color: #a8612f; }
+    .ak-how ul { margin: 0; padding-left: 1.3em; line-height: 1.55; }
+    .ak-how li + li { margin-top: .35em; }
+    /* The site gives every details a box of its own (widgets.scss); these are panels of the duels. */
+    details.ar-panel { padding: 0; background: var(--ar-bg); border-color: var(--ar-border); }
+    details.ar-panel > summary { cursor: pointer; margin: 0; }
+    @media (max-width: 760px) { .ak-wide { display: none; } }
+</style>
+{% endblock %}
+
+{% block js_media %}
+{% include "arena/history/_called.html" %}
+{% endblock %}
+
+{% block title_row %}{% include "arena/history/_tabs.html" %}{% endblock %}
+{% block title_ruler %}{% endblock %}
+
+{% macro person(entry) -%}
+    <span class="ak-person"><img src="{{ entry.avatar }}" alt="">{{ link_user(entry.profile) }}</span>
+{%- endmacro %}
+
+{% macro palmares(entry) -%}
+    {%- set titles, finals, thirds = entry.palmares -%}
+    {%- if titles or finals or thirds -%}
+        {% if titles %}<span class="ak-medal ak-gold" title="{{ _('Champion') }}"><i class="fa fa-trophy" aria-hidden="true"></i> {{ titles }}</span>{% endif %}
+        {% if finals %}<span class="ak-medal ak-silver" title="{{ _('Runner-up') }}"><i class="fa fa-trophy" aria-hidden="true"></i> {{ finals }}</span>{% endif %}
+        {% if thirds %}<span class="ak-medal ak-bronze" title="{{ _('Third place') }}"><i class="fa fa-trophy" aria-hidden="true"></i> {{ thirds }}</span>{% endif %}
+    {%- else -%}<span class="ar-muted">—</span>{%- endif -%}
+{%- endmacro %}
+
+{% block body %}
+<div class="ar-page ak-page">
+    <p class="ak-intro">{{ _('The ranking of the duels counts the games of the tournaments and quick battles chosen to count for it. Everybody starts at 1500: beating somebody stronger gives more points than beating somebody weaker.') }}</p>
+
+    {% if decides %}
+        <p class="ar-row">
+            <a class="ar-btn" href="{{ url('arena_ranking_decide') }}"><i class="fa fa-gavel" aria-hidden="true"></i> {{ _('Decide what counts') }}</a>
+            <span class="ar-muted">{% if pending %}{{ _('Not decided yet: %(number)s.', number=pending) }}{% else %}{{ _('Nothing left to decide.') }}{% endif %}</span>
+        </p>
+    {% endif %}
+
+    <section class="ar-panel">
+        <h3 class="ar-panel-head"><i class="fa fa-signal" aria-hidden="true"></i> {{ _('Ranking') }}</h3>
+        {% if table.ranked %}
+            <table class="ak-table">
+                <thead><tr><th class="ak-place">#</th><th>{{ _('Participant') }}</th><th class="ak-num">{{ _('Duel rating') }}</th>
+                    <th class="ak-num ak-wide">{{ _('Games won and lost') }}</th><th class="ak-wide">{{ _('Tournaments') }}</th>
+                    <th class="ak-wide">{{ _('Last game') }}</th></tr></thead>
+                <tbody>
+                    {% for entry in table.ranked %}
+                        <tr>
+                            <td class="ak-place">{{ entry.place }}</td>
+                            <td>{{ person(entry) }}</td>
+                            <td class="ak-num ak-rating">{{ entry.rating }}</td>
+                            <td class="ak-num ak-wide">{{ entry.wins }} – {{ entry.losses }}</td>
+                            <td class="ak-wide">{{ palmares(entry) }}</td>
+                            <td class="ak-wide ar-muted">{{ entry.last_played|date(_("M j, Y")) }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p class="ak-note ar-muted">{{ _('Nobody has a rating yet. A number appears after %(number)s games that count.', number=table.needed) }}</p>
+        {% endif %}
+    </section>
+
+    {% if table.provisional %}
+        <section class="ar-panel">
+            <h3 class="ar-panel-head"><i class="fa fa-question-circle" aria-hidden="true"></i> {{ _('Without a rating yet') }}</h3>
+            <p class="ak-note ar-muted">{{ _('Their number appears after %(number)s games that count: until then it moves a lot and says little.', number=table.needed) }}</p>
+            <table class="ak-table">
+                <thead><tr><th>{{ _('Participant') }}</th><th class="ak-num">{{ _('Duel rating') }}</th>
+                    <th class="ak-num">{{ _('Games that count') }}</th><th class="ak-wide">{{ _('Tournaments') }}</th></tr></thead>
+                <tbody>
+                    {% for entry in table.provisional %}
+                        <tr>
+                            <td>{{ person(entry) }}</td>
+                            <td class="ak-num ak-rating" title="{{ _('Not enough games yet') }}">?</td>
+                            <td class="ak-num">{{ _('%(games)s of %(needed)s', games=entry.games, needed=entry.needed) }}</td>
+                            <td class="ak-wide">{{ palmares(entry) }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    {% endif %}
+
+    {% if table.inactive %}
+        <details class="ar-panel">
+            <summary class="ar-panel-head"><i class="fa fa-moon-o" aria-hidden="true"></i> {{ _('Inactive: no game that counts in the last %(days)s days', days=table.inactive_days) }}</summary>
+            <p class="ak-note ar-muted">{{ _('They come back to the ranking as soon as they play a game that counts.') }}</p>
+            <table class="ak-table">
+                <thead><tr><th>{{ _('Participant') }}</th><th class="ak-num">{{ _('Duel rating') }}</th>
+                    <th class="ak-wide">{{ _('Last game') }}</th></tr></thead>
+                <tbody>
+                    {% for entry in table.inactive %}
+                        <tr>
+                            <td>{{ person(entry) }}</td>
+                            <td class="ak-num">{{ entry.rating }}</td>
+                            <td class="ak-wide ar-muted">{{ entry.last_played|date(_("M j, Y")) }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </details>
+    {% endif %}
+
+    <details class="ar-panel ak-how" id="como-se-calcula">
+        <summary class="ar-panel-head"><i class="fa fa-info-circle" aria-hidden="true"></i> {{ _('How is it worked out?') }}</summary>
+        <div class="ar-panel-body">
+            <ul>
+                <li>{{ _('Only the tournaments and quick battles that somebody with the permission to decide the ranking marked as counting enter it. Tests and practice games are left out.') }}</li>
+                <li>{{ _('Every game that ended with a winner counts: in a series at best of three, each game counts on its own.') }}</li>
+                <li>{{ _('Beating somebody with a higher rating gives more points; losing to somebody with a lower rating takes more away.') }}</li>
+                <li>{{ _('At the start the number moves a lot, because it is not known yet how strong you are; with more games it moves less. After some weeks without playing it moves more again.') }}</li>
+                <li>{{ _('The number appears after %(number)s games that count. Whoever spends %(days)s days without a game that counts leaves the main table until they play again.', number=table.needed, days=table.inactive_days) }}</li>
+                <li>{{ _('They never count: ties, voided games, cancelled battles, byes, battles won without playing on and battles played on a club laptop with a typed name.') }}</li>
+                <li>{{ _('Nobody changes a rating by hand. The rating of the contests does not change. It is worked out with Glicko-2.') }}</li>
+            </ul>
+        </div>
+    </details>
+</div>
+{% endblock %}

@@ -17,6 +17,11 @@ see README.md of security_preparation/permisos-correos-duelos-20261023.
 The public history of the tournaments (2026-10-25, judge/arena/history.py) adds `judge.hide_arena_history`, «show or
 hide any tournament in the history»: for somebody who looks after the history without organizing. Whoever organizes
 a tournament already decides about it, and whoever organizes all battles about every one. It gives nothing else.
+
+The ranking of the duels (2026-10-26, judge/arena/rating.py) adds `judge.decide_arena_ranking`, «decide which
+tournaments and duels count»: neither organizing permission includes it, so whoever runs a battle does not decide
+whether it counts. It gives the page to decide (the results of every tournament and quick battle, without
+statements, code or submissions) and nothing else.
 """
 from django.contrib.auth.models import Permission
 from django.db.models import Q
@@ -27,11 +32,12 @@ from judge.models.arena import ArenaMatch, ArenaProblemBank, ArenaScreen, ArenaT
 OWN = 'judge.manage_arena'
 ALL = 'judge.manage_all_arena'
 HISTORY = 'judge.hide_arena_history'
+RANKING = 'judge.decide_arena_ranking'
 
-__all__ = ['OWN', 'ALL', 'HISTORY', 'can_manage', 'manages_all', 'tournaments_for', 'matches_for', 'screens_for',
-           'banks_for', 'screens_of_actor', 'can_manage_tournament', 'can_manage_match', 'can_manage_screen',
-           'can_manage_bank', 'eligible_organizers', 'is_eligible_organizer', 'moderates_history',
-           'can_change_history', 'history_hidden_for']
+__all__ = ['OWN', 'ALL', 'HISTORY', 'RANKING', 'can_manage', 'manages_all', 'tournaments_for', 'matches_for',
+           'screens_for', 'banks_for', 'screens_of_actor', 'can_manage_tournament', 'can_manage_match',
+           'can_manage_screen', 'can_manage_bank', 'eligible_organizers', 'is_eligible_organizer',
+           'moderates_history', 'can_change_history', 'history_hidden_for', 'decides_ranking']
 
 
 def can_manage(user):
@@ -153,3 +159,8 @@ def history_hidden_for(user):
     if moderates_history(user):
         return queryset
     return queryset.filter(id__in=tournaments_for(user).values('id'))
+
+
+def decides_ranking(user):
+    """May decide which tournaments and quick battles count for the ranking of the duels."""
+    return bool(user is not None and user.is_authenticated and user.is_active and user.has_perm(RANKING))

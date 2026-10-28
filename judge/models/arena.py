@@ -20,13 +20,23 @@ from judge.models.problem import Problem
 from judge.models.profile import Profile
 
 __all__ = ['ArenaProblemBank', 'ArenaBankProblem', 'ArenaTournament', 'ArenaParticipant', 'ArenaRound',
-           'ArenaMatch', 'ArenaPanel', 'ArenaGame', 'ArenaGameProblem', 'ArenaScreen', 'ArenaAction']
+           'ArenaMatch', 'ArenaPanel', 'ArenaGame', 'ArenaGameProblem', 'ArenaScreen', 'ArenaAction', 'ArenaRating',
+           'ArenaRatingChange', 'RANKING_PENDING', 'RANKING_COUNTS', 'RANKING_EXCLUDED', 'RANKING']
 
 SLOT_A, SLOT_B = 'a', 'b'
 SLOTS = ((SLOT_A, 'A'), (SLOT_B, 'B'))
 
 MAX_DISPLAY_NAME = 40
 MAX_PROBLEMS_PER_GAME = 5
+
+# Whether a tournament or a quick battle counts for the ranking of the duels (judge/arena/rating.py, 2026-10-26).
+# Only whoever has the permission to decide the ranking chooses; everything starts not decided yet.
+RANKING_PENDING, RANKING_COUNTS, RANKING_EXCLUDED = 'pending', 'counts', 'excluded'
+RANKING = (
+    (RANKING_PENDING, _('Not decided yet')),
+    (RANKING_COUNTS, _('Counts')),
+    (RANKING_EXCLUDED, _('Does not count')),
+)
 
 
 class ArenaProblemBank(models.Model):
@@ -75,11 +85,13 @@ class ArenaTournament(models.Model):
         (FINISHED, _('Finished')),
         (ARCHIVED, _('Archived')),
     )
-    SEED_MANUAL, SEED_RANDOM, SEED_RATING = 'manual', 'random', 'rating'
+    SEED_MANUAL, SEED_RANDOM, SEED_RATING, SEED_DUEL = 'manual', 'random', 'rating', 'duel'
     SEEDING = (
         (SEED_MANUAL, _('Manual order')),
         (SEED_RANDOM, _('Random')),
-        (SEED_RATING, _('By rating')),
+        (SEED_RATING, _('By contest rating')),
+        # The rating of the ranking of the duels (2026-10-26); who has none goes last, by their contest rating.
+        (SEED_DUEL, _('By duel rating')),
     )
 
     name = models.CharField(verbose_name=_('name'), max_length=100)
@@ -109,6 +121,11 @@ class ArenaTournament(models.Model):
                                           db_default=True)
     # Only an announcement: with it, the tournament shows as upcoming before it starts. Nothing starts by itself.
     planned_at = models.DateTimeField(verbose_name=_('planned date'), null=True, blank=True)
+    # Whether its battles count for the ranking of the duels (judge/arena/rating.py, 2026-10-26): decided by whoever
+    # has the permission to decide the ranking, not by its organizers. A default in the database too, for the code
+    # before this field.
+    ranking = models.CharField(verbose_name=_('ranking of the duels'), max_length=10, choices=RANKING,
+                               default=RANKING_PENDING, db_default=RANKING_PENDING)
     version = models.PositiveIntegerField(default=0)
 
     def __str__(self):
@@ -214,6 +231,10 @@ class ArenaMatch(models.Model):
     # Only for quick battles: the battles of a tournament are run by the organizers of the tournament.
     organizers = models.ManyToManyField(Profile, verbose_name=_('co-organizers'), blank=True, related_name='+')
     created_at = models.DateTimeField(verbose_name=_('created at'), default=timezone.now)
+    # The ranking of the duels (judge/arena/rating.py, 2026-10-26). A quick battle is decided by itself; a battle of a
+    # tournament goes with its tournament and can only be left out ('excluded'), after cheating for instance.
+    ranking = models.CharField(verbose_name=_('ranking of the duels'), max_length=10, choices=RANKING,
+                               default=RANKING_PENDING, db_default=RANKING_PENDING)
     version = models.PositiveIntegerField(default=0)
 
     @property
@@ -412,3 +433,55 @@ class ArenaAction(models.Model):
         ordering = ('time', 'id')
         verbose_name = _('arena action')
         verbose_name_plural = _('arena actions')
+
+
+class ArenaRating(models.Model):
+    """The rating of one player in the ranking of the duels (judge/arena/rating.py, 2026-10-26). Nobody writes it by
+    hand: it is worked out again from the battles that count whenever one of them changes."""
+    profile = models.OneToOneField(Profile, verbose_name=_('user'), related_name='arena_rating',
+                                   on_delete=models.CASCADE)
+    rating = models.FloatField(verbose_name=_('rating'))
+    deviation = models.FloatField(verbose_name=_('rating deviation'))
+    volatility = models.FloatField(verbose_name=_('rating volatility'))
+    games = models.PositiveIntegerField(verbose_name=_('games counted'))
+    wins = models.PositiveIntegerField(verbose_name=_('games won'))
+    battles = models.PositiveIntegerField(verbose_name=_('battles counted'))
+    last_played = models.DateTimeField(verbose_name=_('last counted game'))
+
+    def __str__(self):
+        return '%s %.0f' % (self.profile_id, self.rating)
+
+    class Meta:
+        ordering = ('-rating', 'id')
+        permissions = (
+            # Apart from organizing: whoever runs battles does not decide whether they count.
+            ('decide_arena_ranking', _('Decide which tournaments and duels count for the ranking of the duels')),
+        )
+        verbose_name = _('duel rating')
+        verbose_name_plural = _('duel ratings')
+
+
+class ArenaRatingChange(models.Model):
+    """What one battle that counts did to the rating of one of its players."""
+    match = models.ForeignKey(ArenaMatch, verbose_name=_('match'), related_name='rating_changes',
+                              on_delete=models.CASCADE)
+    profile = models.ForeignKey(Profile, verbose_name=_('user'), related_name='+', on_delete=models.CASCADE)
+    # When the battle counts: the end of its last game that counted.
+    time = models.DateTimeField(verbose_name=_('time'))
+    rating_before = models.FloatField(verbose_name=_('rating before'))
+    rating_after = models.FloatField(verbose_name=_('rating after'))
+    deviation_after = models.FloatField(verbose_name=_('rating deviation after'))
+    volatility_after = models.FloatField(verbose_name=_('rating volatility after'))
+    games = models.PositiveSmallIntegerField(verbose_name=_('games counted'))
+    wins = models.PositiveSmallIntegerField(verbose_name=_('games won'))
+    # Every game counted for this player up to this battle, this one included.
+    games_total = models.PositiveIntegerField(verbose_name=_('games counted so far'))
+
+    def __str__(self):
+        return '%s %s %+.0f' % (self.match_id, self.profile_id, self.rating_after - self.rating_before)
+
+    class Meta:
+        ordering = ('time', 'match_id', 'id')
+        unique_together = ('match', 'profile')
+        verbose_name = _('duel rating change')
+        verbose_name_plural = _('duel rating changes')

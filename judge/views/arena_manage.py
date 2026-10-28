@@ -23,7 +23,7 @@ from judge.arena.engine import ArenaError
 from judge.jinja2.gravatar import gravatar
 from judge.models import Language, Profile, Submission
 from judge.models.arena import ArenaBankProblem, ArenaGame, ArenaMatch, ArenaProblemBank, ArenaScreen, \
-    ArenaTournament, SLOT_A, SLOT_B
+    ArenaTournament, RANKING_PENDING, SLOT_A, SLOT_B
 from judge.views.arena import _ace_context, can_manage, json_error, json_response, read_json
 
 logger = logging.getLogger('judge.arena')
@@ -87,6 +87,16 @@ def _planned(value):
 def _history_box(value, default=None):
     """The box «show in the history»: only a true or false counts."""
     return value if isinstance(value, bool) else default
+
+
+def _ranking(request, value):
+    """Whether a new battle or tournament counts for the ranking of the duels (judge/arena/rating.py). Only
+    whoever may decide the ranking chooses; for anybody else it is not decided yet, as it always was."""
+    if value in (None, '', RANKING_PENDING):
+        return RANKING_PENDING
+    if not access.decides_ranking(request.user):
+        raise ArenaError(_('Only whoever decides the ranking of the duels can choose whether it counts.'), status=403)
+    return engine.clean_ranking(value)
 
 
 def _id(value, required=False):
@@ -184,6 +194,7 @@ def manage_dashboard(request):
         'languages': _languages(),
         'banks': _bank_choices(request.user),
         'sees_all': access.manages_all(request.user),
+        'decides_ranking': access.decides_ranking(request.user),
     })
 
 
@@ -268,6 +279,7 @@ def manage_duel_create(request):
         request.profile, _profile(data.get('player_a')), _profile(data.get('player_b')), games,
         best_of=data.get('best_of', 1), rules=data.get('rules') or {}, display_a=data.get('display_a', ''),
         display_b=data.get('display_b', ''), title=data.get('title', ''), call=data.get('call', True) is not False,
+        ranking=_ranking(request, data.get('ranking')),
     )
     return json_response({'id': match.pk, 'url': reverse('arena_manage_match', args=[match.pk])})
 
@@ -458,6 +470,7 @@ def manage_tournament_create(request):
         rules=data.get('rules') or {}, description=data.get('description', ''),
         bank=_bank(data.get('bank'), request.user),
         show_in_history=_history_box(data.get('show_in_history'), True), planned_at=_planned(data.get('planned_at')),
+        ranking=_ranking(request, data.get('ranking')),
     )
     return json_response({'slug': tournament.slug,
                           'url': reverse('arena_manage_tournament', args=[tournament.slug])})

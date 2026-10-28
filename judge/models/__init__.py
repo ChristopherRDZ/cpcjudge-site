@@ -20,7 +20,7 @@ from judge.models.submission import SUBMISSION_RESULT, Submission, SubmissionSou
 from judge.models.ticket import Ticket, TicketMessage
 from judge.models.team import Team, TeamMembership, TeamInvitation, ContestTeamMember, ContestTeamLocation
 from judge.models.arena import ArenaAction, ArenaBankProblem, ArenaGame, ArenaGameProblem, ArenaMatch, ArenaPanel, \
-    ArenaParticipant, ArenaProblemBank, ArenaRound, ArenaScreen, ArenaTournament
+    ArenaParticipant, ArenaProblemBank, ArenaRating, ArenaRatingChange, ArenaRound, ArenaScreen, ArenaTournament
 
 revisions.register(Profile, exclude=['points', 'last_access', 'ip', 'rating'])
 revisions.register(Problem, follow=['language_limits'])

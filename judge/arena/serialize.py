@@ -15,7 +15,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
-from judge.arena import access, engine, live_code, rules as arena_rules, scoring
+from judge.arena import access, engine, live_code, rating, rules as arena_rules, scoring
 from judge.arena.tournament import draw_settings, round_count, round_name
 from judge.jinja2.gravatar import gravatar
 from judge.models import Language, ProblemTranslation, Submission, SubmissionTestCase
@@ -232,6 +232,9 @@ def player_state(profile, language, now=None):
     elif prepared is not None:
         data['game'] = {'id': prepared.pk, 'number': prepared.number, 'status': prepared.status,
                         'rules': _rules_view(arena_rules.match_rules(match))}
+    if phase == 'decided':
+        # The ranking of the duels (judge/arena/rating.py): what this battle did to this player's rating, or why not.
+        data['ranking'] = rating.battle_summary(match, profile.id)
     return data
 
 
@@ -413,6 +416,10 @@ def organizer_match_state(match, language, now=None, user=None):
             # Games 1..max_games can get their problems in advance; ties and voided games add one each.
             'max_games': engine.max_game_number(match),
             'draw': _draw_view(match),
+            # The ranking of the duels (judge/arena/rating.py): what was decided about this battle (for one of a
+            # tournament, as its tournament unless it was left out) and why it can never count, if so.
+            'ranking': {'own': match.ranking, 'decision': rating.decision(match), 'never': rating.never_reason(match),
+                        'decides': access.decides_ranking(user), 'url': reverse('arena_ranking_decide')},
         },
         'players': {slot: organizer_player(match, slot, now) for slot in (SLOT_A, SLOT_B)},
         'games': [_organizer_game(game, now, language, with_submissions=current is not None and game.pk == current.pk)
@@ -517,6 +524,10 @@ def tournament_state(tournament, language, now=None, user=None):
             'planned_at': timezone.localtime(tournament.planned_at).strftime('%Y-%m-%dT%H:%M')
             if tournament.planned_at else '',
             'public_url': reverse('arena_history_tournament', args=[tournament.slug]),
+            # The ranking of the duels (judge/arena/rating.py): decided by whoever has its permission, read only here.
+            'ranking': tournament.ranking,
+            'ranking_decides': access.decides_ranking(user),
+            'ranking_url': reverse('arena_ranking_decide'),
         },
         'participants': [{'id': p.profile_id, 'seed': p.seed, 'name': p.profile.display_name,
                           'username': p.profile.username, 'avatar': gravatar(p.profile, 64),

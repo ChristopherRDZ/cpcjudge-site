@@ -23,7 +23,7 @@ from judge.arena import access, rules as arena_rules, scoring
 from judge.models import Contest, ContestParticipation, ContestProblem, ContestSubmission, Judge, Problem, \
     Solution, Submission, SubmissionSource
 from judge.models.arena import ArenaAction, ArenaGame, ArenaGameProblem, ArenaMatch, ArenaScreen, \
-    MAX_DISPLAY_NAME, MAX_PROBLEMS_PER_GAME, SLOT_A, SLOT_B
+    MAX_DISPLAY_NAME, MAX_PROBLEMS_PER_GAME, RANKING, RANKING_PENDING, SLOT_A, SLOT_B
 
 logger = logging.getLogger('judge.arena')
 
@@ -354,12 +354,22 @@ def _clean_display(value, allowed):
     return value
 
 
+def clean_ranking(value):
+    """A decision about the ranking of the duels (judge/arena/rating.py); whoever may take it is checked by the
+    page that asks."""
+    if value not in dict(RANKING):
+        raise ArenaError(_('Invalid decision.'))
+    return value
+
+
 @transaction.atomic
 def create_duel(actor, player_a, player_b, games, best_of=1, rules=None, display_a='', display_b='', title='',
-                call=True):
-    """A quick battle: a match without a tournament, its first game, and any later games prepared in advance."""
+                call=True, ranking=RANKING_PENDING):
+    """A quick battle: a match without a tournament, its first game, and any later games prepared in advance.
+    `ranking`: whether it counts for the ranking of the duels, if whoever creates it may decide that."""
     if player_a is None or player_b is None:
         raise ArenaError(_('Choose both players.'))
+    ranking = clean_ranking(ranking)
     if player_a.pk == player_b.pk:
         raise ArenaError(_('A player cannot face themselves.'))
     try:
@@ -389,12 +399,12 @@ def create_duel(actor, player_a, player_b, games, best_of=1, rules=None, display
     match = ArenaMatch.objects.create(
         player_a=player_a, player_b=player_b, display_name_a=display_a, display_name_b=display_b, title=title,
         best_of=best_of, rules=rules, status=ArenaMatch.CALLED if call else ArenaMatch.READY,
-        called_at=now if call else None, created_by=actor,
+        called_at=now if call else None, created_by=actor, ranking=ranking,
     )
     for number, problems in enumerate(cleaned, 1):
         game = ArenaGame.objects.create(match=match, number=number)
         _set_problems(game, problems)
-    _log('create', actor, match, best_of=best_of, games=len(cleaned))
+    _log('create', actor, match, best_of=best_of, games=len(cleaned), ranking=ranking)
     ensure_default_screen(actor)
     screen = _free_screen(actor)
     if screen is not None:
@@ -798,8 +808,10 @@ def _decide_match(match, slot, reason, now, actor=None):
     # Games prepared in advance and never played leave nothing behind.
     ArenaGame.objects.filter(match=match, status=ArenaGame.PREPARED, contest__isnull=True).delete()
     _log('decided', actor, match, winner=slot, reason=reason)
-    from judge.arena import tournament as arena_tournament
+    from judge.arena import rating, tournament as arena_tournament
     arena_tournament.advance(match, now)
+    # If it counts for the ranking of the duels, the ranking is worked out again once this is saved.
+    rating.after_decided(match)
     refresh_lock_on_commit()
 
 

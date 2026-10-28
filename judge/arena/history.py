@@ -40,6 +40,7 @@ OVER = (ArenaTournament.FINISHED, ArenaTournament.ARCHIVED)
 # A tournament announced for a date still shows as upcoming for a while after it: it may start late.
 UPCOMING_GRACE = timedelta(hours=12)
 SUMMARY_FINISHED = 5
+SUMMARY_RANKING = 5
 LIST_LIMIT = 200
 AVATAR = 64
 
@@ -142,13 +143,19 @@ def rows(tournaments):
 
 
 def summary(now=None):
-    """What /duelos/ shows when there is no battle: what is being played, what comes next and the last ones."""
+    """What /duelos/ shows when there is no battle: what is being played, what comes next, the last ones and the
+    first of the ranking of the duels (judge/arena/rating.py)."""
+    from judge.arena import rating
     now = now or timezone.now()
+    leaders = rating.top(SUMMARY_RANKING, now)
+    for entry in leaders:
+        entry['person'] = _person(entry['profile'])
     return {
         'live': rows(live()),
         'upcoming': rows(upcoming(now)[:3]),
         'finished': rows(finished()[:SUMMARY_FINISHED]),
         'more': finished().count() > SUMMARY_FINISHED,
+        'ranking': leaders,
     }
 
 

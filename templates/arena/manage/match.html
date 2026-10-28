@@ -138,6 +138,16 @@ $(function () {
             organizers: {{ _('changed the organizers')|tojson }}
         },
         organizersSaved: {{ _('Organizers saved')|tojson }},
+        ranking: {pending: {{ _('Not decided yet')|tojson }}, counts: {{ _('Counts')|tojson }},
+                  excluded: {{ _('Does not count')|tojson }},
+                  withTournament: {{ _('As its tournament.')|tojson }},
+                  leftOut: {{ _('Left out of the ranking, although its tournament counts.')|tojson }},
+                  never: {
+                      cancelled: {{ _('Cancelled: it never counts.')|tojson }},
+                      bye: {{ _('A bye, nobody to play against: it never counts.')|tojson }},
+                      walkover: {{ _('Won without playing on: it never counts.')|tojson }},
+                      guest: {{ _('Played on a club laptop with a typed name: it never counts.')|tojson }}
+                  }},
         system: {{ _('system')|tojson }}
     };
     var languages = JSON.parse(document.getElementById('mm-languages').textContent);
@@ -230,6 +240,7 @@ $(function () {
             $('#mm-display-b').val(state.players.b.display_name || '');
             $('#mm-display').prop('hidden', !match.quick);
         }
+        paint('ranking', match.ranking, renderRanking);
         if (!organizers) {
             // Filled once, like the settings: a refresh must not undo who is being added.
             var team = state.organizers;
@@ -237,6 +248,21 @@ $(function () {
             $('#mm-organizers-quick').prop('hidden', team.tournament);
             $('#mm-organizers-tournament').prop('hidden', !team.tournament);
         }
+    }
+
+    // ------------------------------------------------------------ the ranking of the duels
+    // Read only here: decided by whoever has the permission to decide the ranking (judge/arena/rating.py).
+    function renderRanking() {
+        var info = state.match.ranking, box = A.clear(document.getElementById('mm-ranking-state'));
+        if (info.never) {
+            box.appendChild(document.createTextNode(TEXT.ranking.never[info.never] || ''));
+        } else {
+            box.appendChild(W.badge(TEXT.ranking[info.decision], {pending: 'warn', counts: 'ok', excluded: 'none'}[info.decision]));
+            if (state.match.tournament) {
+                box.appendChild(document.createTextNode(' ' + (info.own === 'excluded' ? TEXT.ranking.leftOut : TEXT.ranking.withTournament)));
+            }
+        }
+        $('#mm-ranking-link').prop('hidden', !info.decides).attr('href', info.url);
     }
 
     // ------------------------------------------------------------ the current game
@@ -737,6 +763,14 @@ $(function () {
                     </div>
                     <div id="mm-rules"></div>
                     <div class="am-actions mm-section"><button type="button" class="ar-btn" id="mm-save-settings">{{ _('Save settings') }}</button></div>
+                </div>
+            </section>
+            <section class="ar-panel" id="mm-ranking-panel">
+                <h3 class="ar-panel-head"><i class="fa fa-signal" aria-hidden="true"></i> {{ _('Ranking of the duels') }}</h3>
+                <div class="ar-panel-body">
+                    <p id="mm-ranking-state"></p>
+                    <p class="am-hint">{{ _('Whether its games count for the ranking of the duels is decided by whoever has the permission to decide the ranking, not by whoever organizes. Until then they do not count.') }}</p>
+                    <a class="ar-btn ar-btn-plain" id="mm-ranking-link" hidden><i class="fa fa-gavel" aria-hidden="true"></i> {{ _('Decide what counts') }}</a>
                 </div>
             </section>
             <section class="ar-panel">

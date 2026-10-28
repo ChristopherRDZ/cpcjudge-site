@@ -6,8 +6,13 @@ superusers can edit a row, and deleting stays with the server owner, as everywhe
 
 Who organizes only their own battles (`judge.manage_arena`) sees here only those, with their games, screens and banks;
 `judge.manage_all_arena` sees everything (judge/arena/access.py).
+
+Whether a tournament or a quick battle counts for the ranking of the duels (2026-10-26) shows in its list, with a
+filter, and changes only with the actions of the list, for whoever has `judge.decide_arena_ranking`: they go through
+judge/arena/rating.py, which works the ranking out again. The field itself is read only, even for superusers, so
+the ranking never misses a change.
 """
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.http import HttpResponseRedirect
@@ -17,8 +22,10 @@ from django.utils.text import capfirst
 from django.utils.translation import gettext_lazy as _
 
 from judge.admin.purge import contest_plan, purge_contest
-from judge.arena import access
+from judge.arena import access, rating
+from judge.arena.engine import ArenaError
 from judge.models import ArenaGame, Contest
+from judge.models.arena import RANKING_COUNTS, RANKING_EXCLUDED, RANKING_PENDING
 
 
 def _can_view(request):
@@ -51,6 +58,40 @@ class ArenaViewMixin:
         return request.user.is_superuser
 
 
+class RankingActionsMixin:
+    """The three decisions about the ranking of the duels as actions of the list, only for whoever may decide."""
+    ranking_setter = None
+
+    def has_decide_ranking_permission(self, request):
+        return access.decides_ranking(request.user)
+
+    def _decide(self, request, queryset, value):
+        done, refused = 0, []
+        for obj in queryset:
+            try:
+                type(self).ranking_setter(request.profile, obj.pk, value)
+                done += 1
+            except ArenaError as error:
+                refused.append('%s: %s' % (obj, error.message))
+        if done:
+            self.message_user(request, _('Decision saved for %(count)d rows. The ranking is worked out again by '
+                                         'itself.') % {'count': done}, messages.SUCCESS)
+        for text in refused[:10]:
+            self.message_user(request, text, messages.WARNING)
+
+    @admin.action(description=_('Counts for the ranking of the duels'), permissions=['decide_ranking'])
+    def ranking_counts(self, request, queryset):
+        self._decide(request, queryset, RANKING_COUNTS)
+
+    @admin.action(description=_('Does not count for the ranking of the duels'), permissions=['decide_ranking'])
+    def ranking_excluded(self, request, queryset):
+        self._decide(request, queryset, RANKING_EXCLUDED)
+
+    @admin.action(description=_('Back to not decided yet'), permissions=['decide_ranking'])
+    def ranking_pending(self, request, queryset):
+        self._decide(request, queryset, RANKING_PENDING)
+
+
 class ArenaPanelAdmin(ArenaViewMixin, admin.ModelAdmin):
     """No list of its own: it opens the battle panel."""
 
@@ -63,16 +104,18 @@ class ArenaPanelAdmin(ArenaViewMixin, admin.ModelAdmin):
         return False
 
 
-class ArenaMatchAdmin(ArenaViewMixin, admin.ModelAdmin):
-    list_display = ('id', 'show_players', 'tournament', 'round', 'best_of', 'show_score', 'status', 'created_at',
-                    'panel_link')
+class ArenaMatchAdmin(RankingActionsMixin, ArenaViewMixin, admin.ModelAdmin):
+    list_display = ('id', 'show_players', 'tournament', 'round', 'best_of', 'show_score', 'status', 'show_ranking',
+                    'created_at', 'panel_link')
     # Only the tournaments of the rows this person sees: a plain 'tournament' offered every tournament by name.
-    list_filter = ('status', ('tournament', admin.RelatedOnlyFieldListFilter))
+    list_filter = ('status', 'ranking', ('tournament', admin.RelatedOnlyFieldListFilter))
     search_fields = ('player_a__user__username', 'player_b__user__username', 'display_name_a', 'display_name_b',
                      'title')
     raw_id_fields = ('player_a', 'player_b', 'next_match', 'loser_next_match', 'created_by', 'organizers')
-    readonly_fields = ('version', 'created_at', 'decided_at', 'called_at')
+    readonly_fields = ('version', 'created_at', 'decided_at', 'called_at', 'ranking')
     list_select_related = ('player_a__user', 'player_b__user', 'tournament', 'round')
+    actions = ('ranking_counts', 'ranking_excluded', 'ranking_pending')
+    ranking_setter = rating.set_match_ranking
 
     def scoped(self, request, queryset):
         return queryset.filter(pk__in=access.matches_for(request.user).values('pk'))
@@ -84,6 +127,15 @@ class ArenaMatchAdmin(ArenaViewMixin, admin.ModelAdmin):
     @admin.display(description=_('games won'))
     def show_score(self, obj):
         return '%d – %d' % (obj.wins_a, obj.wins_b)
+
+    @admin.display(description=_('ranking of the duels'))
+    def show_ranking(self, obj):
+        """What counts in the end: a battle of a tournament goes with its tournament unless it was left out."""
+        if rating.never_reason(obj) is not None:
+            return _('Never counts')
+        if obj.tournament_id and obj.ranking != RANKING_EXCLUDED:
+            return _('As its tournament: %(decision)s') % {'decision': obj.tournament.get_ranking_display()}
+        return obj.get_ranking_display()
 
     @admin.display(description=_('panel'))
     def panel_link(self, obj):
@@ -147,12 +199,14 @@ class ArenaGameAdmin(ArenaViewMixin, admin.ModelAdmin):
                 purge_contest(contest)
 
 
-class ArenaTournamentAdmin(ArenaViewMixin, admin.ModelAdmin):
-    list_display = ('name', 'slug', 'status', 'show_in_history', 'seeding', 'created_at', 'panel_link')
-    list_filter = ('status', 'show_in_history')
+class ArenaTournamentAdmin(RankingActionsMixin, ArenaViewMixin, admin.ModelAdmin):
+    list_display = ('name', 'slug', 'status', 'show_in_history', 'ranking', 'seeding', 'created_at', 'panel_link')
+    list_filter = ('status', 'show_in_history', 'ranking')
     search_fields = ('name', 'slug')
     raw_id_fields = ('created_by', 'bank', 'organizers')
-    readonly_fields = ('version', 'created_at', 'started_at', 'finished_at')
+    readonly_fields = ('version', 'created_at', 'started_at', 'finished_at', 'ranking')
+    actions = ('ranking_counts', 'ranking_excluded', 'ranking_pending')
+    ranking_setter = rating.set_tournament_ranking
 
     def scoped(self, request, queryset):
         return queryset.filter(pk__in=access.tournaments_for(request.user).values('pk'))

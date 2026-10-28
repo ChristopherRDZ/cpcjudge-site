@@ -110,7 +110,8 @@ $(function () {
         A.post({{ url('arena_manage_duel_create')|tojson }}, {
             player_a: players.a.id, player_b: players.b.id,
             display_a: $('#am-display-a').val(), display_b: $('#am-display-b').val(),
-            title: $('#am-title').val(), best_of: bestOf, rules: rules.get(), games: lists, call: call
+            title: $('#am-title').val(), best_of: bestOf, rules: rules.get(), games: lists, call: call,
+            ranking: $('#am-duel-ranking').val() || 'pending'
         }).then(function (data) {
             A.toast(TEXT.created, 'ok');
             window.location.href = data.url;
@@ -134,7 +135,8 @@ $(function () {
         A.post({{ url('arena_manage_tournament_create')|tojson }}, {
             name: name, participants: list.map(function (u) { return u.id; }), seeding: $('#am-seeding').val(),
             third_place: $('#am-third-place').prop('checked'),
-            show_in_history: $('#am-tournament-history').prop('checked')
+            show_in_history: $('#am-tournament-history').prop('checked'),
+            ranking: $('#am-tournament-ranking').val() || 'pending'
         }).then(function (data) { window.location.href = data.url; })
           .catch(function (error) { W.fail(error); button.prop('disabled', false); });
     });
@@ -301,6 +303,17 @@ $(function () {
                         </div>
                     </div>
                     <div id="am-games"></div>
+                    {% if decides_ranking %}
+                        <div class="am-field" style="margin-top: .8em;">
+                            <label for="am-duel-ranking">{{ _('Ranking of the duels') }}</label>
+                            <select class="ar-select" id="am-duel-ranking">
+                                <option value="pending" selected>{{ _('Not decided yet') }}</option>
+                                <option value="counts">{{ _('Counts') }}</option>
+                                <option value="excluded">{{ _('Does not count (a test or a practice)') }}</option>
+                            </select>
+                            <span class="am-hint">{{ _('You can also decide it later, in Duels → Ranking → Decide what counts.') }}</span>
+                        </div>
+                    {% endif %}
                     <details class="am-details">
                         <summary>{{ _('Rules') }}</summary>
                         <div id="am-rules" style="padding-top: .5em;"></div>
@@ -331,12 +344,24 @@ $(function () {
                         <select class="ar-select" id="am-seeding">
                             <option value="manual">{{ _('As in the list') }}</option>
                             <option value="random">{{ _('At random') }}</option>
-                            <option value="rating">{{ _('By rating') }}</option>
+                            <option value="rating">{{ _('By contest rating') }}</option>
+                            <option value="duel">{{ _('By duel rating') }}</option>
                         </select>
                     </div>
                     <label><input type="checkbox" id="am-third-place"> {{ _('Play a match for third place (with 4 or more participants)') }}</label>
                     <label style="display: block; margin-top: .5em;"><input type="checkbox" id="am-tournament-history" checked> {{ _('Show in the history of the duels') }}</label>
                     <span class="am-hint">{{ _('Anybody, even without an account, will see the bracket and the results once the tournament starts. Uncheck it for a test tournament.') }}</span>
+                    {% if decides_ranking %}
+                        <div class="am-field" style="margin-top: .8em;">
+                            <label for="am-tournament-ranking">{{ _('Ranking of the duels') }}</label>
+                            <select class="ar-select" id="am-tournament-ranking">
+                                <option value="pending" selected>{{ _('Not decided yet') }}</option>
+                                <option value="counts">{{ _('Counts') }}</option>
+                                <option value="excluded">{{ _('Does not count (a test or a practice)') }}</option>
+                            </select>
+                            <span class="am-hint">{{ _('You can also decide it later, in Duels → Ranking → Decide what counts.') }}</span>
+                        </div>
+                    {% endif %}
                     <div class="am-actions" style="margin-top: 1em;">
                         <button type="button" class="ar-btn" id="am-tournament-create">{{ _('Create tournament') }}</button>
                         <span class="am-hint">{{ _('The bracket is built at once. On the next page you choose the games of each round and where the problems come from.') }}</span>

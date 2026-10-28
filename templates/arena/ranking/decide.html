@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{# /duelos/ranking/decidir/ (judge/views/arena_ranking.py, 2026-10-26): whether each tournament and quick battle counts
+   for the ranking of the duels. Only for whoever has the permission to decide the ranking. The results only (who
+   played, the score, how it ended), never statements, code or submissions; its only actions are the decisions. #}
+
+{% block title %}{{ title }} - {{ SITE_LONG_NAME }}{% endblock %}
+
+{% block media %}
+{% include "arena/_style.html" %}
+<style>
+    .ad-page { max-width: 64em; margin: 0 auto; padding: 0 0 2em; display: flex; flex-direction: column; gap: 1em; }
+    .ad-intro { line-height: 1.5; margin: .2em 0 0; }
+    .ad-filter a { margin-right: .6em; }
+    .ad-filter .ad-current { font-weight: 700; }
+    .ad-table { width: 100%; border-collapse: collapse; }
+    .ad-table th, .ad-table td { padding: .45em .6em; border-bottom: 1px solid var(--ar-soft-border); text-align: left;
+                                 vertical-align: middle; }
+    .ad-table th { background: var(--ar-soft); font-weight: 600; }
+    .ad-table tr:last-child td { border-bottom: 0; }
+    .ad-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .ad-choices { display: flex; flex-wrap: wrap; gap: .4em; }
+    .ad-choices .ar-btn[disabled] { opacity: 1; cursor: default; box-shadow: inset 0 0 0 2px var(--ar-fg); }
+    .ad-tournament { padding: .8em; border-bottom: 1px solid var(--ar-soft-border); }
+    .ad-tournament:last-child { border-bottom: 0; }
+    .ad-tournament h4 { margin: 0 0 .3em; font-size: 1.15em; }
+    .ad-facts { margin: 0 0 .6em; }
+    .ad-battles { margin-top: .6em; }
+    .ad-battles summary { cursor: pointer; }
+    .ad-note { padding: .6em .8em; margin: 0; }
+    @media (max-width: 760px) { .ad-wide { display: none; } }
+</style>
+{% endblock %}
+
+{% block js_media %}
+{% include "arena/_js.html" %}
+{% include "arena/history/_called.html" %}
+<script type="text/javascript">
+$(function () {
+    var A = window.Arena;
+    var URL = {{ url('arena_ranking_decide_action')|tojson }};
+    var SAVED = {{ _('Saved. The ranking is worked out again by itself.')|tojson }};
+    $('.ad-act').on('click', function () {
+        var button = $(this);
+        $('.ad-act').prop('disabled', true);
+        var body = {action: button.data('action')};
+        if (button.data('id')) body.id = button.data('id');
+        if (button.data('ranking')) body.ranking = button.data('ranking');
+        A.post(URL, body).then(function () {
+            A.toast(SAVED, 'ok', 1500);
+            window.location.reload();
+        }).catch(function (error) {
+            A.toast(error && error.message ? error.message : String(error), 'bad', 6000);
+            $('.ad-act').prop('disabled', false);
+        });
+    });
+});
+</script>
+{% endblock %}
+
+{% block title_row %}{% include "arena/history/_tabs.html" %}{% endblock %}
+{% block title_ruler %}{% endblock %}
+
+{% set labels = {'pending': _('Not decided yet'), 'counts': _('Counts'), 'excluded': _('Does not count')} %}
+{% set kinds = {'pending': 'warn', 'counts': 'ok', 'excluded': 'none'} %}
+{% set never = {'cancelled': _('Cancelled: it never counts.'), 'bye': _('A bye, nobody to play against: it never counts.'),
+                'walkover': _('Won without playing on: it never counts.'),
+                'guest': _('Played on a club laptop with a typed name: it never counts.')} %}
+
+{% macro choices(action, id, current) -%}
+    <div class="ad-choices">
+        <button type="button" class="ar-btn ar-btn-green ad-act" data-action="{{ action }}" data-id="{{ id }}" data-ranking="counts"{% if current == 'counts' %} disabled{% endif %}>{{ _('Counts') }}</button>
+        <button type="button" class="ar-btn ar-btn-plain ad-act" data-action="{{ action }}" data-id="{{ id }}" data-ranking="excluded"{% if current == 'excluded' %} disabled{% endif %}>{{ _('Does not count') }}</button>
+        <button type="button" class="ar-btn ar-btn-plain ad-act" data-action="{{ action }}" data-id="{{ id }}" data-ranking="pending"{% if current == 'pending' %} disabled{% endif %}>{{ _('Not decided yet') }}</button>
+    </div>
+{%- endmacro %}
+
+{% macro players(battle) -%}
+    <b>{{ battle.a.name }}</b> {{ _('vs') }} <b>{{ battle.b.name }}</b>
+{%- endmacro %}
+
+{% macro outcome(battle) -%}
+    {%- if battle.status == 'decided' -%}
+        {{ battle.wins[0] }} – {{ battle.wins[1] }}
+    {%- else -%}<span class="ar-muted">{{ battle.status_label }}</span>{%- endif -%}
+{%- endmacro %}
+
+{% block body %}
+<form id="ar-csrf" hidden>{% csrf_token %}</form>
+<div class="ar-page ad-page">
+    <p class="ad-intro">{{ _('Here you decide whether each tournament and quick battle counts for the ranking of the duels. Until somebody decides, it does not count. You can change it at any moment: the ranking is worked out again by itself, in the order the games were played.') }}</p>
+    <p class="ad-intro ar-muted">{{ _('Only the results show here, never statements, code or submissions. Whoever organizes a battle does not decide whether it counts.') }}</p>
+
+    {% if behind %}
+        <div class="ar-alert ar-alert-warn ar-row">
+            <span>{{ _('The ranking is not up to date with these decisions. It is usually worked out again by itself; press the button to do it now.') }}</span>
+            <button type="button" class="ar-btn ad-act" data-action="recompute">{{ _('Work it out again') }}</button>
+        </div>
+    {% endif %}
+
+    <p class="ad-filter">
+        <a href="{{ url('arena_ranking_decide') }}"{% if not data.everything %} class="ad-current"{% endif %}>{{ _('Only what is not decided yet') }}</a>
+        <a href="{{ url('arena_ranking_decide') }}?todo=1"{% if data.everything %} class="ad-current"{% endif %}>{{ _('Everything') }}</a>
+        <a href="{{ url('arena_ranking') }}">{{ _('See the ranking') }}</a>
+    </p>
+
+    <section class="ar-panel">
+        <h3 class="ar-panel-head"><i class="fa fa-sitemap" aria-hidden="true"></i> {{ _('Tournaments') }}</h3>
+        {% for t in data.tournaments %}
+            <div class="ad-tournament">
+                <h4>{{ t.name }} <span class="ar-badge ar-{{ kinds[t.ranking] }}">{{ labels[t.ranking] }}</span></h4>
+                <p class="ad-facts ar-muted">
+                    {{ t.status_label }} · {{ _('Participants') }}: {{ t.participants }} · {{ t.when|date(_("M j, Y, G:i")) }}
+                    {% if not t.shown %} · {{ _('Left out of the history') }}{% endif %}
+                    {% if t.public_url %} · <a href="{{ t.public_url }}">{{ _('See the public page') }}</a>{% endif %}
+                    {% if t.manage_url %} · <a href="{{ t.manage_url }}">{{ _('Open in the battle panel') }}</a>{% endif %}
+                </p>
+                {{ choices('tournament', t.id, t.ranking) }}
+                {% if t.battles %}
+                    <details class="ad-battles">
+                        <summary>{{ _('Its battles (%(number)s): leave one out if it should not count', number=t.battles|length) }}</summary>
+                        <table class="ad-table">
+                            <thead><tr><th class="ad-wide">{{ _('Round') }}</th><th>{{ _('Players') }}</th><th class="ad-num">{{ _('Result') }}</th>
+                                <th class="ad-num ad-wide">{{ _('Games with a winner') }}</th><th>{{ _('In the ranking') }}</th></tr></thead>
+                            <tbody>
+                                {% for b in t.battles %}
+                                    <tr>
+                                        <td class="ad-wide">{{ b.round }}</td>
+                                        <td>{{ players(b) }}</td>
+                                        <td class="ad-num">{{ outcome(b) }}</td>
+                                        <td class="ad-num ad-wide">{{ b.games }}</td>
+                                        <td>
+                                            {% if b.never %}<span class="ar-muted">{{ never[b.never] }}</span>
+                                            {% elif b.own == 'excluded' %}
+                                                <span class="ar-badge ar-none">{{ _('Left out') }}</span>
+                                                <button type="button" class="ar-btn ar-btn-plain ad-act" data-action="match" data-id="{{ b.id }}" data-ranking="pending">{{ _('Count it with its tournament') }}</button>
+                                            {% else %}
+                                                <span class="ar-muted">{{ _('As its tournament') }}</span>
+                                                <button type="button" class="ar-btn ar-btn-plain ad-act" data-action="match" data-id="{{ b.id }}" data-ranking="excluded">{{ _('Leave it out') }}</button>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </details>
+                {% endif %}
+            </div>
+        {% else %}
+            <p class="ad-note ar-muted">{% if data.everything %}{{ _('No tournaments yet.') }}{% else %}{{ _('No tournament left to decide.') }}{% endif %}</p>
+        {% endfor %}
+    </section>
+
+    <section class="ar-panel">
+        <h3 class="ar-panel-head"><i class="fa fa-bolt" aria-hidden="true"></i> {{ _('Quick battles') }}</h3>
+        {% if data.quick %}
+            <table class="ad-table">
+                <thead><tr><th class="ad-wide">{{ _('Date') }}</th><th>{{ _('Players') }}</th><th class="ad-num">{{ _('Result') }}</th>
+                    <th class="ad-num ad-wide">{{ _('Games with a winner') }}</th><th>{{ _('In the ranking') }}</th></tr></thead>
+                <tbody>
+                    {% for b in data.quick %}
+                        <tr>
+                            <td class="ad-wide ar-muted">{{ b.when|date(_("M j, Y, G:i")) }}</td>
+                            <td>{{ players(b) }}{% if b.title %}<div class="ar-muted">{{ b.title }}</div>{% endif %}</td>
+                            <td class="ad-num">{{ outcome(b) }}</td>
+                            <td class="ad-num ad-wide">{{ b.games }}</td>
+                            <td>
+                                {% if b.never %}<span class="ar-muted">{{ never[b.never] }}</span>
+                                {% else %}
+                                    <span class="ar-badge ar-{{ kinds[b.own] }}">{{ labels[b.own] }}</span>
+                                    {{ choices('match', b.id, b.own) }}
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p class="ad-note ar-muted">{% if data.everything %}{{ _('No quick battles yet.') }}{% else %}{{ _('No quick battle left to decide.') }}{% endif %}</p>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

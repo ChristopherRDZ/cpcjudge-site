@@ -16,11 +16,11 @@ from django.utils.text import slugify
 from django.utils.translation import gettext as _
 
 from judge.arena import rules as arena_rules
-from judge.arena.engine import ArenaError, _bump, _check_version, _log, ensure_default_screen, lock_match, \
-    problems_used_in_tournament, refresh_lock_on_commit, visible_problems
+from judge.arena.engine import ArenaError, _bump, _check_version, _log, clean_ranking, ensure_default_screen, \
+    lock_match, problems_used_in_tournament, refresh_lock_on_commit, visible_problems
 from judge.models import Submission
 from judge.models.arena import ArenaBankProblem, ArenaGame, ArenaGameProblem, ArenaMatch, ArenaParticipant, \
-    ArenaProblemBank, ArenaRound, ArenaTournament, SLOT_A, SLOT_B
+    ArenaProblemBank, ArenaRating, ArenaRound, ArenaTournament, RANKING_PENDING, SLOT_A, SLOT_B
 
 logger = logging.getLogger('judge.arena')
 
@@ -100,6 +100,13 @@ def _ordered_by_seeding(profiles, seeding):
         return profiles
     if seeding == ArenaTournament.SEED_RATING:
         return sorted(profiles, key=lambda p: (p.rating is None, -(p.rating or 0), p.pk))
+    if seeding == ArenaTournament.SEED_DUEL:
+        # The ranking of the duels (judge/arena/rating.py); who has played no game that counts goes last, in the order
+        # of their contest rating.
+        duel = dict(ArenaRating.objects.filter(profile_id__in=[p.pk for p in profiles])
+                    .values_list('profile_id', 'rating'))
+        return sorted(profiles, key=lambda p: (p.pk not in duel, -duel.get(p.pk, 0), p.rating is None,
+                                               -(p.rating or 0), p.pk))
     return list(profiles)
 
 
@@ -127,10 +134,12 @@ def clean_planned_at(value, now=None):
 
 
 def create_tournament(actor, name, profiles, seeding=ArenaTournament.SEED_MANUAL, third_place=False, rules=None,
-                      description='', bank=None, show_in_history=True, planned_at=None):
+                      description='', bank=None, show_in_history=True, planned_at=None, ranking=RANKING_PENDING):
+    """`ranking`: whether it counts for the ranking of the duels, if whoever creates it may decide that."""
     name = (name or '').strip()[:100]
     if not name:
         raise ArenaError(_('Give the tournament a name.'))
+    ranking = clean_ranking(ranking)
     if seeding not in dict(ArenaTournament.SEEDING):
         raise ArenaError(_('Invalid seeding.'))
     try:
@@ -142,14 +151,14 @@ def create_tournament(actor, name, profiles, seeding=ArenaTournament.SEED_MANUAL
     tournament = ArenaTournament.objects.create(
         name=name, slug=_unique_slug(name), description=(description or '').strip()[:2000], seeding=seeding,
         third_place_match=bool(third_place), rules=rules, bank=bank, created_by=actor,
-        show_in_history=bool(show_in_history), planned_at=planned_at,
+        show_in_history=bool(show_in_history), planned_at=planned_at, ranking=ranking,
     )
     ArenaParticipant.objects.bulk_create([ArenaParticipant(tournament=tournament, profile=profile, seed=index)
                                           for index, profile in enumerate(profiles, 1)])
     _sync_rounds(tournament, len(profiles))
     # The bracket is there from the start, so its matches can get their problems before anything else.
     _build_bracket(actor, tournament)
-    _log('tournament_create', actor, tournament=tournament, participants=len(profiles))
+    _log('tournament_create', actor, tournament=tournament, participants=len(profiles), ranking=ranking)
     ensure_default_screen(actor)
     return tournament
 
@@ -497,6 +506,10 @@ def set_winner(actor, match_id, slot, version=None):
         tournament.save(update_fields=['status', 'finished_at'])
     advance(match)
     _log('set_winner', actor, match, winner=slot)
+    # Only games count for the ranking of the duels, so the ratings stay; a battle won by walkover that now has a
+    # winner chosen by the organizer may start to count, though.
+    from judge.arena import rating
+    rating.after_decided(match)
     refresh_lock_on_commit()
     return match
 

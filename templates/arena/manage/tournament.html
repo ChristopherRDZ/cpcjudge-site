@@ -83,6 +83,8 @@ $(function () {
                   waiting: {{ _('Not visible yet: it appears in the history when the tournament starts.')|tojson }},
                   hidden: {{ _('Left out of the history: only its organizers see it.')|tojson }}},
         historySaved: {{ _('Saved. The public history is updated.')|tojson }},
+        ranking: {pending: {{ _('Not decided yet')|tojson }}, counts: {{ _('Counts')|tojson }},
+                  excluded: {{ _('Does not count')|tojson }}},
         noDate: {{ _('Choose a date and an hour first.')|tojson }}
     };
     var languages = JSON.parse(document.getElementById('tm-languages').textContent);
@@ -353,6 +355,11 @@ $(function () {
         var key = !t.show_in_history ? 'hidden' : (t.status !== 'draft' ? 'shown' : (t.planned_at ? 'upcoming' : 'waiting'));
         var kind = {hidden: 'warn', shown: 'ok', upcoming: 'info', waiting: 'none'}[key];
         A.clear(document.getElementById('tm-history-state')).appendChild(W.badge(TEXT.history[key], kind));
+        // The ranking of the duels: read only here, decided by whoever has its permission.
+        var ranking = t.ranking || 'pending';
+        A.clear(document.getElementById('tm-ranking-state')).appendChild(
+            W.badge(TEXT.ranking[ranking], {pending: 'warn', counts: 'ok', excluded: 'none'}[ranking]));
+        $('#tm-ranking-link').prop('hidden', !t.ranking_decides).attr('href', t.ranking_url);
     }
     $('#tm-history').on('change', function () {
         act({action: 'update', show_in_history: $(this).prop('checked')}, function () { A.toast(TEXT.historySaved, 'ok', 2500); });
@@ -424,7 +431,8 @@ $(function () {
                             <select class="ar-select" id="tm-seeding">
                                 <option value="manual">{{ _('As in the list') }}</option>
                                 <option value="random">{{ _('At random') }}</option>
-                                <option value="rating">{{ _('By rating') }}</option>
+                                <option value="rating">{{ _('By contest rating') }}</option>
+                                <option value="duel">{{ _('By duel rating') }}</option>
                             </select>
                         </div>
                         <div class="am-field">
@@ -519,6 +527,14 @@ $(function () {
                         <button type="button" class="ar-btn" id="tm-save-planned">{{ _('Save the date') }}</button>
                         <button type="button" class="ar-btn ar-btn-plain" id="tm-clear-planned">{{ _('Remove the date') }}</button>
                     </div>
+                </div>
+            </section>
+            <section class="ar-panel" id="tm-ranking-panel">
+                <h3 class="ar-panel-head"><i class="fa fa-signal" aria-hidden="true"></i> {{ _('Ranking of the duels') }}</h3>
+                <div class="ar-panel-body">
+                    <p id="tm-ranking-state"></p>
+                    <p class="am-hint">{{ _('Whether its games count for the ranking of the duels is decided by whoever has the permission to decide the ranking, not by whoever organizes. Until then they do not count.') }}</p>
+                    <a class="ar-btn ar-btn-plain" id="tm-ranking-link" hidden><i class="fa fa-gavel" aria-hidden="true"></i> {{ _('Decide what counts') }}</a>
                 </div>
             </section>
         </div>

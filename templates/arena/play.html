@@ -325,6 +325,7 @@
     .ar-result .ar-series-big { font-size: 2.2em; font-weight: bold; margin: .5em 0; font-variant-numeric: tabular-nums; }
 
     .ar-result .ar-explain { color: var(--ar-muted); margin: -.2em 0 .6em; }
+    .ar-result .ar-result-rating { font-weight: 600; margin: .2em 0 .8em; }
     .ar-result .ar-games { list-style: none; padding: 0; margin: .4em auto .8em; max-width: 34em; text-align: left; }
     .ar-result .ar-games li { padding: .3em .6em; border-bottom: 1px solid var(--ar-soft-border); }
     .ar-result .ar-games li:last-child { border-bottom: 0; }
@@ -398,6 +399,20 @@ $(function () {
         nextGame: {{ _('Waiting for the next game...')|tojson }},
         tieNext: {{ _('The organizer will decide or start a tiebreak game.')|tojson }},
         canLeave: {{ _('The battle is over. You can leave the arena.')|tojson }},
+        // The ranking of the duels (judge/arena/rating.py, 2026-10-26), under the result of a battle.
+        ranking: {
+            change: {{ _('Ranking of the duels: %(rating)s (%(change)s).', rating='{rating}', change='{change}')|tojson }},
+            provisional: {{ _('It counts for the ranking of the duels. Your number appears after %(needed)s games that count; you have %(games)s.', needed='{needed}', games='{games}')|tojson }},
+            nothing: {{ _('It counts for the ranking of the duels, but no game ended with a winner.')|tojson }},
+            pending: {{ _('Whether this battle counts for the ranking of the duels is not decided yet. If it counts, your change shows in Duels → Ranking.')|tojson }},
+            excluded: {{ _('This battle does not count for the ranking of the duels.')|tojson }},
+            never: {
+                cancelled: {{ _('Cancelled: it never counts.')|tojson }},
+                bye: {{ _('A bye, nobody to play against: it never counts.')|tojson }},
+                walkover: {{ _('Won without playing on: it never counts.')|tojson }},
+                guest: {{ _('Played on a club laptop with a typed name: it never counts.')|tojson }}
+            }
+        },
         close: {{ _('Close')|tojson }},
         verifying: {{ _('Time is up. Waiting for the last verdicts...')|tojson }},
         closed: {{ _('Submissions are closed.')|tojson }},
@@ -1219,7 +1234,7 @@ $(function () {
 
     function result(data) {
         var phase = data.phase, g = data.game;
-        var key = null, title = '', cls = '', reason = '', foot = '';
+        var key = null, title = '', cls = '', reason = '', foot = '', ranking = '';
         var series = data.series || {};
         var isSeries = series.best_of > 1;
         if (phase === 'decided') {
@@ -1237,6 +1252,7 @@ $(function () {
                     : (TEXT.reasons[data.match.reason] || '');
             }
             foot = data.review ? TEXT.reviewFoot : TEXT.canLeave;
+            ranking = rankingText(data.ranking);
         } else if (phase === 'between' && g) {
             key = 'g' + g.id;
             if (g.status === 'tie') { title = TEXT.tieGame; foot = TEXT.tieNext; }
@@ -1267,12 +1283,25 @@ $(function () {
         }
         list.hidden = !list.children.length;
         $('#ar-result-foot').text(foot);
+        $('#ar-result-rating').text(ranking).prop('hidden', !ranking);
         // Over: review it (own account) or leave. A club laptop keeps the plain close and back to the site.
         $('#ar-result-close').text(data.review ? TEXT.reviewGame : TEXT.close).toggleClass('ar-btn-plain', !data.review);
         $('#ar-result-home').text(data.review ? TEXT.leave : TEXT.backToSite)
             .toggleClass('ar-btn-plain', !!data.review).prop('hidden', phase !== 'decided');
         $('#ar-result-back').prop('hidden', false);
         resultShownFor = key;
+    }
+
+    // What the battle did to the rating of this player, or why it does not count. Worked out on the server once the
+    // battle is saved, so it can appear one refresh after the result.
+    function rankingText(info) {
+        if (!info) return '';
+        if (info.status === 'never') return TEXT.ranking.never[info.reason] || '';
+        if (info.status === 'pending') return TEXT.ranking.pending;
+        if (info.status === 'excluded') return TEXT.ranking.excluded;
+        if (info.change === null || info.change === undefined) return TEXT.ranking.nothing;
+        if (info.provisional) return fill(TEXT.ranking.provisional, {needed: info.needed, games: info.games});
+        return fill(TEXT.ranking.change, {rating: info.rating, change: (info.change > 0 ? '+' : '') + info.change});
     }
 
     function seriesText(data) {
@@ -1644,6 +1673,7 @@ $(function () {
         <div class="ar-explain" id="ar-result-explain"></div>
         <ul class="ar-games" id="ar-result-games" hidden></ul>
         <p class="ar-muted" id="ar-result-foot"></p>
+        <p class="ar-result-rating" id="ar-result-rating" hidden></p>
         <div class="ar-row" style="justify-content: center;">
             <button type="button" class="ar-btn ar-btn-plain" id="ar-result-close">{{ _('Close') }}</button>
             <a class="ar-btn" id="ar-result-home" href="{{ url('home') }}" hidden>{{ _('Back to the site') }}</a>

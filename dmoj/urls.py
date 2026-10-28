@@ -11,10 +11,10 @@ from django.views.generic import RedirectView
 
 from judge.feed import AtomBlogFeed, AtomCommentFeed, AtomProblemFeed, BlogFeed, CommentFeed, ProblemFeed
 from judge.sitemap import sitemaps
-from judge.views import TitledTemplateView, announcement, api, arena, arena_history, arena_manage, blog, comment, \
-    contest_balloons, contest_reveal, contests, language, license, mailgun, organization, preview, problem, \
-    problem_manage, ranked_submission, register, stats, status, submission, tasks, team, ticket, two_factor, user, \
-    widgets
+from judge.views import TitledTemplateView, announcement, api, arena, arena_history, arena_manage, arena_ranking, \
+    blog, comment, contest_balloons, contest_reveal, contests, language, license, mailgun, organization, preview, \
+    problem, problem_manage, ranked_submission, register, stats, status, submission, tasks, team, ticket, two_factor, \
+    user, widgets
 from judge.views.problem_data import ProblemDataView, ProblemInteractiveExampleView, ProblemInteractiveGuideView, \
     ProblemSubmissionDiff, problem_data_file, problem_data_upload_gate, problem_init_view
 from judge.views.register import ActivationView, RegistrationView
@@ -131,6 +131,10 @@ urlpatterns = [
              name='arena_history_tournament_state'),
         path('torneos/<slug:slug>/visibility', arena_history.history_visibility, name='arena_history_visibility'),
         path('called', arena_history.history_called, name='arena_history_called'),
+        # The ranking of the duels (2026-10-26), open without an account, and the page to decide what counts.
+        path('ranking/', arena_ranking.ranking_page, name='arena_ranking'),
+        path('ranking/decidir/', arena_ranking.ranking_decide, name='arena_ranking_decide'),
+        path('ranking/decidir/accion', arena_ranking.ranking_decide_action, name='arena_ranking_decide_action'),
         path('manage/', include([
             path('', arena_manage.manage_dashboard, name='arena_manage'),
             path('overview', arena_manage.manage_overview, name='arena_manage_overview'),

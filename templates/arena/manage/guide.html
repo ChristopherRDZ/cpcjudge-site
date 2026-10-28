@@ -44,6 +44,7 @@
         <li><a href="#batalla">La página de una batalla</a></li>
         <li><a href="#torneo">Un torneo, paso a paso</a></li>
         <li><a href="#historial">El historial público de los torneos</a></li>
+        <li><a href="#ranking">El ranking de Duelos</a></li>
         <li><a href="#problemas">De dónde salen los problemas</a></li>
         <li><a href="#bancos">Bancos de problemas</a></li>
         <li><a href="#pantallas">Pantallas y proyectores</a></li>
@@ -269,6 +270,39 @@
     <p>Además de quienes organizan el torneo, también pueden mostrarlo u ocultarlo quien organiza todas las
         batallas y quien tenga el permiso «Mostrar u ocultar cualquier torneo en el historial de Duelos», que sirve
         para cuidar el historial sin organizar. Lo hacen con el botón de la página pública del torneo.</p>
+
+    <h2 id="ranking">El ranking de Duelos</h2>
+    <p>En <span class="ag-ui">Duelos → Ranking</span> cualquiera, aun sin cuenta, ve el rating de duelos de cada
+        jugador. Sólo cuentan las partidas de los torneos y duelos rápidos que alguien con el permiso «Decidir qué
+        torneos y duelos cuentan para el ranking de Duelos» marcó como <i>Cuenta</i>. <b>Organizar no da ese permiso:</b>
+        quien organiza una batalla no decide si cuenta. Todo nace <i>Por decidir</i>, y mientras tanto no cuenta.</p>
+    <table>
+        <tr><th>Lo que ves</th><th>Qué hace</th></tr>
+        <tr><td class="ag-term">Por decidir</td><td>Así nace cada torneo y cada duelo rápido. No cuenta todavía; si
+            después se marca <i>Cuenta</i>, sus partidas entran en el orden en que se jugaron, como si hubiera contado
+            desde el principio.</td></tr>
+        <tr><td class="ag-term">Cuenta</td><td>Cada partida terminada con ganador suma o resta rating, también las que
+            gana alguien porque lo decidió el organizador. En una serie al mejor de 3, cada partida cuenta por su
+            lado.</td></tr>
+        <tr><td class="ag-term">No cuenta</td><td>Para torneos y duelos de prueba o de práctica. Se puede cambiar
+            cuando sea: el ranking se vuelve a calcular solo.</td></tr>
+        <tr><td class="ag-term">Dejar fuera una batalla</td><td>En un torneo que cuenta, una batalla suelta se puede
+            dejar fuera (por ejemplo, si hubo trampa); las demás siguen contando.</td></tr>
+    </table>
+    <p><b>Nunca cuentan, aunque se marquen:</b> los empates, las partidas anuladas, las batallas canceladas, los pases
+        directos del bracket, las batallas ganadas sin jugar (el rival no se presentó o se retiró) y las que se juegan
+        en las laptops del club con un nombre escrito. Corregir el ganador de una serie no cambia el rating: sólo
+        cuentan las partidas. Una cuenta no listada (así queda también una cuenta cancelada) no sale en la tabla, pero
+        sus batallas siguen contando para sus rivales; si es una cuenta de prueba, marca esas batallas «No cuenta».</p>
+    <p>Quien tiene el permiso lo decide en <span class="ag-ui">Duelos → Ranking → Decidir qué cuenta</span>, o al crear
+        el duelo o el torneo en este panel (el campo <span class="ag-ui">Ranking de Duelos</span> sólo le aparece a
+        esa persona). Si lo marca <i>Cuenta</i> desde el principio, cada jugador ve su cambio de rating en cuanto
+        termina la batalla; si no, lo ve en el ranking cuando se decida. Las páginas de una batalla y de un torneo
+        dicen, sin poder cambiarlo, qué se decidió.</p>
+    <p>El número aparece después de 3 partidas que cuenten (antes se muestra con «?») y quien pasa un año sin jugar
+        sale de la tabla principal hasta que vuelva a jugar. Al crear un torneo se puede ordenar el bracket
+        <span class="ag-ui">Por rating de duelos</span>; quien todavía no tiene se acomoda al final, por su rating de
+        concursos.</p>
 
     <h2 id="problemas">De dónde salen los problemas</h2>
     <p>En la página del torneo, sección <span class="ag-ui">Problemas</span>, hay dos formas. Se pueden combinar.</p>
