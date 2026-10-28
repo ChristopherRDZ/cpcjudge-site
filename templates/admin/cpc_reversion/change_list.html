@@ -1,0 +1,15 @@
+{% extends "admin/change_list.html" %}
+{% load i18n admin_urls %}
+{% comment %}
+reversion/change_list.html de django-reversion 5.1.0, con una condición más: el enlace para
+recuperar borrados sólo sale para la cuenta dueña (cpc_can_revert, de judge/admin_owner.py),
+que es la única a la que esa vista responde. Vive bajo admin/ para que lo lea el motor de
+Django: con otro nombre, el de Jinja lo tomaría primero.
+{% endcomment %}
+
+{% block object-tools-items %}
+    {% if not is_popup and has_add_permission and has_change_permission and cpc_can_revert %}
+        <li><a href="{% url opts|admin_urlname:'recoverlist' %}" class="recoverlink">{% blocktrans with cl.opts.verbose_name_plural|escape as name %}Recover deleted {{name}}{% endblocktrans %}</a></li>
+    {% endif %}
+    {{block.super}}
+{% endblock %}

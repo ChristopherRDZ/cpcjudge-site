@@ -111,6 +111,12 @@
 {% block body %}
     {% include "messages.html" %}
 
+    {% if frozen_out %}
+        {# The panes would count and rejudge what the frozen scoreboard hides; the views refuse it too. #}
+        <div class="alert alert-info">
+            {{ _('This problem is in a contest with a frozen scoreboard that you do not organize. Until the scoreboard is revealed, only the organizers of that contest can rejudge or rescore these submissions.') }}
+        </div>
+    {% else %}
     <div class="panes">
         {% if request.user.has_perm('judge.rejudge_submission_lot') %}
             <div class="pane">
@@ -175,4 +181,5 @@
             </form>
         </div>
     </div>
+    {% endif %}
 {% endblock %}

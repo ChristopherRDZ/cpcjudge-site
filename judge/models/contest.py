@@ -347,6 +347,16 @@ class Contest(models.Model):
         This runs on every submission list, so the set of frozen contests — normally empty, at most a handful —
         is cached for half a minute. Revealing a scoreboard drops that cache, so the reveal is immediate.
         """
+        query = Q()
+        hides_something = False
+        for contest_id, cutoff in cls.frozen_windows_for(user):
+            query |= Q(contest_object_id=contest_id, date__gte=cutoff)
+            hides_something = True
+        return query if hides_something else None
+
+    @classmethod
+    def frozen_windows_for(cls, user):
+        """(contest id, cutoff) of every frozen contest whose freeze this user does not see through."""
         windows = cache.get(cls.FROZEN_WINDOWS_CACHE_KEY)
         if windows is None:
             windows = []
@@ -357,14 +367,14 @@ class Contest(models.Model):
                     windows.append((contest.id, contest.submission_freeze_cutoff))
             cache.set(cls.FROZEN_WINDOWS_CACHE_KEY, windows, 30)
         if not windows:
-            return None
+            return []
 
-        # Whoever can edit a contest sees through its freeze, so those contests drop out of the filter. One
-        # query for all of them, with the same authors-or-curators rule `editor_ids` uses.
+        # Whoever can edit a contest sees through its freeze, so those contests drop out. One query for all of
+        # them, with the same authors-or-curators rule `editor_ids` uses.
         seen_through = set()
         if user.is_authenticated:
             if user.has_perm('judge.edit_all_contest'):
-                return None
+                return []
             if user.has_perm('judge.edit_own_contest'):
                 profile_id = user.profile.id
                 seen_through = set(
@@ -372,15 +382,7 @@ class Contest(models.Model):
                        .filter(Q(authors=profile_id) | Q(curators=profile_id))
                        .values_list('id', flat=True),
                 )
-
-        query = Q()
-        hides_something = False
-        for contest_id, cutoff in windows:
-            if contest_id in seen_through:
-                continue
-            query |= Q(contest_object_id=contest_id, date__gte=cutoff)
-            hides_something = True
-        return query if hides_something else None
+        return [(contest_id, cutoff) for contest_id, cutoff in windows if contest_id not in seen_through]
 
     @property
     def contest_window_length(self):

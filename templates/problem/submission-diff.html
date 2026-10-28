@@ -73,7 +73,12 @@
         {% for sub in submissions %}
             <tr>
                 <td><a href="{{ url('submission_source', sub.id) }}">{{ sub.id }}</a></td>
-                <td>{{ link_user(sub.user) }}</td>
+                <td>
+                    {# As the submission lists: a team's submission shows the team, not who sent it. #}
+                    {% if sub.team_participation %}
+                        <a href="{{ sub.owner_url }}">{{ sub.owner_name }}</a>
+                    {% else %}{{ link_user(sub.user) }}{% endif %}
+                </td>
                 <td><span class="case-{{ sub.result }}">{{ sub.result }}</span></td>
                 <td>{{ sub.language.name }}</td>
                 <td><span class="time">{{ relative_time(sub.date) }}</span></td>

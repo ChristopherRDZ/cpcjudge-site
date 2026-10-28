@@ -12462,3 +12462,11 @@ msgstr "Igual que su torneo."
 #: cpc 2026-10-26
 msgid "Left out of the ranking, although its tournament counts."
 msgstr "Fuera del ranking, aunque su torneo cuenta."
+
+#: cpc 2026-10-27
+msgid "This problem is in a contest with a frozen scoreboard that you do not organize. Until the scoreboard is revealed, only the organizers of that contest can rejudge or rescore these submissions."
+msgstr "Este problema está en un concurso con el marcador congelado que no organizas. Hasta que se revele el marcador, sólo quien organiza ese concurso puede rejuzgar o recalificar estos envíos."
+
+#: cpc 2026-10-27
+msgid "The names of the files inside the zip must not have control characters or angle brackets."
+msgstr "Los nombres de los archivos dentro del zip no pueden llevar caracteres de control ni los signos «menor que» o «mayor que»."

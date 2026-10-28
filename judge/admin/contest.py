@@ -4,7 +4,7 @@ from adminsortable2.admin import SortableAdminBase, SortableInlineAdminMixin
 from django.contrib import admin
 from django.core.cache import cache
 from django.core.exceptions import PermissionDenied
-from django.db import connection, transaction
+from django.db import transaction
 from django.db.models import Q, TextField
 from django.forms import ModelForm, ModelMultipleChoiceField, TextInput
 from django.http import Http404, HttpResponseRedirect
@@ -412,7 +412,9 @@ class ContestAdmin(PurgeMixin, NoBatchDeleteMixin, SortableAdminBase, VersionAdm
         contest = get_object_or_404(Contest, id=contest_id)
         if not self.has_change_permission(request, contest):
             raise PermissionDenied()
-        queryset = ContestSubmission.objects.filter(problem_id=problem_id).select_related('submission')
+        # The problem has to be one of this contest: the check above is only about the contest in the URL.
+        problem = get_object_or_404(ContestProblem, id=problem_id, contest=contest)
+        queryset = ContestSubmission.objects.filter(problem=problem).select_related('submission')
         for model in queryset:
             model.submission.judge(rejudge=True, rejudge_user=request.user)
 
@@ -423,11 +425,12 @@ class ContestAdmin(PurgeMixin, NoBatchDeleteMixin, SortableAdminBase, VersionAdm
 
     @method_decorator(require_POST)
     def rate_all_view(self, request):
-        if not request.user.has_perm('judge.contest_rating'):
+        # It rates every contest, so it also takes being able to edit every contest.
+        if not request.user.has_perm('judge.contest_rating') or not request.user.has_perm('judge.edit_all_contest'):
             raise PermissionDenied()
         with transaction.atomic():
-            with connection.cursor() as cursor:
-                cursor.execute('TRUNCATE TABLE `%s`' % Rating._meta.db_table)
+            # Not TRUNCATE: MariaDB commits it on the spot, and a failure halfway left the table empty.
+            Rating.objects.all().delete()
             Profile.objects.update(rating=None)
             for contest in Contest.objects.filter(is_rated=True, end_time__lte=timezone.now()).order_by('end_time'):
                 rate_contest(contest)
@@ -438,6 +441,8 @@ class ContestAdmin(PurgeMixin, NoBatchDeleteMixin, SortableAdminBase, VersionAdm
         if not request.user.has_perm('judge.contest_rating'):
             raise PermissionDenied()
         contest = get_object_or_404(Contest, id=id)
+        if not self.has_change_permission(request, contest):
+            raise PermissionDenied()
         if not contest.is_rated or not contest.ended:
             raise Http404()
         with transaction.atomic():
@@ -499,9 +504,11 @@ class ContestParticipationAdmin(admin.ModelAdmin):
     date_hierarchy = 'real_start'
 
     def get_queryset(self, request):
+        # The user column is the display name: a team's name, or the profile's override of the username.
         return super(ContestParticipationAdmin, self).get_queryset(request).only(
             'contest__name', 'contest__format_name', 'contest__format_config',
-            'user__user__username', 'real_start', 'score', 'cumtime', 'tiebreaker', 'virtual',
+            'user__user__username', 'user__username_display_override', 'team', 'team_name',
+            'real_start', 'score', 'cumtime', 'tiebreaker', 'virtual',
         )
 
     def save_model(self, request, obj, form, change):

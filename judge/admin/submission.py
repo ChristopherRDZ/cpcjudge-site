@@ -15,7 +15,7 @@ from django.utils.translation import gettext, gettext_lazy as _, ngettext, pgett
 from django.views.decorators.http import require_POST
 from reversion.admin import VersionAdmin
 
-from judge.models import ContestParticipation, ContestProblem, ContestSubmission, Profile, Submission, \
+from judge.models import Contest, ContestParticipation, ContestProblem, ContestSubmission, Profile, Submission, \
     SubmissionSource, SubmissionTestCase
 from judge.utils.raw_sql import use_straight_join
 from judge.widgets import AdminAceWidget
@@ -146,6 +146,10 @@ class SubmissionAdmin(VersionAdmin):
         if not request.user.has_perm('judge.edit_all_problem'):
             id = request.profile.id
             queryset = queryset.filter(Q(problem__authors__id=id) | Q(problem__curators__id=id)).distinct()
+        # The same freeze as the submission lists of the site: editing the problem is not editing the contest.
+        frozen = Contest.frozen_submission_filter(request.user)
+        if frozen is not None:
+            queryset = queryset.exclude(frozen & ~Submission.ownership_filter(request.profile))
         return queryset
 
     def has_add_permission(self, request):
@@ -153,6 +157,8 @@ class SubmissionAdmin(VersionAdmin):
 
     def has_change_permission(self, request, obj=None):
         if not request.user.has_perm('judge.edit_own_problem'):
+            return False
+        if obj is not None and obj.is_hidden_by_freeze(request.user):
             return False
         if request.user.has_perm('judge.edit_all_problem') or obj is None:
             return True
@@ -262,6 +268,9 @@ class SubmissionAdmin(VersionAdmin):
         submission = get_object_or_404(Submission, id=id)
         if not request.user.has_perm('judge.edit_all_problem') and \
                 not submission.problem.is_editor(request.profile):
+            raise PermissionDenied()
+        # The same answer as above, so that it does not tell which submissions the freeze hides.
+        if submission.is_hidden_by_freeze(request.user):
             raise PermissionDenied()
         submission.judge(rejudge=True, rejudge_user=request.user)
         return HttpResponseRedirect(request.headers.get('referer', '/'))

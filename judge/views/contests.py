@@ -1,5 +1,4 @@
 import hashlib
-import json
 import logging
 import os
 import tempfile
@@ -35,6 +34,7 @@ from django.views.generic import ListView, TemplateView, View
 from django.views.generic.detail import DetailView, SingleObjectMixin
 from django.views.generic.list import BaseListView
 from icalendar import Calendar as ICalendar, Event
+from jinja2.utils import htmlsafe_json_dumps
 from reversion import revisions
 
 from judge import event_poster as event
@@ -654,7 +654,8 @@ class ContestStats(TitleMixin, ContestMixin, DetailView):
             ),
         }
 
-        context['stats'] = mark_safe(json.dumps(stats))
+        # Inside a <script>, and problem names are free text: htmlsafe_json_dumps escapes what could close it.
+        context['stats'] = htmlsafe_json_dumps(stats)
 
         return context
 

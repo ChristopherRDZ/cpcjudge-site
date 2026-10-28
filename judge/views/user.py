@@ -31,6 +31,7 @@ from django.utils.safestring import mark_safe
 from django.utils.translation import gettext as _, gettext_lazy
 from django.views.decorators.http import require_POST
 from django.views.generic import DetailView, FormView, ListView, TemplateView, View
+from jinja2.utils import htmlsafe_json_dumps
 from reversion import revisions
 
 from judge.forms import CustomAuthenticationForm, DownloadDataForm, EmailChangeForm, ProfileForm, newsletter_id
@@ -172,7 +173,8 @@ class UserAboutPage(UserPage):
         ratings = context['ratings'] = self.object.ratings.order_by('-contest__end_time').select_related('contest') \
             .defer('contest__description')
 
-        context['rating_data'] = mark_safe(json.dumps([{
+        # Inside a <script>, and contest names are free text: htmlsafe_json_dumps escapes what could close it.
+        context['rating_data'] = htmlsafe_json_dumps([{
             'label': rating.contest.name,
             'rating': rating.rating,
             'ranking': rating.rank,
@@ -181,7 +183,7 @@ class UserAboutPage(UserPage):
             'date': date_format(timezone.localtime(rating.contest.end_time), _('M j, Y, G:i')),
             'class': rating_class(rating.rating),
             'height': '%.3fem' % rating_progress(rating.rating),
-        } for rating in ratings]))
+        } for rating in ratings])
 
         submissions = (
             self.object.submission_set.filter(contest__participation__team__isnull=True)

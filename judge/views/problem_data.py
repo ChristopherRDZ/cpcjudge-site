@@ -11,7 +11,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import UploadedFile
-from django.forms import BaseModelFormSet, HiddenInput, ModelForm, NumberInput, Select, formset_factory
+from django.forms import BaseModelFormSet, CheckboxInput, HiddenInput, ModelForm, NumberInput, Select, formset_factory
 from django.http import Http404, HttpResponse, HttpResponseForbidden, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
@@ -21,6 +21,7 @@ from django.utils.translation import gettext as _
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
 from django.views.generic import DetailView
+from jinja2.utils import htmlsafe_json_dumps
 
 from judge.highlight_code import highlight_code
 from judge.models import Problem, ProblemData, ProblemTestCase, Submission, problem_data_storage
@@ -72,6 +73,18 @@ def checker_args_cleaner(self):
 
 INTERACTOR_MAX_SIZE = 1 << 20
 
+# The comparison of submissions loads every case of every submission asked for.
+MAX_DIFF_SUBMISSIONS = 50
+
+# What reading the names of a zip can raise besides BadZipfile: a name marked as UTF-8 that is not (a ValueError),
+# a truncated file, a stored zip that is missing.
+INVALID_ZIP = (BadZipfile, EOFError, OSError, ValueError)
+
+
+def is_safe_zip_name(name):
+    """No control characters and no angle brackets: the names end up in the page, the select boxes and init.yml."""
+    return not any(ord(char) < 32 or ord(char) == 127 or char in '<>' for char in name)
+
 
 class ProblemDataForm(ModelForm):
     def clean_interactor(self):
@@ -103,6 +116,19 @@ class ProblemDataForm(ModelForm):
         zipfile = self.cleaned_data['zipfile']
         if zipfile and not zipfile.name.endswith('.zip'):
             raise ValidationError(_("Zip files must end in '.zip'"))
+        # Only a fresh upload, and read from the file that is going to be saved: a zip saved before keeps working as
+        # it is.
+        if isinstance(zipfile, UploadedFile):
+            try:
+                with ZipFile(zipfile) as archive:
+                    names = archive.namelist()
+            except INVALID_ZIP:
+                raise ValidationError(_('Your zip file is invalid!'))
+            finally:
+                zipfile.seek(0)
+            if not all(map(is_safe_zip_name, names)):
+                raise ValidationError(_('The names of the files inside the zip must not have control characters or '
+                                        'angle brackets.'))
 
         return zipfile
 
@@ -186,10 +212,17 @@ class ProblemSubmissionDiff(TitleMixin, ProblemMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super(ProblemSubmissionDiff, self).get_context_data(**kwargs)
         try:
-            ids = self.request.GET.getlist('id')
-            subs = Submission.objects.filter(id__in=ids)
+            ids = list(dict.fromkeys(int(id) for id in self.request.GET.getlist('id')))[:MAX_DIFF_SUBMISSIONS]
         except ValueError:
             raise Http404
+        # Only submissions to this problem, and only those this user may see in detail: editing the problem in the
+        # URL says nothing about other problems, a frozen scoreboard or a personal test.
+        subs = list(Submission.objects.filter(problem=self.object, id__in=ids)
+                    .select_related('user__user', 'language', 'contest_object', 'contest__participation__contest')
+                    .prefetch_related('test_cases').order_by('id'))
+        for sub in subs:
+            sub.problem = self.object  # one problem for all of them, and its editors are looked up once
+        subs = [sub for sub in subs if sub.can_see_detail(self.request.user)]
         if not subs:
             raise Http404
 
@@ -200,7 +233,7 @@ class ProblemSubmissionDiff(TitleMixin, ProblemMixin, DetailView):
         if data:
             num_cases = data.count()
         else:
-            num_cases = subs.first().test_cases.count()
+            num_cases = len(subs[0].test_cases.all())
         context['num_cases'] = num_cases
         return context
 
@@ -226,15 +259,18 @@ class ProblemDataView(TitleMixin, ProblemManagerMixin):
                                   queryset=ProblemTestCase.objects.filter(dataset_id=self.object.pk).order_by('order'))
 
     def get_valid_files(self, data, post=False) -> List[str]:
+        # The names of what is going to be saved. A new upload comes first (with the clear box ticked as well, the form
+        # refuses it), and the clear box counts the way Django reads it: sent as '' or 'false', the zip stays.
         try:
-            if post and 'problem-data-zipfile-clear' in self.request.POST:
-                return []
-            elif post and 'problem-data-zipfile' in self.request.FILES:
+            if post and 'problem-data-zipfile' in self.request.FILES:
                 return ZipFile(self.request.FILES['problem-data-zipfile']).namelist()
+            elif post and CheckboxInput().value_from_datadict(self.request.POST, self.request.FILES,
+                                                               'problem-data-zipfile-clear'):
+                return []
             elif data.zipfile:
                 return ZipFile(data.zipfile.path).namelist()
-        except BadZipfile:
-            raise
+        except INVALID_ZIP as error:
+            raise BadZipfile(str(error)) from error
         return []
 
     def get_context_data(self, **kwargs):
@@ -250,8 +286,9 @@ class ProblemDataView(TitleMixin, ProblemManagerMixin):
             # interactor that was never written.
             context['interactor_mode'] = self.get_interactor_mode(context['data_form'].instance)
         context['valid_files'] = set(valid_files)
-        context['valid_files_json'] = mark_safe(json.dumps(valid_files))
-        context['max_case_rows_json'] = mark_safe(json.dumps(max_case_rows(ProblemCaseFormSet)))
+        # Both go inside a <script>: the names come from the zip, and one named a</script>... closed it.
+        context['valid_files_json'] = htmlsafe_json_dumps(valid_files)
+        context['max_case_rows_json'] = htmlsafe_json_dumps(max_case_rows(ProblemCaseFormSet))
 
         context['cases_formset'] = self.get_case_formset(valid_files)
         context['all_case_forms'] = chain(context['cases_formset'], [context['cases_formset'].empty_form])

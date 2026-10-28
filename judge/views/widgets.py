@@ -26,7 +26,9 @@ def rejudge_submission(request):
     except Submission.DoesNotExist:
         return HttpResponseBadRequest()
 
-    if not submission.problem.is_subs_manageable_by(request.user):
+    # A frozen scoreboard hides the submission from whoever does not edit its contest, editors of the problem
+    # included: the same answer as for somebody else's problem, so it does not tell which ones are hidden.
+    if not submission.problem.is_subs_manageable_by(request.user) or submission.is_hidden_by_freeze(request.user):
         return HttpResponseForbidden()
 
     submission.judge(rejudge=True, rejudge_user=request.user)

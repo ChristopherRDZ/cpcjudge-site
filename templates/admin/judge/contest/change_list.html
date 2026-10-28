@@ -1,9 +1,9 @@
-{% extends "reversion/change_list.html" %}
+{% extends "admin/cpc_reversion/change_list.html" %}
 {% load i18n %}
 
 {% block object-tools-items %}
     {{ block.super }}
-    {% if not is_popup and perms.judge.contest_rating %}
+    {% if not is_popup and perms.judge.contest_rating and perms.judge.edit_all_contest %}
         <li>
             <a href="{% url 'admin:judge_contest_rate_all' %}" class="ratealllink action-link">
                 <i class="fa fa-signal"></i> {% trans "Rate all ratable contests" %}

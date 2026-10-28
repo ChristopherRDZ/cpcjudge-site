@@ -1,0 +1,49 @@
+{% extends "admin/object_history.html" %}
+{% load i18n %}
+{% comment %}
+reversion/object_history.html de django-reversion 5.1.0. La lista se ve igual para todos, pero
+cada fecha sólo enlaza a la versión para la cuenta dueña (cpc_can_revert, de
+judge/admin_owner.py), que es la única que puede revertir.
+{% endcomment %}
+
+
+{% block content %}
+    <div id="content-main">
+
+        {% if cpc_can_revert %}
+        <p>{% blocktrans %}Choose a date from the list below to revert to a previous version of this object.{% endblocktrans %}</p>
+        {% endif %}
+
+        <div class="module">
+            {% if action_list %}
+                <table id="change-history" class="table table-striped table-bordered">
+                    <thead>
+                        <tr>
+                            <th scope="col">{% trans 'Date/time' %}</th>
+                            <th scope="col">{% trans 'User' %}</th>
+                            <th scope="col">{% trans 'Action' %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for action in action_list %}
+                            <tr>
+                                <th scope="row">{% if cpc_can_revert %}<a href="{{action.url}}">{{action.revision.date_created|date:"DATETIME_FORMAT"}}</a>{% else %}{{action.revision.date_created|date:"DATETIME_FORMAT"}}{% endif %}</th>
+                                <td>
+                                    {% if action.revision.user %}
+                                        {{action.revision.user.get_username}}
+                                        {% if action.revision.user.get_full_name %} ({{action.revision.user.get_full_name}}){% endif %}
+                                    {% else %}
+                                        &mdash;
+                                    {% endif %}
+                                </td>
+                                <td>{{action.revision.get_comment|linebreaksbr|default:""}}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>{% trans "This object doesn't have a change history. It probably wasn't added via this admin site." %}</p>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}
