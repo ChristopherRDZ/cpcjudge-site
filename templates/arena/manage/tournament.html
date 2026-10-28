@@ -77,13 +77,19 @@ $(function () {
         stepBank: {{ _('They will come from the bank')|tojson }},
         stepMissing: {{ _('Battles of the first round without problems:')|tojson }},
         readyToCall: {{ _('Battles ready to call:')|tojson }},
-        organizersSaved: {{ _('Organizers saved')|tojson }}
+        organizersSaved: {{ _('Organizers saved')|tojson }},
+        history: {shown: {{ _('Anybody can see it in Duels → Tournaments.')|tojson }},
+                  upcoming: {{ _('Announced as upcoming in Duels → Tournaments, with its planned date.')|tojson }},
+                  waiting: {{ _('Not visible yet: it appears in the history when the tournament starts.')|tojson }},
+                  hidden: {{ _('Left out of the history: only its organizers see it.')|tojson }}},
+        historySaved: {{ _('Saved. The public history is updated.')|tojson }},
+        noDate: {{ _('Choose a date and an hour first.')|tojson }}
     };
     var languages = JSON.parse(document.getElementById('tm-languages').textContent);
     var state = JSON.parse(document.getElementById('tm-state').textContent);
     var ACTION = {{ url('arena_manage_tournament_action', state.tournament.slug)|tojson }};
     var STATE = {{ url('arena_manage_tournament_state', state.tournament.slug)|tojson }};
-    var participants = null, rules = null, problemsForm = false, organizers = null;
+    var participants = null, rules = null, problemsForm = false, organizers = null, plannedForm = false;
     var paint = W.painter();
 
     function matchUrl(id) { return {{ url('arena_manage_match', 0)|tojson }}.replace('/0/', '/' + id + '/'); }
@@ -117,6 +123,7 @@ $(function () {
             $('#tm-seeding').val(t.seeding);
         }
         $('#tm-third').prop('checked', t.third_place);
+        renderHistory();
         if (!rules) {
             // The forms are filled once; later refreshes must not overwrite what is being typed.
             $('#tm-name').val(t.name);
@@ -336,6 +343,29 @@ $(function () {
             A.toast(TEXT.participantsSaved, 'ok', 3000);
         });
     });
+    // ------------------------------------------------------------ the public history
+    // Whether anybody can see the tournament in Duels → Tournaments, said in words next to the box.
+    function renderHistory() {
+        var t = state.tournament;
+        $('#tm-history').prop('checked', t.show_in_history);
+        $('#tm-public-link').attr('href', t.public_url);
+        if (!plannedForm) { plannedForm = true; $('#tm-planned').val(t.planned_at || ''); }
+        var key = !t.show_in_history ? 'hidden' : (t.status !== 'draft' ? 'shown' : (t.planned_at ? 'upcoming' : 'waiting'));
+        var kind = {hidden: 'warn', shown: 'ok', upcoming: 'info', waiting: 'none'}[key];
+        A.clear(document.getElementById('tm-history-state')).appendChild(W.badge(TEXT.history[key], kind));
+    }
+    $('#tm-history').on('change', function () {
+        act({action: 'update', show_in_history: $(this).prop('checked')}, function () { A.toast(TEXT.historySaved, 'ok', 2500); });
+    });
+    $('#tm-save-planned').on('click', function () {
+        var value = $('#tm-planned').val();
+        if (!value) { A.toast(TEXT.noDate, 'warn'); return; }
+        act({action: 'update', planned_at: value}, function () { A.toast(TEXT.historySaved, 'ok', 2500); });
+    });
+    $('#tm-clear-planned').on('click', function () {
+        act({action: 'update', planned_at: ''}, function () { $('#tm-planned').val(''); A.toast(TEXT.historySaved, 'ok', 2500); });
+    });
+
     // The third place match goes in or out of the bracket as soon as the box changes.
     $('#tm-third').on('change', function () {
         act({action: 'update', third_place: $(this).prop('checked')}, function () { A.toast(TEXT.saved, 'ok', 2000); });
@@ -471,6 +501,24 @@ $(function () {
                     <p class="am-label">{{ _('Rules of every game') }}</p>
                     <div id="tm-rules"></div>
                     <div class="am-actions" style="margin-top: 1em;"><button type="button" class="ar-btn" id="tm-save">{{ _('Save') }}</button></div>
+                </div>
+            </section>
+            <section class="ar-panel" id="tm-history-panel">
+                <h3 class="ar-panel-head"><i class="fa fa-history" aria-hidden="true"></i> {{ _('Public history') }}
+                    <span class="ar-spacer"></span><a class="ar-btn ar-btn-plain" id="tm-public-link" target="_blank" rel="noopener"><i class="fa fa-external-link" aria-hidden="true"></i> {{ _('See the public page') }}</a></h3>
+                <div class="ar-panel-body">
+                    <label><input type="checkbox" id="tm-history"> <b>{{ _('Show in the history of the duels') }}</b></label>
+                    <p class="am-hint">{{ _('Anybody, even without an account, will see the bracket and the results once the tournament starts. Uncheck it for a test tournament.') }}</p>
+                    <p id="tm-history-state"></p>
+                    <div class="am-field">
+                        <label for="tm-planned">{{ _('Planned date (optional)') }}</label>
+                        <input class="ar-input" type="datetime-local" id="tm-planned">
+                        <span class="am-hint">{{ _('With a date, the tournament is announced as upcoming in Duels → Tournaments. Nothing starts by itself: the tournament starts when you press Start the tournament.') }}</span>
+                    </div>
+                    <div class="am-actions">
+                        <button type="button" class="ar-btn" id="tm-save-planned">{{ _('Save the date') }}</button>
+                        <button type="button" class="ar-btn ar-btn-plain" id="tm-clear-planned">{{ _('Remove the date') }}</button>
+                    </div>
                 </div>
             </section>
         </div>

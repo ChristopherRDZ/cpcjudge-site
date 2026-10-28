@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{# /duelos/torneos/ (`full`), and /duelos/ for somebody without an account: the tournaments of the history
+   (judge/arena/history.py). Same look as the rest of the duels (arena/_style.html), under the site's own bar and
+   tabs. #}
+
+{% block title %}{{ title }} - {{ SITE_LONG_NAME }}{% endblock %}
+
+{% block media %}
+{% include "arena/_style.html" %}
+<style>
+    .ah-page { max-width: 64em; margin: 0 auto; padding: 0 0 2em; }
+    .ah-intro { font-size: 1.1em; line-height: 1.5; margin: .2em 0 1em; }
+    .ah-signin { margin: 0 0 1.2em; }
+</style>
+{% endblock %}
+
+{% block js_media %}
+{% include "arena/history/_called.html" %}
+{% endblock %}
+
+{% block title_row %}{% include "arena/history/_tabs.html" %}{% endblock %}
+{% block title_ruler %}{% endblock %}
+
+{% block body %}
+<div class="ar-page ah-page">
+    {% if not full %}
+        <p class="ah-intro">{{ _('Programming battles of one against one, and tournaments with a bracket. Here you see each tournament: who played whom and how every battle ended.') }}</p>
+        {% if not request.user.is_authenticated %}
+            <p class="ah-signin ar-row">
+                <a class="ar-btn" href="{{ url('auth_login') }}?next={{ url('arena_home')|urlencode }}"><i class="fa fa-sign-in" aria-hidden="true"></i> {{ _('Sign in to play') }}</a>
+                <span class="ar-muted">{{ _('With your account, this page takes you to your battle by itself when the organizer calls you.') }}</span>
+            </p>
+        {% endif %}
+    {% endif %}
+    {% include "arena/history/_summary.html" %}
+</div>
+{% endblock %}

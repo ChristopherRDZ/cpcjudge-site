@@ -143,6 +143,23 @@
 
 {% block body %}
     <div class="content-description">
+        {# Only while a duel tournament is being played (2026-10-25): its bracket lives in Duels, not here. #}
+        {% for tournament in live_duel_tournaments %}
+            <div class="duel-tournament-live">
+                <i class="fa fa-trophy" aria-hidden="true"></i>
+                {{ _('The duel tournament %(name)s is being played right now.', name=tournament.name) }}
+                <a href="{{ tournament.url }}">{{ _('Follow the bracket') }} <i class="fa fa-arrow-right" aria-hidden="true"></i></a>
+            </div>
+        {% endfor %}
+        {% if live_duel_tournaments %}
+            <style>
+                /* No background of its own: it reads on the light and on the dark theme of the site alike. */
+                .duel-tournament-live { margin: 0 0 1em; padding: .6em .9em; border: 1px solid rgba(128, 128, 128, .5);
+                                        border-left: 4px solid #c62828; border-radius: 4px; }
+                .duel-tournament-live .fa-trophy { color: #e69500; margin-right: .3em; }
+                .duel-tournament-live a { margin-left: .4em; font-weight: bold; white-space: nowrap; }
+            </style>
+        {% endif %}
         {% if active_participations %}
             <h4>{{ _('Active contests') }}</h4>
             <table class="contest-list table striped">

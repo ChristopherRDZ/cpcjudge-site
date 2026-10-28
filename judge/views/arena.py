@@ -1,7 +1,9 @@
 """Arena pages for players and for the projector screens. On the site the arena is called «Duelos» (since 2026-10-19).
 
 Players get one page, /duelos/, that follows them through the whole battle on its own: waiting room, countdown,
-play and result. It asks the server for its state every second or two; there is no other channel.
+play and result. It asks the server for its state every second or two; there is no other channel. With no battle it
+shows the tabs of the duels and what the history of the tournaments has (judge/arena/history.py, 2026-10-25); without
+an account, /duelos/ is only that, with a way to sign in, instead of sending to the sign-in page.
 
 Screens are opened with a secret link and no login. After the first load the token travels in a header, not in
 the URL, so it does not end up in access logs with every poll.
@@ -19,7 +21,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
-from judge.arena import access, engine, live_code, serialize
+from judge.arena import access, engine, history, live_code, serialize
 from judge.arena.engine import ArenaError
 from judge.models import ProblemTranslation
 from judge.models.arena import ArenaGame, ArenaGameProblem, ArenaScreen
@@ -110,9 +112,13 @@ def _ace_context():
 # Player
 # ---------------------------------------------------------------------------------------------------------------
 
-@login_required
 @require_GET
 def arena_home(request):
+    if not request.user.is_authenticated:
+        return render(request, 'arena/history/list.html', {
+            'title': _('Arena'), 'history_tab': 'home', 'can_manage': False, 'watch_called': False,
+            'sections': history.summary(), 'full': False,
+        })
     state = serialize.player_state(request.profile, request.LANGUAGE_CODE)
     context = {
         'title': _('Arena'),
@@ -120,6 +126,8 @@ def arena_home(request):
         'can_manage': can_manage(request.user),
         'ace_theme': request.profile.resolved_ace_theme,
         'default_language_key': request.profile.language.key if request.profile.language_id else '',
+        'history_tab': 'home',
+        'sections': history.summary(),
     }
     context.update(_ace_context())
     return render(request, 'arena/play.html', context)

@@ -100,6 +100,15 @@ class ArenaTournament(models.Model):
     created_at = models.DateTimeField(verbose_name=_('created at'), default=timezone.now)
     started_at = models.DateTimeField(verbose_name=_('started at'), null=True, blank=True)
     finished_at = models.DateTimeField(verbose_name=_('finished at'), null=True, blank=True)
+    # The public history of the duels (judge/arena/history.py, 2026-10-25). Whoever organizes the tournament decides
+    # whether anybody, even without an account, sees its bracket and results once it starts; a test tournament is
+    # left out. Nothing of a draft is ever shown, except its name and planned date if it has one.
+    # Also a default in the database: the code before this field inserts tournaments without it (between migrating
+    # and installing, or after going back to it).
+    show_in_history = models.BooleanField(verbose_name=_('show in the history of the duels'), default=True,
+                                          db_default=True)
+    # Only an announcement: with it, the tournament shows as upcoming before it starts. Nothing starts by itself.
+    planned_at = models.DateTimeField(verbose_name=_('planned date'), null=True, blank=True)
     version = models.PositiveIntegerField(default=0)
 
     def __str__(self):
@@ -107,6 +116,11 @@ class ArenaTournament(models.Model):
 
     class Meta:
         ordering = ('-created_at', '-id')
+        permissions = (
+            # For whoever looks after the history without organizing: the organizers of a tournament already decide
+            # about theirs, and whoever organizes all battles about every one.
+            ('hide_arena_history', _('Show or hide any tournament in the history of the duels')),
+        )
         verbose_name = _('arena tournament')
         verbose_name_plural = _('arena tournaments')
 

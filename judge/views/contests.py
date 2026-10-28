@@ -124,6 +124,17 @@ class ContestList(QueryStringSortMixin, DiggPaginatorMixin, TitleMixin, ContestL
         return super().get_paginator(queryset, per_page, orphans, allow_empty_first_page,
                                      count=self.get_queryset().values('id').count(), **kwargs)
 
+    @staticmethod
+    def _live_duel_tournaments():
+        """The duel tournaments being played, for one line on top (2026-10-25): their history lives in Duels, never
+        among the contests. Only a notice: if it fails, the list of contests is shown without it."""
+        from judge.arena import history
+        try:
+            return history.live_for_contests()
+        except Exception:
+            logging.getLogger('judge.arena').exception('Could not read the duel tournaments being played')
+            return []
+
     def get_context_data(self, **kwargs):
         context = super(ContestList, self).get_context_data(**kwargs)
         present, active, future = [], [], []
@@ -154,6 +165,7 @@ class ContestList(QueryStringSortMixin, DiggPaginatorMixin, TitleMixin, ContestL
         context['current_contests'] = present
         context['future_contests'] = future
         context['finished_contests'] = finished
+        context['live_duel_tournaments'] = self._live_duel_tournaments()
         context['now'] = self._now
         context['first_page_href'] = '.'
         context['page_suffix'] = '#past-contests'

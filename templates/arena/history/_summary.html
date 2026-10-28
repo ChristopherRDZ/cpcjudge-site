@@ -1,0 +1,99 @@
+{# The tournaments of the history (judge/arena/history.py, 2026-10-25): being played, upcoming and finished, and for
+   whoever organizes or looks after the history, the ones left out of it. Used by /duelos/ without an account, by the
+   player's page when there is no battle and by /duelos/torneos/ (`full`: everything instead of the last ones).
+   Inline CSS on the arena variables, like the rest of the duels: nothing under resources/, no compress block. #}
+<style>
+    .ah-sections { display: flex; flex-direction: column; gap: 1em; width: 100%; max-width: 64em; margin: 0 auto;
+                   text-align: left; }
+    .ah-table { width: 100%; border-collapse: collapse; }
+    .ah-table th, .ah-table td { padding: .45em .6em; border-bottom: 1px solid var(--ar-soft-border); text-align: left;
+                                 vertical-align: middle; }
+    .ah-table th { background: var(--ar-soft); font-weight: 600; }
+    .ah-table tr:last-child td { border-bottom: 0; }
+    .ah-person { display: inline-flex; align-items: center; gap: .4em; }
+    .ah-person img { width: 1.6em; height: 1.6em; border-radius: 3px; }
+    .ah-live-dot { color: var(--ar-bad-solid); }
+    .ah-note { padding: .6em .8em; margin: 0; }
+    .ah-actions { text-align: right; white-space: nowrap; }
+    @media (max-width: 760px) { .ah-wide { display: none; } }
+</style>
+{% macro person(item) -%}
+    {%- if item %}<span class="ah-person"><img src="{{ item.avatar }}" alt="">{{ link_user(item.profile) }}</span>
+    {%- else %}<span class="ar-muted">—</span>{% endif -%}
+{%- endmacro %}
+<div class="ah-sections">
+    {% if sections.live %}
+        <section class="ar-panel">
+            <h3 class="ar-panel-head"><i class="fa fa-circle ah-live-dot" aria-hidden="true"></i> {{ _('Being played now') }}</h3>
+            <table class="ah-table"><tbody>
+                {% for row in sections.live %}
+                    <tr>
+                        <td><a href="{{ row.url }}"><b>{{ row.tournament.name }}</b></a>
+                            <span class="ar-badge ar-bad">{{ _('LIVE') }}</span></td>
+                        <td class="ar-muted ah-wide">{{ _('Participants') }}: {{ row.participants }}</td>
+                        <td class="ar-muted ah-wide">{% if row.tournament.started_at %}{{ _('Started') }}: {{ row.tournament.started_at|date(_("M j, Y, G:i")) }}{% endif %}</td>
+                        <td class="ah-actions"><a class="ar-btn" href="{{ row.url }}"><i class="fa fa-sitemap" aria-hidden="true"></i> {{ _('Follow the bracket') }}</a></td>
+                    </tr>
+                {% endfor %}
+            </tbody></table>
+        </section>
+    {% endif %}
+
+    {% if sections.upcoming %}
+        <section class="ar-panel">
+            <h3 class="ar-panel-head"><i class="fa fa-calendar" aria-hidden="true"></i> {{ _('Upcoming tournaments') }}</h3>
+            <table class="ah-table"><tbody>
+                {% for row in sections.upcoming %}
+                    <tr>
+                        <td><a href="{{ row.url }}"><b>{{ row.tournament.name }}</b></a></td>
+                        <td>{{ _('Planned for') }}: {{ row.tournament.planned_at|date(_("F j, Y, G:i T")) }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody></table>
+        </section>
+    {% endif %}
+
+    <section class="ar-panel">
+        <h3 class="ar-panel-head"><i class="fa fa-trophy" aria-hidden="true"></i> {{ _('Finished tournaments') }}</h3>
+        {% if sections.finished %}
+            <table class="ah-table">
+                <thead><tr><th>{{ _('Tournament') }}</th><th class="ah-wide">{{ _('Date') }}</th>
+                    <th class="ah-wide">{{ _('Participants') }}</th><th>{{ _('Champion') }}</th>
+                    <th class="ah-wide">{{ _('Runner-up') }}</th></tr></thead>
+                <tbody>
+                    {% for row in sections.finished %}
+                        {% set moment = row.tournament.finished_at or row.tournament.started_at %}
+                        <tr>
+                            <td><a href="{{ row.url }}"><b>{{ row.tournament.name }}</b></a></td>
+                            <td class="ah-wide ar-muted">{% if moment %}{{ moment|date(_("M j, Y, G:i")) }}{% endif %}</td>
+                            <td class="ah-wide">{{ row.participants }}</td>
+                            <td>{% if row.champion %}{{ person(row.champion) }}{% else %}<span class="ar-muted">{{ _('Not finished') }}</span>{% endif %}</td>
+                            <td class="ah-wide">{{ person(row.runner_up) }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% if not full and sections.more %}
+                <p class="ah-note"><a href="{{ url('arena_history') }}">{{ _('See every tournament') }} <i class="fa fa-arrow-right" aria-hidden="true"></i></a></p>
+            {% endif %}
+        {% else %}
+            <p class="ah-note ar-muted">{{ _('No tournament has finished yet. When one ends, its bracket and results stay here.') }}</p>
+        {% endif %}
+    </section>
+
+    {% if full and sections.hidden %}
+        <section class="ar-panel">
+            <h3 class="ar-panel-head"><i class="fa fa-eye-slash" aria-hidden="true"></i> {{ _('Left out of the history') }}</h3>
+            <p class="ah-note ar-muted">{{ _('Only you and the others who organize them or look after the history see these. Open one to show it in the history.') }}</p>
+            <table class="ah-table"><tbody>
+                {% for row in sections.hidden %}
+                    <tr>
+                        <td><a href="{{ row.url }}"><b>{{ row.tournament.name }}</b></a></td>
+                        <td class="ar-muted">{{ row.tournament.get_status_display() }}</td>
+                        <td class="ah-wide">{{ _('Participants') }}: {{ row.participants }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody></table>
+        </section>
+    {% endif %}
+</div>

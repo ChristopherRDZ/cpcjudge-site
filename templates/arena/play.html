@@ -78,6 +78,10 @@
         padding: 3em 1em;
         text-align: center;
     }
+    /* With no battle, the tabs of the duels on top and the tournaments of the history below (2026-10-25). Only this
+       section: the waiting room, the countdown and the game keep their place in the middle. */
+    .ar-center.ar-idle { justify-content: flex-start; padding-top: 0; }
+    .ar-idle .ar-history-tabs { align-self: stretch; width: 100%; max-width: 64em; margin: 0 auto; text-align: left; }
     .ar-big-icon { font-size: 4em; color: var(--ar-muted); }
     .ar-lead { font-size: 1.5em; }
     .ar-help { color: var(--ar-muted); max-width: 40em; line-height: 1.5; font-size: 1.05em; }
@@ -1501,7 +1505,8 @@ $(function () {
         <span class="ar-timer" id="ar-timer" aria-live="off"></span>
     </header>
 
-    <section class="ar-center" id="ar-idle" hidden>
+    <section class="ar-center ar-idle" id="ar-idle" hidden>
+        {% include "arena/history/_tabs.html" %}
         <i class="fa fa-bolt ar-big-icon" aria-hidden="true"></i>
         <div class="ar-lead">{{ _('Your battle will appear here when you are called.') }}</div>
         <div class="ar-help">{{ _('Keep this page open. When the organizer calls you, it moves on by itself to the waiting room and then to the countdown.') }}</div>
@@ -1509,6 +1514,7 @@ $(function () {
             <a class="ar-btn" href="{{ url('arena_manage') }}"><i class="fa fa-cogs"></i> {{ _('Open the battle panel') }}</a>
         {% endif %}
         <a class="ar-muted" href="{{ url('home') }}">{{ _('Back to the site') }}</a>
+        {% include "arena/history/_summary.html" %}
     </section>
 
     <section class="ar-center" id="ar-lobby" hidden>

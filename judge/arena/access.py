@@ -13,6 +13,10 @@ only offer people who have one.
 
 Until this change `judge.manage_arena` gave everything, so the people who had it see only their own from now on;
 see README.md of security_preparation/permisos-correos-duelos-20261023.
+
+The public history of the tournaments (2026-10-25, judge/arena/history.py) adds `judge.hide_arena_history`, «show or
+hide any tournament in the history»: for somebody who looks after the history without organizing. Whoever organizes
+a tournament already decides about it, and whoever organizes all battles about every one. It gives nothing else.
 """
 from django.contrib.auth.models import Permission
 from django.db.models import Q
@@ -22,10 +26,12 @@ from judge.models.arena import ArenaMatch, ArenaProblemBank, ArenaScreen, ArenaT
 
 OWN = 'judge.manage_arena'
 ALL = 'judge.manage_all_arena'
+HISTORY = 'judge.hide_arena_history'
 
-__all__ = ['OWN', 'ALL', 'can_manage', 'manages_all', 'tournaments_for', 'matches_for', 'screens_for', 'banks_for',
-           'screens_of_actor', 'can_manage_tournament', 'can_manage_match', 'can_manage_screen', 'can_manage_bank',
-           'eligible_organizers', 'is_eligible_organizer']
+__all__ = ['OWN', 'ALL', 'HISTORY', 'can_manage', 'manages_all', 'tournaments_for', 'matches_for', 'screens_for',
+           'banks_for', 'screens_of_actor', 'can_manage_tournament', 'can_manage_match', 'can_manage_screen',
+           'can_manage_bank', 'eligible_organizers', 'is_eligible_organizer', 'moderates_history',
+           'can_change_history', 'history_hidden_for']
 
 
 def can_manage(user):
@@ -127,3 +133,23 @@ def eligible_organizers():
 
 def is_eligible_organizer(profile):
     return profile is not None and can_manage(profile.user)
+
+
+def moderates_history(user):
+    """May show or hide any tournament in the public history: the permission of its own, or organizing all."""
+    return bool(user is not None and user.is_authenticated and user.is_active and
+                (user.has_perm(HISTORY) or manages_all(user)))
+
+
+def can_change_history(user, tournament):
+    """May show or hide this tournament in the public history: its organizers, and whoever moderates the history."""
+    return moderates_history(user) or can_manage_tournament(user, tournament)
+
+
+def history_hidden_for(user):
+    """The tournaments left out of the history that `user` still sees there, marked as hidden: theirs, or every one
+    for whoever moderates the history. Nobody else ever sees them."""
+    queryset = ArenaTournament.objects.filter(show_in_history=False)
+    if moderates_history(user):
+        return queryset
+    return queryset.filter(id__in=tournaments_for(user).values('id'))

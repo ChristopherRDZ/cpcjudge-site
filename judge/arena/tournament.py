@@ -6,6 +6,7 @@ never against each other. A match with a bye is decided on the spot.
 """
 import logging
 import secrets
+from datetime import timedelta
 from random import SystemRandom
 
 from django.core.exceptions import ValidationError
@@ -25,6 +26,8 @@ logger = logging.getLogger('judge.arena')
 
 MIN_PARTICIPANTS = 2
 MAX_PARTICIPANTS = 64
+# The planned date of a tournament (an announcement in the history, judge/arena/history.py) may be at most this far.
+MAX_PLANNED_DAYS = 730
 
 
 def seeding_order(size):
@@ -108,8 +111,23 @@ def _lock_tournament(tournament_id):
 
 
 @transaction.atomic
+def clean_planned_at(value, now=None):
+    """The planned date of a tournament: None, or a moment with its time zone that has not passed (a day of grace,
+    for a tournament played late on its day) and is at most MAX_PLANNED_DAYS ahead."""
+    if value is None:
+        return None
+    if timezone.is_naive(value):
+        raise ArenaError(_('Invalid date.'))
+    now = now or timezone.now()
+    if value < now - timedelta(days=1):
+        raise ArenaError(_('That planned date has already passed.'))
+    if value > now + timedelta(days=MAX_PLANNED_DAYS):
+        raise ArenaError(_('The planned date can be at most two years ahead.'))
+    return value
+
+
 def create_tournament(actor, name, profiles, seeding=ArenaTournament.SEED_MANUAL, third_place=False, rules=None,
-                      description='', bank=None):
+                      description='', bank=None, show_in_history=True, planned_at=None):
     name = (name or '').strip()[:100]
     if not name:
         raise ArenaError(_('Give the tournament a name.'))
@@ -119,10 +137,12 @@ def create_tournament(actor, name, profiles, seeding=ArenaTournament.SEED_MANUAL
         rules = arena_rules.clean_rules(rules)
     except ValidationError as error:
         raise ArenaError(error.messages[0])
+    planned_at = clean_planned_at(planned_at)
     profiles = _ordered_by_seeding(_clean_participants(profiles), seeding)
     tournament = ArenaTournament.objects.create(
         name=name, slug=_unique_slug(name), description=(description or '').strip()[:2000], seeding=seeding,
         third_place_match=bool(third_place), rules=rules, bank=bank, created_by=actor,
+        show_in_history=bool(show_in_history), planned_at=planned_at,
     )
     ArenaParticipant.objects.bulk_create([ArenaParticipant(tournament=tournament, profile=profile, seed=index)
                                           for index, profile in enumerate(profiles, 1)])
@@ -145,11 +165,18 @@ def _sync_rounds(tournament, count):
 
 @transaction.atomic
 def update_tournament(actor, tournament_id, version=None, name=None, description=None, rules=None, bank=False,
-                      third_place=None, draw=None):
-    """`draw` holds how the matches get their problems: by hand, or by themselves from the bank (see rules.py)."""
+                      third_place=None, draw=None, show_in_history=None, planned_at=False):
+    """`draw` holds how the matches get their problems: by hand, or by themselves from the bank (see rules.py).
+    `planned_at`: False leaves it as it is, None takes it away."""
     tournament = _lock_tournament(tournament_id)
     _check_version(tournament, version)
     fields = []
+    if show_in_history is not None and bool(show_in_history) != tournament.show_in_history:
+        tournament.show_in_history = bool(show_in_history)
+        fields.append('show_in_history')
+    if planned_at is not False and planned_at != tournament.planned_at:
+        tournament.planned_at = clean_planned_at(planned_at)
+        fields.append('planned_at')
     if name is not None:
         name = name.strip()[:100]
         if not name:
@@ -181,6 +208,19 @@ def update_tournament(actor, tournament_id, version=None, name=None, description
     if rebuild:
         _build_bracket(actor, tournament)
     _log('tournament_update', actor, tournament=tournament, fields=fields)
+    return tournament
+
+
+@transaction.atomic
+def set_show_in_history(actor, tournament_id, show):
+    """From the public page of the tournament: whoever may (access.can_change_history) shows or hides it in the
+    history. The version moves, so an organizer page open at that moment refreshes instead of undoing it."""
+    tournament = _lock_tournament(tournament_id)
+    if bool(show) != tournament.show_in_history:
+        tournament.show_in_history = bool(show)
+        tournament.version += 1
+        tournament.save(update_fields=['show_in_history', 'version'])
+        _log('history', actor, tournament=tournament, show=bool(show))
     return tournament
 
 

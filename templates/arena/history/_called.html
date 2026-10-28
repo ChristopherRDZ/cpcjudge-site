@@ -1,0 +1,19 @@
+{# On the pages of the history, for somebody signed in: when they are called to a battle they go to it by themselves,
+   as the player's page does. Asks only the lock in the cache (arena_history_called), every few seconds. #}
+{% if watch_called %}
+<script type="text/javascript">
+(function () {
+    var URL = {{ url('arena_history_called')|tojson }};
+    function later() { window.setTimeout(check, {{ called_poll|tojson }}); }
+    function check() {
+        fetch(URL, {credentials: 'same-origin', cache: 'no-store', headers: {'X-Requested-With': 'XMLHttpRequest'}})
+            .then(function (response) { return response.ok ? response.json() : null; })
+            .then(function (data) {
+                if (data && data.held) window.location.href = data.home;
+                else later();
+            }, later);
+    }
+    later();
+})();
+</script>
+{% endif %}

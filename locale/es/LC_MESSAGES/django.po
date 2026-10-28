@@ -11752,3 +11752,322 @@ msgstr "Publicar un anuncio"
 #: cpc 2026-10-25 (anuncios-concurso-20261025)
 msgid "It pops up on the screen of everyone in the contest and stays on this tab."
 msgstr "Aparece en la pantalla de todos los que están en el concurso y se queda en esta pestaña."
+
+#: cpc 2026-10-25
+msgid "show in the history of the duels"
+msgstr "mostrar en el historial de Duelos"
+
+#: cpc 2026-10-25
+msgid "planned date"
+msgstr "fecha prevista"
+
+#: cpc 2026-10-25
+msgid "Show or hide any tournament in the history of the duels"
+msgstr "Mostrar u ocultar cualquier torneo en el historial de Duelos"
+
+#: cpc 2026-10-25
+msgid "Duels"
+msgstr "Duelos"
+
+#: cpc 2026-10-25
+msgid "My battle"
+msgstr "Mi batalla"
+
+#: cpc 2026-10-25
+msgid "Duel tournaments"
+msgstr "Torneos de duelos"
+
+#: cpc 2026-10-25
+msgid "Programming battles of one against one, and tournaments with a bracket. Here you see each tournament: who played whom and how every battle ended."
+msgstr "Batallas de programación uno contra uno y torneos con bracket. Aquí ves cada torneo: quién jugó contra quién y cómo terminó cada batalla."
+
+#: cpc 2026-10-25
+msgid "Sign in to play"
+msgstr "Inicia sesión para jugar"
+
+#: cpc 2026-10-25
+msgid "With your account, this page takes you to your battle by itself when the organizer calls you."
+msgstr "Con tu cuenta, esta página te lleva sola a tu batalla cuando el organizador te llame."
+
+#: cpc 2026-10-25
+msgid "Being played now"
+msgstr "Jugándose ahora"
+
+#: cpc 2026-10-25
+msgid "Started"
+msgstr "Empezó"
+
+#: cpc 2026-10-25
+msgid "Follow the bracket"
+msgstr "Seguir el bracket"
+
+#: cpc 2026-10-25
+msgid "Upcoming tournaments"
+msgstr "Próximos torneos"
+
+#: cpc 2026-10-25
+msgid "Planned for"
+msgstr "Fecha prevista"
+
+#: cpc 2026-10-25
+msgid "Finished tournaments"
+msgstr "Torneos terminados"
+
+#: cpc 2026-10-25
+msgid "Runner-up"
+msgstr "Subcampeón"
+
+#: cpc 2026-10-25
+msgid "Not finished"
+msgstr "Sin terminar"
+
+#: cpc 2026-10-25
+msgid "See every tournament"
+msgstr "Ver todos los torneos"
+
+#: cpc 2026-10-25
+msgid "No tournament has finished yet. When one ends, its bracket and results stay here."
+msgstr "Todavía no termina ningún torneo. Cuando uno acabe, su bracket y sus resultados se quedarán aquí."
+
+#: cpc 2026-10-25
+msgid "Left out of the history"
+msgstr "Fuera del historial"
+
+#: cpc 2026-10-25
+msgid "Only you and the others who organize them or look after the history see these. Open one to show it in the history."
+msgstr "Sólo los ves tú y quienes los organizan o cuidan el historial. Abre uno para mostrarlo en el historial."
+
+#: cpc 2026-10-25
+msgid "All tournaments"
+msgstr "Todos los torneos"
+
+#: cpc 2026-10-25
+msgid "This tournament is left out of the history: only its organizers and whoever looks after the history see this page."
+msgstr "Este torneo está fuera del historial: sólo ven esta página quienes lo organizan y quienes cuidan el historial."
+
+#: cpc 2026-10-25
+msgid "This tournament is not public yet. It appears in the history when it starts, or before, as upcoming, if it has a planned date."
+msgstr "Este torneo todavía no es público. Aparece en el historial cuando empiece, o antes, como próximo, si tiene fecha prevista."
+
+#: cpc 2026-10-25
+msgid "Upcoming"
+msgstr "Próximamente"
+
+#: cpc 2026-10-25
+msgid "Single elimination"
+msgstr "Eliminación directa"
+
+#: cpc 2026-10-25
+msgid "With a match for third place"
+msgstr "Con enfrentamiento por el tercer lugar"
+
+#: cpc 2026-10-25
+msgid "Hide from the history"
+msgstr "Ocultar del historial"
+
+#: cpc 2026-10-25
+msgid "Whoever does not organize it stops seeing it in Duels → Tournaments. Its results are not deleted."
+msgstr "Quien no lo organiza deja de verlo en Duelos → Torneos. Sus resultados no se borran."
+
+#: cpc 2026-10-25
+msgid "Show in the history"
+msgstr "Mostrar en el historial"
+
+#: cpc 2026-10-25
+msgid "Anybody, even without an account, will be able to see its bracket and its results."
+msgstr "Cualquiera, aun sin cuenta, podrá ver su bracket y sus resultados."
+
+#: cpc 2026-10-25
+msgid "The participants and the bracket are shown when the tournament starts."
+msgstr "Los participantes y el bracket se muestran cuando empiece el torneo."
+
+#: cpc 2026-10-25
+msgid "Podium"
+msgstr "Podio"
+
+#: cpc 2026-10-25
+msgid "See the games"
+msgstr "Ver las partidas"
+
+#: cpc 2026-10-25
+msgid "Final standings"
+msgstr "Clasificación final"
+
+#: cpc 2026-10-25
+msgid "Place"
+msgstr "Lugar"
+
+#: cpc 2026-10-25
+msgid "Got as far as"
+msgstr "Llegó hasta"
+
+#: cpc 2026-10-25
+msgid "Battles won and lost"
+msgstr "Batallas ganadas y perdidas"
+
+#: cpc 2026-10-25
+msgid "Games won and lost"
+msgstr "Partidas ganadas y perdidas"
+
+#: cpc 2026-10-25
+msgid "Fourth place"
+msgstr "Cuarto lugar"
+
+#: cpc 2026-10-25
+#, python-format
+msgid "Game %(number)s"
+msgstr "Partida %(number)s"
+
+#: cpc 2026-10-25
+#, python-format
+msgid "lasted %(time)s"
+msgstr "duró %(time)s"
+
+#: cpc 2026-10-25
+#, python-format
+msgid "attempts: %(count)s"
+msgstr "intentos: %(count)s"
+
+#: cpc 2026-10-25
+#, python-format
+msgid "%(points)s points"
+msgstr "%(points)s puntos"
+
+#: cpc 2026-10-25
+#, python-format
+msgid "%(winner)s solved every problem first."
+msgstr "%(winner)s resolvió todos los problemas primero."
+
+#: cpc 2026-10-25
+#, python-format
+msgid "%(loser)s could no longer catch up with %(winner)s."
+msgstr "%(loser)s ya no podía alcanzar a %(winner)s."
+
+#: cpc 2026-10-25
+#, python-format
+msgid "%(winner)s had more points when time ran out."
+msgstr "%(winner)s tenía más puntos al acabarse el tiempo."
+
+#: cpc 2026-10-25
+#, python-format
+msgid "Same points, but %(winner)s got there first."
+msgstr "Empataron en puntos, pero %(winner)s llegó primero."
+
+#: cpc 2026-10-25
+#, python-format
+msgid "The organizer gave this game to %(winner)s."
+msgstr "El organizador le dio esta partida a %(winner)s."
+
+#: cpc 2026-10-25
+#, python-format
+msgid "%(winner)s won."
+msgstr "Ganó %(winner)s."
+
+#: cpc 2026-10-25
+msgid "Tie: another game was played to break it."
+msgstr "Empate: se jugó otra partida para desempatar."
+
+#: cpc 2026-10-25
+msgid "Voided by the organizer: it did not count."
+msgstr "El organizador la anuló: no contó."
+
+#: cpc 2026-10-25
+msgid "Being played now."
+msgstr "Se está jugando ahora."
+
+#: cpc 2026-10-25
+msgid "Cancelled by the organizer."
+msgstr "El organizador la canceló."
+
+#: cpc 2026-10-25
+#, python-format
+msgid "%(winner)s went straight to the next round: there was nobody to play against."
+msgstr "%(winner)s pasó directo a la siguiente ronda: no tenía rival."
+
+#: cpc 2026-10-25
+#, python-format
+msgid "%(winner)s won without playing on: %(loser)s did not show up or withdrew."
+msgstr "%(winner)s ganó sin seguir jugando: %(loser)s no se presentó o se retiró."
+
+#: cpc 2026-10-25
+#, python-format
+msgid "The organizer decided this battle in favor of %(winner)s."
+msgstr "El organizador decidió esta batalla a favor de %(winner)s."
+
+#: cpc 2026-10-25
+#, python-format
+msgid "%(winner)s won the series %(won)s to %(lost)s."
+msgstr "%(winner)s ganó la serie %(won)s a %(lost)s."
+
+#: cpc 2026-10-25
+msgid "Public history"
+msgstr "Historial público"
+
+#: cpc 2026-10-25
+msgid "See the public page"
+msgstr "Ver la página pública"
+
+#: cpc 2026-10-25
+msgid "Show in the history of the duels"
+msgstr "Mostrar en el historial de Duelos"
+
+#: cpc 2026-10-25
+msgid "Anybody, even without an account, will see the bracket and the results once the tournament starts. Uncheck it for a test tournament."
+msgstr "Cualquiera, aun sin cuenta, podrá ver el bracket y los resultados desde que empiece el torneo. Quítala si es un torneo de prueba."
+
+#: cpc 2026-10-25
+msgid "Planned date (optional)"
+msgstr "Fecha prevista (opcional)"
+
+#: cpc 2026-10-25
+msgid "With a date, the tournament is announced as upcoming in Duels → Tournaments. Nothing starts by itself: the tournament starts when you press Start the tournament."
+msgstr "Con una fecha, el torneo se anuncia como próximo en Duelos → Torneos. La fecha no inicia nada por sí sola: el torneo empieza cuando pulses Iniciar el torneo."
+
+#: cpc 2026-10-25
+msgid "Save the date"
+msgstr "Guardar la fecha"
+
+#: cpc 2026-10-25
+msgid "Remove the date"
+msgstr "Quitar la fecha"
+
+#: cpc 2026-10-25
+msgid "Anybody can see it in Duels → Tournaments."
+msgstr "Cualquiera lo ve en Duelos → Torneos."
+
+#: cpc 2026-10-25
+msgid "Announced as upcoming in Duels → Tournaments, with its planned date."
+msgstr "Se anuncia como próximo en Duelos → Torneos, con su fecha prevista."
+
+#: cpc 2026-10-25
+msgid "Not visible yet: it appears in the history when the tournament starts."
+msgstr "Todavía no se ve: aparece en el historial cuando empiece el torneo."
+
+#: cpc 2026-10-25
+msgid "Left out of the history: only its organizers see it."
+msgstr "Fuera del historial: sólo lo ven quienes lo organizan."
+
+#: cpc 2026-10-25
+msgid "Saved. The public history is updated."
+msgstr "Guardado. El historial público ya está al día."
+
+#: cpc 2026-10-25
+msgid "Choose a date and an hour first."
+msgstr "Primero elige una fecha y una hora."
+
+#: cpc 2026-10-25
+msgid "Invalid date."
+msgstr "Fecha no válida."
+
+#: cpc 2026-10-25
+msgid "That planned date has already passed."
+msgstr "Esa fecha prevista ya pasó."
+
+#: cpc 2026-10-25
+msgid "The planned date can be at most two years ahead."
+msgstr "La fecha prevista puede ser, a lo más, dentro de dos años."
+
+#: cpc 2026-10-25
+#, python-format
+msgid "The duel tournament %(name)s is being played right now."
+msgstr "Se está jugando ahora mismo el torneo de duelos «%(name)s»."

@@ -1,0 +1,74 @@
+{# Every battle of a tournament, round by round, with how it ended and each of its games (judge/arena/history.py).
+   The public page draws it, and while the tournament is being played asks for it again every few seconds: the same
+   answer for everybody, so nothing here depends on who looks. The problems are only named once the tournament is
+   over, and then the page is loaded again for each person (history.page with the viewer). #}
+{% macro player(item, winner) -%}
+    {%- if item -%}
+        <span class="ah-player{% if winner %} ah-won{% endif %}">
+            <img src="{{ item.avatar }}" alt="">
+            {%- if item.seed %}<span class="ah-seed">{{ item.seed }}</span>{% endif %}
+            {{ link_user(item.profile) }}</span>
+    {%- else -%}
+        <span class="ah-player ar-muted">{{ _('To be decided') }}</span>
+    {%- endif -%}
+{%- endmacro %}
+{% macro cell(item) -%}
+    {%- if item.kind == 'full' -%}
+        <span class="ah-full">✓ {{ item.text }}</span>{% if item.attempts > 1 %} <span class="ar-muted">({{ _('attempts: %(count)s', count=item.attempts) }})</span>{% endif %}
+    {%- elif item.kind == 'partial' -%}
+        <span class="ah-partial">{{ _('%(points)s points', points=item.points) }}</span> <span class="ar-muted">{{ item.text }}</span>
+    {%- elif item.kind == 'failed' -%}
+        <span class="ah-failed">✗</span> <span class="ar-muted">({{ _('attempts: %(count)s', count=item.attempts) }})</span>
+    {%- else -%}
+        <span class="ar-muted">—</span>
+    {%- endif -%}
+{%- endmacro %}
+{% for round in data.rounds %}
+    <section class="ar-panel ah-round">
+        <h3 class="ar-panel-head">{{ round.name }}</h3>
+        <div class="ah-round-body">
+            {% for m in round.matches %}
+                <article class="ah-match{% if m.live %} ah-match-live{% endif %}" id="{{ m.anchor }}">
+                    {% if m.bye %}
+                        <p class="ah-reason ar-muted">{{ m.reason }}</p>
+                    {% else %}
+                        <div class="ah-match-head">
+                            {{ player(m.a, m.winner == 'a') }}
+                            <span class="ah-series ar-num">{{ m.wins.a }} – {{ m.wins.b }}</span>
+                            {{ player(m.b, m.winner == 'b') }}
+                            <span class="ar-grow"></span>
+                            {% if m.live %}<span class="ar-badge ar-bad">{{ _('LIVE') }}</span>
+                            {% elif m.status == 'decided' %}<span class="ar-badge ar-ok">{{ _('Decided') }}</span>
+                            {% else %}<span class="ar-badge ar-none">{{ m.match.get_status_display() }}</span>{% endif %}
+                            {% if m.best_of > 1 %}<span class="ar-badge ar-none">{{ _('Best of') }} {{ m.best_of }}</span>{% endif %}
+                        </div>
+                        {% if m.reason %}<p class="ah-reason">{{ m.reason }}</p>{% endif %}
+                        {% for g in m.games %}
+                            <div class="ah-game">
+                                <p class="ah-game-head"><b>{{ _('Game %(number)s', number=g.number) }}</b>
+                                    · {{ g.reason }}
+                                    {% if g.length %}<span class="ar-muted">· {{ _('lasted %(time)s', time=g.length) }}</span>{% endif %}
+                                    {% if g.score %}<span class="ar-muted ar-num">· {{ _('points') }}: {{ g.score.a }} – {{ g.score.b }}</span>{% endif %}
+                                </p>
+                                {% if g.problems %}
+                                    <table class="ah-table ah-problems">
+                                        <thead><tr><th>{{ _('Problem') }}</th><th>{{ m.a.name if m.a else '' }}</th><th>{{ m.b.name if m.b else '' }}</th></tr></thead>
+                                        <tbody>
+                                            {% for p in g.problems %}
+                                                <tr>
+                                                    <td><b>{{ p.label }}</b>{% if p.url %} · <a href="{{ p.url }}">{{ p.name }}</a>{% endif %}</td>
+                                                    <td>{{ cell(p.a) }}</td>
+                                                    <td>{{ cell(p.b) }}</td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                </article>
+            {% endfor %}
+        </div>
+    </section>
+{% endfor %}

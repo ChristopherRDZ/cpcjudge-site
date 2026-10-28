@@ -11,7 +11,7 @@ from django.views.generic import RedirectView
 
 from judge.feed import AtomBlogFeed, AtomCommentFeed, AtomProblemFeed, BlogFeed, CommentFeed, ProblemFeed
 from judge.sitemap import sitemaps
-from judge.views import TitledTemplateView, announcement, api, arena, arena_manage, blog, comment, \
+from judge.views import TitledTemplateView, announcement, api, arena, arena_history, arena_manage, blog, comment, \
     contest_balloons, contest_reveal, contests, language, license, mailgun, organization, preview, problem, \
     problem_manage, ranked_submission, register, stats, status, submission, tasks, team, ticket, two_factor, user, \
     widgets
@@ -124,6 +124,13 @@ urlpatterns = [
         path('screen-api/state', arena.arena_screen_state, name='arena_screen_state'),
         path('screen-api/code', arena.arena_screen_code, name='arena_screen_code'),
         path('screen-api/statement/<int:order>', arena.arena_screen_statement, name='arena_screen_statement'),
+        # The public history of the tournaments (2026-10-25), open without an account.
+        path('torneos/', arena_history.history_list, name='arena_history'),
+        path('torneos/<slug:slug>/', arena_history.history_tournament, name='arena_history_tournament'),
+        path('torneos/<slug:slug>/state', arena_history.history_tournament_state,
+             name='arena_history_tournament_state'),
+        path('torneos/<slug:slug>/visibility', arena_history.history_visibility, name='arena_history_visibility'),
+        path('called', arena_history.history_called, name='arena_history_called'),
         path('manage/', include([
             path('', arena_manage.manage_dashboard, name='arena_manage'),
             path('overview', arena_manage.manage_overview, name='arena_manage_overview'),

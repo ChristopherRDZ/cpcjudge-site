@@ -4,6 +4,10 @@
 {% include "arena/_style.html" %}
 {% endblock %}
 
+{# The tabs of the duels (2026-10-25): from the panel to the player's page and to the history of the tournaments. #}
+{% block title_row %}{% set history_tab = 'panel' %}{% set can_manage = True %}{% include "arena/history/_tabs.html" %}{% endblock %}
+{% block title_ruler %}{% endblock %}
+
 {% block js_media %}
 {% include "arena/_js.html" %}
 {% include "arena/manage/_widgets.html" %}
@@ -129,7 +133,8 @@ $(function () {
         var button = $(this);
         A.post({{ url('arena_manage_tournament_create')|tojson }}, {
             name: name, participants: list.map(function (u) { return u.id; }), seeding: $('#am-seeding').val(),
-            third_place: $('#am-third-place').prop('checked')
+            third_place: $('#am-third-place').prop('checked'),
+            show_in_history: $('#am-tournament-history').prop('checked')
         }).then(function (data) { window.location.href = data.url; })
           .catch(function (error) { W.fail(error); button.prop('disabled', false); });
     });
@@ -330,6 +335,8 @@ $(function () {
                         </select>
                     </div>
                     <label><input type="checkbox" id="am-third-place"> {{ _('Play a match for third place (with 4 or more participants)') }}</label>
+                    <label style="display: block; margin-top: .5em;"><input type="checkbox" id="am-tournament-history" checked> {{ _('Show in the history of the duels') }}</label>
+                    <span class="am-hint">{{ _('Anybody, even without an account, will see the bracket and the results once the tournament starts. Uncheck it for a test tournament.') }}</span>
                     <div class="am-actions" style="margin-top: 1em;">
                         <button type="button" class="ar-btn" id="am-tournament-create">{{ _('Create tournament') }}</button>
                         <span class="am-hint">{{ _('The bracket is built at once. On the next page you choose the games of each round and where the problems come from.') }}</span>

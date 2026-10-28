@@ -49,6 +49,23 @@ def _wants_page(request):
     return not accept or 'text/html' in accept or '*/*' == accept.strip()
 
 
+def is_held(profile_id):
+    """Whether this profile is held inside a battle right now. Same reading and same leniency as the middleware: any
+    failure says no. Everything under /duelos/ is let through by locked_response, so the pages of the history
+    (judge/views/arena_history.py) ask this themselves and send the player back to the battle."""
+    if not profile_id:
+        return False
+    try:
+        locked = cache.get(LOCK_KEY)
+        if not locked or not isinstance(locked, dict):
+            return False
+        until = locked.get(profile_id)
+        return bool(until and until > time.time())
+    except Exception:
+        logger.warning('Arena lock check failed; treating the player as free.', exc_info=True)
+        return False
+
+
 def locked_response(request):
     """A response that sends a player back to the arena, or None to let the request through. Never raises."""
     try:

@@ -511,6 +511,12 @@ def tournament_state(tournament, language, now=None, user=None):
             'seeding': tournament.seeding, 'third_place': tournament.third_place_match,
             'bank': tournament.bank_id, 'rules': _rules_view(arena_rules.merge(tournament.rules)),
             'overrides': tournament.rules,
+            # The public history (judge/arena/history.py): the box, the planned date as the organizer's own clock
+            # reads it (the value of a datetime-local field) and where the public page is.
+            'show_in_history': tournament.show_in_history,
+            'planned_at': timezone.localtime(tournament.planned_at).strftime('%Y-%m-%dT%H:%M')
+            if tournament.planned_at else '',
+            'public_url': reverse('arena_history_tournament', args=[tournament.slug]),
         },
         'participants': [{'id': p.profile_id, 'seed': p.seed, 'name': p.profile.display_name,
                           'username': p.profile.username, 'avatar': gravatar(p.profile, 64),

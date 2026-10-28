@@ -148,8 +148,8 @@ class ArenaGameAdmin(ArenaViewMixin, admin.ModelAdmin):
 
 
 class ArenaTournamentAdmin(ArenaViewMixin, admin.ModelAdmin):
-    list_display = ('name', 'slug', 'status', 'seeding', 'created_at', 'panel_link')
-    list_filter = ('status',)
+    list_display = ('name', 'slug', 'status', 'show_in_history', 'seeding', 'created_at', 'panel_link')
+    list_filter = ('status', 'show_in_history')
     search_fields = ('name', 'slug')
     raw_id_fields = ('created_by', 'bank', 'organizers')
     readonly_fields = ('version', 'created_at', 'started_at', 'finished_at')

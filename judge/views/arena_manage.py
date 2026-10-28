@@ -7,12 +7,14 @@ two organizers working at once get a conflict instead of overwriting each other,
 every couple of seconds.
 """
 import logging
+from datetime import datetime
 from functools import wraps
 
 from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_GET, require_POST
 
@@ -66,6 +68,25 @@ def _profile(value):
     if not isinstance(value, int):
         return None
     return Profile.objects.filter(pk=value, user__is_active=True).select_related('user').first()
+
+
+def _planned(value):
+    """The planned date of a tournament from a datetime-local field, read on the clock of whoever organizes (the
+    time zone of their profile, judge/timezone.py). Empty takes it away."""
+    if value in (None, ''):
+        return None
+    if not isinstance(value, str):
+        raise ArenaError(_('Invalid date.'))
+    try:
+        moment = datetime.strptime(value[:16], '%Y-%m-%dT%H:%M')
+    except ValueError:
+        raise ArenaError(_('Invalid date.'))
+    return timezone.make_aware(moment)
+
+
+def _history_box(value, default=None):
+    """The box «show in the history»: only a true or false counts."""
+    return value if isinstance(value, bool) else default
 
 
 def _id(value, required=False):
@@ -436,6 +457,7 @@ def manage_tournament_create(request):
         seeding=data.get('seeding', ArenaTournament.SEED_MANUAL), third_place=bool(data.get('third_place')),
         rules=data.get('rules') or {}, description=data.get('description', ''),
         bank=_bank(data.get('bank'), request.user),
+        show_in_history=_history_box(data.get('show_in_history'), True), planned_at=_planned(data.get('planned_at')),
     )
     return json_response({'slug': tournament.slug,
                           'url': reverse('arena_manage_tournament', args=[tournament.slug])})
@@ -464,7 +486,9 @@ def manage_tournament_action(request, slug):
             actor, tournament.pk, version, name=data.get('name'), description=data.get('description'),
             rules=data.get('rules'),
             bank=_bank(data.get('bank'), request.user, tournament.bank_id) if 'bank' in data else False,
-            third_place=data.get('third_place'), draw=data.get('draw'))
+            third_place=data.get('third_place'), draw=data.get('draw'),
+            show_in_history=_history_box(data.get('show_in_history')),
+            planned_at=_planned(data['planned_at']) if 'planned_at' in data else False)
     elif action == 'participants':
         arena_tournament.set_participants(actor, tournament.pk, _profiles(data.get('participants') or []),
                                           seeding=data.get('seeding'), version=version)

@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+{# The public page of a tournament (judge/views/arena_history.py, 2026-10-25): the podium, the bracket of the
+   projector and of the organizer page (arena/_bracket.html, here without any action), every battle with its games,
+   and the final standings. While it is being played it refreshes itself every few seconds. A draft only shows what
+   an announcement says. Its organizers and whoever looks after the history can show it or hide it from here. #}
+{% set t = data.tournament %}
+
+{% block title %}{{ t.name }} - {{ _('Arena') }} - {{ SITE_LONG_NAME }}{% endblock %}
+
+{% block media %}
+{% include "arena/_style.html" %}
+<style>
+    .ah-page { max-width: 72em; margin: 0 auto; padding: 0 0 2em; display: flex; flex-direction: column; gap: 1em; }
+    /* The same tables and names with a photo as the lists (arena/history/_summary.html). */
+    .ah-table { width: 100%; border-collapse: collapse; }
+    .ah-table th, .ah-table td { padding: .45em .6em; border-bottom: 1px solid var(--ar-soft-border); text-align: left;
+                                 vertical-align: middle; }
+    .ah-table th { background: var(--ar-soft); font-weight: 600; }
+    .ah-table tr:last-child td { border-bottom: 0; }
+    .ah-person { display: inline-flex; align-items: center; gap: .4em; }
+    .ah-person img { width: 1.6em; height: 1.6em; border-radius: 3px; }
+    .ah-results { display: flex; flex-direction: column; gap: 1em; }
+    .ah-back { margin: 0; }
+    .ah-title { margin: 0; display: flex; align-items: center; gap: .5em; flex-wrap: wrap; }
+    .ah-facts { margin: 0; line-height: 1.6; }
+    .ah-description { white-space: pre-line; line-height: 1.5; margin: 0; }
+    .ah-change { display: flex; align-items: center; gap: .8em; flex-wrap: wrap; }
+    .ah-podium { display: flex; gap: 1em; flex-wrap: wrap; padding: .8em; }
+    .ah-place { flex: 1 1 12em; display: flex; align-items: center; gap: .7em; padding: .6em .8em; border-radius: 4px;
+                border: 1px solid var(--ar-soft-border); background: var(--ar-page); }
+    .ah-place img { width: 48px; height: 48px; border-radius: 4px; }
+    .ah-place .ah-medal { font-size: 1.6em; }
+    .ah-place.ah-first { border: 2px solid var(--ar-warn-solid); background: var(--ar-warn-bg); }
+    .ah-place-label { display: block; color: var(--ar-muted); font-size: .9em; }
+    .ah-gold { color: #c9a400; } .ah-silver { color: #8a8a8a; } .ah-bronze { color: #a0632b; }
+    .ah-bracket-view { height: min(70vh, 44em); min-height: 20em; margin: .6em; }
+    .ah-foot { display: flex; align-items: center; justify-content: flex-end; box-sizing: border-box; padding: 0 .6em;
+               border-top: 1px solid var(--ar-soft-border); font-size: .85em; }
+    .ah-round-body { display: flex; flex-direction: column; }
+    .ah-match { padding: .7em .9em; border-bottom: 1px solid var(--ar-soft-border); scroll-margin-top: 4em; }
+    .ah-match:last-child { border-bottom: 0; }
+    .ah-match:target { background: var(--ar-info-bg); }
+    .ah-match-live { border-left: 4px solid var(--ar-bad-solid); }
+    .ah-match-head { display: flex; align-items: center; gap: .7em; flex-wrap: wrap; }
+    .ah-player { display: inline-flex; align-items: center; gap: .4em; }
+    .ah-player img { width: 1.8em; height: 1.8em; border-radius: 3px; }
+    .ah-player.ah-won { font-weight: bold; }
+    .ah-seed { color: var(--ar-muted); font-size: .85em; }
+    .ah-series { font-size: 1.15em; font-weight: bold; }
+    .ah-reason { margin: .4em 0 0; }
+    .ah-game { margin: .5em 0 0 1em; }
+    .ah-game-head { margin: 0 0 .3em; }
+    .ah-problems { max-width: 46em; font-size: .95em; }
+    .ah-problems th, .ah-problems td { padding: .3em .6em; }
+    .ah-full { color: var(--ar-ok-fg); font-weight: bold; }
+    .ah-partial { color: var(--ar-warn-fg); font-weight: bold; }
+    .ah-failed { color: var(--ar-bad-fg); font-weight: bold; }
+    .ah-standings td.ah-place-cell { font-weight: bold; width: 4em; }
+    /* On a phone the hint of the bracket would sit on top of its zoom buttons. */
+    @media (max-width: 760px) { .ah-game { margin-left: 0; } .ah-wide { display: none; } #ah-bracket .ab-hint { display: none; } }
+</style>
+{% endblock %}
+
+{% block js_media %}
+{% include "arena/_js.html" %}
+{% include "arena/history/_called.html" %}
+{% if bracket %}
+{% include "arena/_bracket.html" %}
+{{ bracket|json_script('ah-bracket-data') }}
+<script type="text/javascript">
+$(function () {
+    var A = window.Arena;
+    var TEXT = {details: {{ _('See the games')|tojson }}};
+    var bracket = JSON.parse(document.getElementById('ah-bracket-data').textContent);
+    // Under each battle, only a way down to its games on this page: nothing here acts on the tournament.
+    function footer(m) {
+        if (m.status !== 'decided' && !m.live) return null;
+        return A.el('div', {'class': 'ah-foot'}, [A.el('a', {href: '#batalla-' + m.id, text: TEXT.details})]);
+    }
+    var view = ArenaBracket.mount(document.getElementById('ah-bracket'),
+                                  {footer: footer, wheel: 'ctrl', follow: {{ data.live|tojson }}, minReadable: 0.7});
+    view.update(bracket, '');
+    {% if data.live %}
+    var STATE = {{ url('arena_history_tournament_state', t.slug)|tojson }};
+    var key = null;
+    function later() { window.setTimeout(refresh, {{ poll|tojson }}); }
+    function refresh() {
+        A.get(STATE).then(function (state) {
+            if (state.held) { window.location.href = {{ url('arena_home')|tojson }}; return; }
+            if (state.status !== 'running') { window.location.reload(); return; }
+            view.update(state.bracket, '');
+            if (key !== null && state.key !== key) document.getElementById('ah-results').innerHTML = state.results;
+            key = state.key;
+            later();
+        }).catch(later);
+    }
+    later();
+    {% endif %}
+});
+</script>
+{% endif %}
+{% if can_change %}
+<script type="text/javascript">
+$(function () {
+    $('#ah-change').on('click', function () {
+        var button = $(this).prop('disabled', true);
+        window.Arena.post({{ url('arena_history_visibility', t.slug)|tojson }}, {show: button.data('show') === 1})
+            .then(function () { window.location.reload(); })
+            .catch(function (error) { button.prop('disabled', false); window.Arena.toast(error.message || String(error), 'bad'); });
+    });
+});
+</script>
+{% endif %}
+{% endblock %}
+
+{% block title_row %}{% include "arena/history/_tabs.html" %}{% endblock %}
+{% block title_ruler %}{% endblock %}
+
+{% block body %}
+<form id="ar-csrf" hidden>{% csrf_token %}</form>
+<div class="ar-page ah-page">
+    <p class="ah-back"><a href="{{ url('arena_history') }}"><i class="fa fa-arrow-left" aria-hidden="true"></i> {{ _('All tournaments') }}</a></p>
+
+    {% if preview %}
+        <div class="ar-alert ar-alert-warn">
+            {% if not t.show_in_history %}
+                {{ _('This tournament is left out of the history: only its organizers and whoever looks after the history see this page.') }}
+            {% else %}
+                {{ _('This tournament is not public yet. It appears in the history when it starts, or before, as upcoming, if it has a planned date.') }}
+            {% endif %}
+        </div>
+    {% endif %}
+
+    <h2 class="ah-title">{{ t.name }}
+        {% if data.live %}<span class="ar-badge ar-bad">{{ _('LIVE') }}</span>
+        {% elif data.over %}<span class="ar-badge ar-ok">{{ t.get_status_display() }}</span>
+        {% elif data.upcoming %}<span class="ar-badge ar-info">{{ _('Upcoming') }}</span>{% endif %}
+    </h2>
+    {% if data.started %}
+        <p class="ah-facts ar-muted">
+            {{ _('Single elimination') }} · {{ _('Participants') }}: {{ data.participants }}
+            {% if t.started_at %} · {{ _('Started') }}: {{ t.started_at|date(_("M j, Y, G:i")) }}{% endif %}
+            {% if t.finished_at %} · {{ _('Finished') }}: {{ t.finished_at|date(_("M j, Y, G:i")) }}{% endif %}
+            <br>
+            {% for round in data.format %}{{ round.name }}: {% if round.best_of > 1 %}{{ _('Best of') }} {{ round.best_of }}{% else %}{{ _('A single game') }}{% endif %}{% if not loop.last %} · {% endif %}{% endfor %}
+            {% if t.third_place_match %} · {{ _('With a match for third place') }}{% endif %}
+        </p>
+    {% endif %}
+    {% if t.description %}<p class="ah-description">{{ t.description }}</p>{% endif %}
+
+    {% if can_change %}
+        <div class="ah-change">
+            {% if t.show_in_history %}
+                <button type="button" class="ar-btn ar-btn-plain" id="ah-change" data-show="0"><i class="fa fa-eye-slash" aria-hidden="true"></i> {{ _('Hide from the history') }}</button>
+                <span class="ar-muted">{{ _('Whoever does not organize it stops seeing it in Duels → Tournaments. Its results are not deleted.') }}</span>
+            {% else %}
+                <button type="button" class="ar-btn" id="ah-change" data-show="1"><i class="fa fa-eye" aria-hidden="true"></i> {{ _('Show in the history') }}</button>
+                <span class="ar-muted">{{ _('Anybody, even without an account, will be able to see its bracket and its results.') }}</span>
+            {% endif %}
+        </div>
+    {% endif %}
+
+    {% if not data.started %}
+        <div class="ar-alert ar-alert-info">
+            {% if t.planned_at %}<b>{{ _('Planned for') }}: {{ t.planned_at|date(_("F j, Y, G:i T")) }}.</b> {% endif %}
+            {{ _('The participants and the bracket are shown when the tournament starts.') }}
+        </div>
+    {% else %}
+        {% if data.podium %}
+            <section class="ar-panel">
+                <h3 class="ar-panel-head"><i class="fa fa-trophy" aria-hidden="true"></i> {{ _('Podium') }}</h3>
+                <div class="ah-podium">
+                    {% set first = data.podium.first %}
+                    <div class="ah-place ah-first"><i class="fa fa-trophy ah-medal ah-gold" aria-hidden="true"></i>
+                        <img src="{{ first.avatar }}" alt=""><span><span class="ah-place-label">{{ _('Champion') }}</span>{{ link_user(first.profile) }}</span></div>
+                    {% if data.podium.second %}{% set second = data.podium.second %}
+                        <div class="ah-place"><i class="fa fa-trophy ah-medal ah-silver" aria-hidden="true"></i>
+                            <img src="{{ second.avatar }}" alt=""><span><span class="ah-place-label">{{ _('Runner-up') }}</span>{{ link_user(second.profile) }}</span></div>
+                    {% endif %}
+                    {% for third in data.podium.third %}
+                        <div class="ah-place"><i class="fa fa-trophy ah-medal ah-bronze" aria-hidden="true"></i>
+                            <img src="{{ third.avatar }}" alt=""><span><span class="ah-place-label">{{ _('Third place') }}</span>{{ link_user(third.profile) }}</span></div>
+                    {% endfor %}
+                </div>
+            </section>
+        {% endif %}
+
+        <section class="ar-panel">
+            <h3 class="ar-panel-head"><i class="fa fa-sitemap" aria-hidden="true"></i> {{ _('Bracket') }}</h3>
+            <div class="ah-bracket-view" id="ah-bracket"></div>
+        </section>
+
+        <div id="ah-results" class="ah-results">{% include "arena/history/_results.html" %}</div>
+
+        {% if data.standings %}
+            <section class="ar-panel">
+                <h3 class="ar-panel-head"><i class="fa fa-list-ol" aria-hidden="true"></i> {{ _('Final standings') }}</h3>
+                <table class="ah-table ah-standings">
+                    <thead><tr><th>{{ _('Place') }}</th><th>{{ _('Participant') }}</th><th>{{ _('Got as far as') }}</th>
+                        <th class="ah-wide">{{ _('Battles won and lost') }}</th><th class="ah-wide">{{ _('Games won and lost') }}</th></tr></thead>
+                    <tbody>
+                        {% for row in data.standings %}
+                            <tr>
+                                <td class="ah-place-cell">{{ row.place }}</td>
+                                <td><span class="ah-person"><img src="{{ row.person.avatar }}" alt="">{{ link_user(row.profile) }}</span></td>
+                                <td>{{ row.reached }}</td>
+                                <td class="ah-wide ar-num">{{ row.battles[0] }} – {{ row.battles[1] }}</td>
+                                <td class="ah-wide ar-num">{{ row.games[0] }} – {{ row.games[1] }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </section>
+        {% endif %}
+    {% endif %}
+</div>
+{% endblock %}
