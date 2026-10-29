@@ -135,7 +135,10 @@ $(function () {
             cancel: {{ _('cancelled the battle')|tojson }}, problems: {{ _('chose problems')|tojson }},
             update: {{ _('changed settings')|tojson }}, replace: {{ _('replaced a player')|tojson }},
             set_winner: {{ _('corrected the winner')|tojson }}, screen: {{ _('put it on a screen')|tojson }},
-            organizers: {{ _('changed the organizers')|tojson }}
+            organizers: {{ _('changed the organizers')|tojson }},
+            ranking: {{ _('decided whether it counts for the ranking')|tojson }},
+            bank_problems: {{ _('problems drawn from the bank')|tojson }},
+            bank_empty: {{ _('the bank had no unused problems left')|tojson }}
         },
         organizersSaved: {{ _('Organizers saved')|tojson }},
         ranking: {pending: {{ _('Not decided yet')|tojson }}, counts: {{ _('Counts')|tojson }},
@@ -521,7 +524,7 @@ $(function () {
 
     function renderControls() {
         var match = state.match, g = current(), editing = g && problemRows[g.number];
-        paint('controls', [match.status, match.quick, match.winner, match.tournament, match.draw.auto,
+        paint('controls', [match.status, match.quick, match.winner, match.tournament, match.draw.auto, match.tie,
                            [state.players.a.id, state.players.a.name, state.players.b.id, state.players.b.name],
                            g && [g.id, g.number, g.status, g.problems.length],
                            editing && editing.editor ? editing.editor.get().length : 0], drawControls);
@@ -563,6 +566,19 @@ $(function () {
             box.appendChild(button(TEXT.finalize, '', function () {
                 confirmed(TEXT.finalize, TEXT.finalizeConfirm, TEXT.finalize, {action: 'finalize', game: g.id});
             }));
+        }
+        // A tied game while nothing is being played: the panel shows the tiebreak prepared with it, so the tied game
+        // gets its own buttons, as the guide says (duelos-nucleo-v1, 2026-10-28).
+        var tied = match.tie ? state.games.filter(function (game) { return game.id === match.tie; })[0] : null;
+        if (tied && match.status === 'playing' && !(g && g.id === tied.id)) {
+            box.appendChild(A.el('div', {'class': 'ar-alert ar-alert-warn', style: 'width: 100%;',
+                text: TEXT.game + ' ' + tied.number + ': ' + TEXT.tie}));
+            ['a', 'b'].forEach(function (slot) {
+                box.appendChild(button(TEXT.give + ' ' + names[slot], 'ar-btn-plain', function () {
+                    confirmed(TEXT.give + ' ' + names[slot], TEXT.giveConfirm, TEXT.give + ' ' + names[slot],
+                              {action: 'declare', game: tied.id, slot: slot});
+                }));
+            });
         }
         if (g && ['countdown', 'live', 'verifying', 'tie'].indexOf(g.status) !== -1 && match.status === 'playing') {
             ['a', 'b'].forEach(function (slot) {

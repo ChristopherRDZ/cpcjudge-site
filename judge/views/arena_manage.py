@@ -63,7 +63,9 @@ def arena_errors(view):
 def _profile(value):
     if isinstance(value, bool):
         return None
-    if isinstance(value, str) and value.isdigit():
+    # isdecimal, not isdigit (2026-10-28), here and below: a superscript digit passed isdigit and int() failed with a
+    # 500.
+    if isinstance(value, str) and value.isdecimal():
         value = int(value)
     if not isinstance(value, int):
         return None
@@ -103,11 +105,22 @@ def _id(value, required=False):
     """An object id from a JSON body: a positive int, or None when absent. Anything else is refused."""
     if value in (None, '') and not required:
         return None
-    if isinstance(value, str) and value.isdigit():
+    if isinstance(value, str) and value.isdecimal():
         value = int(value)
     if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
         raise ArenaError(_('Invalid request.'))
     return value
+
+
+def _query_id(request, name):
+    """The id in ?<name>= of a page, or None without one. Anything but plain digits is a page that does not exist
+    (2026-10-28): a superscript digit passed isdigit() and made int() fail with a 500."""
+    value = request.GET.get(name, '')
+    if not value:
+        return None
+    if not (value.isascii() and value.isdecimal()):
+        raise Http404()
+    return int(value)
 
 
 def _slot(value):
@@ -243,8 +256,14 @@ def manage_guide(request):
 def manage_banks(request):
     banks = access.banks_for(request.user).order_by('name')
     selected = None
-    if request.GET.get('bank', '').isdigit():
-        selected = banks.filter(pk=int(request.GET['bank'])).first()
+    wanted = _query_id(request, 'bank')
+    if wanted is not None:
+        # Somebody else's bank does not exist here, as the module says (2026-10-28; until then the page opened with
+        # no bank chosen), and neither does the bank of a tournament they still play, which banks_for leaves out
+        # (round 2 of the adversarial review): it lists the problems their next games may draw, with their levels.
+        selected = banks.filter(pk=wanted).first()
+        if selected is None:
+            raise Http404()
     entries, hidden = [], 0
     if selected is not None:
         rows = list(ArenaBankProblem.objects.filter(bank=selected).select_related('problem'))
@@ -395,8 +414,13 @@ def manage_problem_search(request):
         players.append((slot, _profile(request.GET.get(slot))))
     used = set()
     match = None
-    if request.GET.get('match', '').isdigit():
-        match = access.matches_for(request.user).filter(pk=int(request.GET['match'])).first()
+    wanted = _query_id(request, 'match')
+    if wanted is not None:
+        # Not for whoever plays in that tournament (2026-10-28): which problems are taken told them the problems of
+        # their next game.
+        match = ArenaMatch.objects.select_related('tournament').filter(pk=wanted).first()
+        if match is not None and not access.can_manage_match(request.user, match):
+            match = None
         if match is not None and match.tournament_id:
             used = engine.problems_used_in_tournament(match.tournament)
     results = []
@@ -419,13 +443,18 @@ def manage_user_search(request):
     # ?organizers=1: only who could be a co-organizer, that is, who has a permission to organize battles.
     profiles = access.eligible_organizers() if request.GET.get('organizers') else \
         Profile.objects.filter(user__is_active=True)
-    profiles = profiles.filter(Q(user__username__icontains=term) | Q(username_display_override__icontains=term)) \
-        .select_related('user').order_by('user__username')[:SEARCH_LIMIT]
+    profiles = list(profiles.filter(Q(user__username__icontains=term) | Q(username_display_override__icontains=term))
+                    .select_related('user').order_by('user__username')[:SEARCH_LIMIT])
+    # Who is busy and who organizes, for all the results at once (duelos-gestion-js-3, 2026-10-28). An account that
+    # organizes battles is marked like staff (serialize.privileged).
+    ids = [profile.pk for profile in profiles]
+    busy = engine.busy_profile_ids(ids)
+    organizers = set(access.eligible_organizers().filter(pk__in=ids).values_list('pk', flat=True))
     return json_response({'results': [{
         'id': profile.pk, 'username': profile.username, 'name': profile.display_name,
         'avatar': gravatar(profile, 48), 'rating': profile.rating,
-        'privileged': bool(profile.user.is_staff or profile.user.is_superuser),
-        'busy': engine._busy_elsewhere(profile.pk),
+        'privileged': bool(profile.user.is_staff or profile.user.is_superuser or profile.pk in organizers),
+        'busy': profile.pk in busy,
     } for profile in profiles]})
 
 
@@ -434,17 +463,32 @@ def manage_user_search(request):
 # ---------------------------------------------------------------------------------------------------------------
 
 def _bank(value, user, current=None):
-    """A bank `user` may give to a tournament: one of theirs, or the one the tournament already has."""
+    """A bank `user` may give to a tournament or change: one of theirs, or the one the tournament already has, which
+    stays as it is. Never another one of a tournament they still play (access.contended_banks, 2026-10-28): it is
+    closed to them, answered as if it did not exist. Keeping the one the tournament already has gives them nothing
+    (round 3 of the adversarial review): refusing it stopped them from saving the settings of a tournament they run
+    that shares its bank with one they play, because the page always sends the bank."""
     if value in (None, '', 0):
         return None
-    if isinstance(value, str) and value.isdigit():
+    if isinstance(value, str) and value.isdecimal():
         value = int(value)
     if isinstance(value, bool) or not isinstance(value, int):
         raise ArenaError(_('Invalid problem bank.'))
     bank = ArenaProblemBank.objects.filter(pk=value).first()
-    if bank is None or (bank.pk != current and not access.can_manage_bank(user, bank)):
+    if bank is not None and bank.pk == current:
+        return bank
+    if bank is not None and access.contends_bank(user, bank.pk):
+        raise ArenaError(_('That bank does not exist.'), status=404)
+    if bank is None or not access.can_manage_bank(user, bank):
         raise ArenaError(_('That bank does not exist.'))
     return bank
+
+
+def _refuse_closed_bank(user, bank_id):
+    """Drawing from the bank of a tournament `user` still plays reads that bank (access.contended_banks): another
+    tournament of theirs that takes the same bank does not draw from it through them."""
+    if access.contends_bank(user, bank_id):
+        raise ArenaError(_('That bank does not exist.'), status=404)
 
 
 def _profiles(values):
@@ -519,6 +563,7 @@ def manage_tournament_action(request, slug):
     elif action == 'archive':
         arena_tournament.archive_tournament(actor, tournament.pk, version)
     elif action == 'fill':
+        _refuse_closed_bank(request.user, tournament.bank_id)
         result['filled'] = arena_tournament.fill_ready_matches(actor, tournament.pk)
     elif action == 'organizers':
         _set_organizers(actor, tournament, _organizers(data.get('organizers'), exclude=tournament.created_by_id),
@@ -538,6 +583,7 @@ def manage_draw(request, match):
     Nothing is saved: the suggestion goes into the list, and the organizer saves it or changes it."""
     data = read_json(request)
     match_obj = _own_match(request, match)
+    _refuse_closed_bank(request.user, match_obj.tournament.bank_id if match_obj.tournament_id else None)
     game_id, number = _id(data.get('game')), _id(data.get('number'))
     games = ArenaGame.objects.filter(match=match_obj)
     game = games.filter(pk=game_id).first() if game_id else (games.filter(number=number).first() if number else None)
@@ -576,11 +622,12 @@ def manage_bank_action(request):
 
 
 def _match_arg(value, user):
+    # What a screen shows: only what the panel would show this organizer (2026-10-28), never a battle they play.
     value = _id(value)
     if value is None:
         return None
-    match = access.matches_for(user).filter(pk=value).first()
-    if match is None:
+    match = ArenaMatch.objects.select_related('tournament').filter(pk=value).first()
+    if match is None or not access.can_manage_match(user, match):
         raise ArenaError(_('That battle does not exist.'), status=404)
     return match
 
@@ -589,8 +636,8 @@ def _tournament_arg(value, user):
     value = _id(value)
     if value is None:
         return None
-    tournament = access.tournaments_for(user).filter(pk=value).first()
-    if tournament is None:
+    tournament = ArenaTournament.objects.filter(pk=value).first()
+    if tournament is None or not access.can_manage_tournament(user, tournament):
         raise ArenaError(_('That tournament does not exist.'), status=404)
     return tournament
 

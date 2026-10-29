@@ -400,9 +400,13 @@ def ratings_of(profile_ids):
 
 
 def _palmares():
-    """{profile id: [titles, finals lost, third places]} from the finished tournaments that count and are shown in
-    the history. A tournament without a match for third place gives it to both losers of the semifinals."""
-    tournaments = ArenaTournament.objects.filter(ranking=RANKING_COUNTS, show_in_history=True,
+    """{profile id: [titles, finals lost, third places]} from the finished tournaments that count. A tournament
+    without a match for third place gives it to both losers of the semifinals.
+
+    What counts is decided only by whoever has the permission (2026-10-28, duelos-web-8): the titles go with the
+    ratings, and hiding a tournament from the history hides its page, not its titles. Until then hiding it took its
+    titles away while its games kept moving the ratings. The table only shows how many, never which tournaments."""
+    tournaments = ArenaTournament.objects.filter(ranking=RANKING_COUNTS,
                                                  status__in=(ArenaTournament.FINISHED, ArenaTournament.ARCHIVED))
     matches = list(ArenaMatch.objects.filter(tournament__in=tournaments, status=ArenaMatch.DECIDED)
                    .only('id', 'tournament_id', 'next_match_id', 'is_third_place', 'winner_slot', 'player_a_id',

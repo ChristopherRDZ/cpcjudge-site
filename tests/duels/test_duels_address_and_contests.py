@@ -13,7 +13,6 @@ from django.utils import translation
 
 from arena_testutil import duel, organizer, online_judge, player, problem, skip_countdown, start, submit
 from judge.arena import engine
-from judge.arena.lock import LOCK_KEY
 from judge.models import Contest, ContestParticipation, Submission
 from judge.models.arena import ArenaGame
 from judge.models.tests.util import create_contest, create_user
@@ -95,7 +94,9 @@ class AddressTests(DuelsTestCase):
         self.assertEqual(self.client.get('/arenas/').status_code, 404)
 
     def test_a_held_player_is_sent_to_duelos(self):
-        cache.set(LOCK_KEY, {self.ana.profile.pk: 9999999999})
+        # A called battle holds its players: the hold kept in the cache is confirmed against their battles.
+        with self.captureOnCommitCallbacks(execute=True):
+            duel(self.organizer, self.ana, self.beto, [self.problems[0]], call=True)
         self.client.force_login(self.ana)
         self.assertEqual(self.client.get('/', **PAGE)['Location'], '/duelos/')
         blocked = self.client.get('/problems/', HTTP_X_REQUESTED_WITH='XMLHttpRequest')

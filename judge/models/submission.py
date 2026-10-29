@@ -197,6 +197,30 @@ class Submission(models.Model):
             return False
         return not self.contest_object.is_editable_by(user)
 
+    def sent_by_a_guest(self):
+        """Whether this was sent in a duel from a shared club laptop, under a name the organizer typed (duelos-web-2,
+        2026-10-28). The account is shared, so its owner is the next guest: the duels page never gave them the code
+        of the guests before, and since then neither do the pages of the submissions."""
+        if not self.contest_object_id:
+            return False
+        from judge.models.arena import ArenaGame
+        game = ArenaGame.objects.filter(contest_id=self.contest_object_id).select_related('match').first()
+        if game is None:
+            return False
+        slot = game.match.slot_of(self.user_id)
+        return bool(slot and getattr(game.match, 'display_name_' + slot))
+
+    def run_by_a_past_guest(self):
+        """Whether this personal test (ct_) was run from a shared club laptop during a duel that is over, under a name
+        the organizer typed (2026-10-28, adversarial review of duelos-web-2): the duels page sends «Test with input»
+        there, so it keeps the code of that guest, and the account is now the next guest's."""
+        from django.db.models import Q
+        from judge.models.arena import ArenaMatch
+        guest = (Q(player_a_id=self.user_id) & ~Q(display_name_a='')) | \
+            (Q(player_b_id=self.user_id) & ~Q(display_name_b=''))
+        return ArenaMatch.objects.filter(guest, status__in=(ArenaMatch.DECIDED, ArenaMatch.CANCELLED),
+                                         created_at__lte=self.date, decided_at__gte=self.date).exists()
+
     def can_see_detail(self, user):
         if not user.is_authenticated:
             return False
@@ -205,14 +229,18 @@ class Submission(models.Model):
             return False
         # Public solution-sharing settings never make a personal test public.
         if self.problem.code.startswith('ct_'):
-            return self.user_id == profile.id or user.has_perm('judge.view_all_submission')
+            if user.has_perm('judge.view_all_submission'):
+                return True
+            return self.user_id == profile.id and not self.run_by_a_past_guest()
         source_visibility = self.problem.submission_source_visibility
         if self.problem.is_editable_by(user):
             return True
         elif user.has_perm('judge.view_all_submission'):
             return True
         elif self.is_owned_by(user):
-            return True
+            # Not what a guest sent from a shared club laptop, whatever those who solved the problem may see: the
+            # account is the next guest's (duelos-web-2, 2026-10-28).
+            return not self.sent_by_a_guest()
         elif source_visibility == SubmissionSourceAccess.ALWAYS:
             return True
         elif source_visibility == SubmissionSourceAccess.SOLVED and \

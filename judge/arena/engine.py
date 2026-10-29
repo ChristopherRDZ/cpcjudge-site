@@ -1,7 +1,8 @@
 """Every change to the arena goes through here, inside a transaction holding the row lock of the match.
 
-The lock order is fixed: the match first, then its games, then (when a result moves a player forward) the next
-matches of the bracket, which always belong to a later round, so two locks can never wait on each other.
+The lock order is fixed: the tournament of the match, if it has one (lock_match takes it first, 2026-10-28), then
+the match, then its games, then (when a result moves a player forward) the next matches of the bracket, which always
+belong to a later round, so two locks can never wait on each other.
 
 `tick()` is how games move on by themselves. Nothing runs on a timer: every page that shows a game asks for its
 state every second or two, and asking runs `tick()`, which works the outcome out from the submissions (see
@@ -22,7 +23,7 @@ from django.utils.translation import gettext as _
 from judge.arena import access, rules as arena_rules, scoring
 from judge.models import Contest, ContestParticipation, ContestProblem, ContestSubmission, Judge, Problem, \
     Solution, Submission, SubmissionSource
-from judge.models.arena import ArenaAction, ArenaGame, ArenaGameProblem, ArenaMatch, ArenaScreen, \
+from judge.models.arena import ArenaAction, ArenaGame, ArenaGameProblem, ArenaMatch, ArenaScreen, ArenaTournament, \
     MAX_DISPLAY_NAME, MAX_PROBLEMS_PER_GAME, RANKING, RANKING_PENDING, SLOT_A, SLOT_B
 
 logger = logging.getLogger('judge.arena')
@@ -99,6 +100,16 @@ def _bump(match, *fields, system=False):
 
 
 def lock_match(match_id):
+    """The match, locked. A match of a tournament takes the lock of its tournament first (duelos-nucleo-5,
+    2026-10-28): a change of the tournament (a round, a corrected winner) locks the tournament and then its matches,
+    and a game that decides a match locked the match, then the next one, then the tournament, to see whether it had
+    finished. Two of them at once waited on each other until MariaDB killed one (a 500). The plain read of the
+    tournament before taking its lock assumes READ COMMITTED, the isolation of Django on MariaDB (and of the site,
+    which does not change it; the deployer checks it): under REPEATABLE READ it would fix the snapshot before waiting
+    for the lock, and the plain reads after it would see the data from before."""
+    tournament_id = ArenaMatch.objects.filter(pk=match_id).values_list('tournament_id', flat=True).first()
+    if tournament_id is not None:
+        list(ArenaTournament.objects.select_for_update().filter(pk=tournament_id).values_list('pk', flat=True))
     try:
         return ArenaMatch.objects.select_for_update().select_related('tournament', 'round').get(pk=match_id)
     except ArenaMatch.DoesNotExist:
@@ -191,6 +202,14 @@ def _busy_elsewhere(profile_id, match_id=None):
     return matches.exists()
 
 
+def busy_profile_ids(profile_ids):
+    """Which of `profile_ids` are in a battle (called or being played), in one query: _busy_elsewhere for a list."""
+    wanted = set(profile_ids)
+    pairs = ArenaMatch.objects.filter(status__in=ArenaMatch.LOCKING_STATUSES) \
+        .filter(Q(player_a_id__in=wanted) | Q(player_b_id__in=wanted)).values_list('player_a_id', 'player_b_id')
+    return {pk for pair in pairs for pk in pair if pk in wanted}
+
+
 # ---------------------------------------------------------------------------------------------------------------
 # Presence
 # ---------------------------------------------------------------------------------------------------------------
@@ -226,8 +245,10 @@ def visible_problems(user):
     return Problem.get_visible_problems(user).exclude(code__startswith='ct_')
 
 
-def _clean_problem_list(actor, entries, used_elsewhere=()):
-    """[(problem id, points)] → [(Problem, points)], refusing anything the organizer cannot see."""
+def _clean_problem_list(actor, entries, used_elsewhere=(), kept=()):
+    """[(problem id, points)] → [(Problem, points)], refusing anything the organizer cannot see, except the problems
+    in `kept`, which the game already has (duelos-web-4, 2026-10-28): every organizer of a battle sees its problems,
+    so a co-organizer who cannot see one that another chose (or that the bank gave) still saves the list with it."""
     if not isinstance(entries, (list, tuple)):
         raise ArenaError(_('Invalid list of problems.'))
     if len(entries) > MAX_PROBLEMS_PER_GAME:
@@ -241,7 +262,8 @@ def _clean_problem_list(actor, entries, used_elsewhere=()):
         else:
             raise ArenaError(_('Invalid list of problems.'))
         if isinstance(problem_id, bool) or not isinstance(problem_id, int):
-            if isinstance(problem_id, str) and problem_id.isdigit():
+            # isdecimal, not isdigit (2026-10-28): a superscript digit passed isdigit and int() failed with a 500.
+            if isinstance(problem_id, str) and problem_id.isdecimal():
                 problem_id = int(problem_id)
             else:
                 raise ArenaError(_('Invalid list of problems.'))
@@ -257,6 +279,9 @@ def _clean_problem_list(actor, entries, used_elsewhere=()):
     if repeated:
         raise ArenaError(_('Each game of a battle must use different problems.'))
     found = {problem.id: problem for problem in visible_problems(actor.user).filter(id__in=ids)}
+    hidden = (set(ids) & set(kept)) - set(found)
+    if hidden:
+        found.update((problem.id, problem) for problem in Problem.objects.filter(id__in=hidden))
     if len(found) != len(ids):
         raise ArenaError(_('One of the problems does not exist or you cannot see it.'))
     return [(found[problem_id], value) for problem_id, value in zip(ids, points)]
@@ -270,8 +295,21 @@ def _set_problems(game, problems):
     ])
 
 
+def voided_before_start(game):
+    """A game voided during its countdown (by voiding it, by a walkover or by cancelling the battle): nobody ever saw
+    its problems, and nobody sees them later (duelos-nucleo-2, 2026-10-28). Until then such a game showed its
+    statements to the players and to the projector as soon as its start time came."""
+    return game is not None and game.status == ArenaGame.CANCELLED and game.started_at is not None and \
+        game.finished_at is not None and game.finished_at < game.started_at
+
+
+# The games whose problems nobody saw: only those can give their problems again. A game voided once it had started
+# (the guide says to void it and choose other problems) showed them to the players and to the room.
+UNSEEN_GAMES = Q(status=ArenaGame.CANCELLED, finished_at__lt=F('started_at'))
+
+
 def _problems_used_in_match(match, exclude_game=None):
-    games = ArenaGame.objects.filter(match=match).exclude(status=ArenaGame.CANCELLED)
+    games = ArenaGame.objects.filter(match=match).exclude(UNSEEN_GAMES)
     if exclude_game is not None:
         games = games.exclude(pk=exclude_game.pk)
     return set(ArenaGameProblem.objects.filter(game__in=games).values_list('problem_id', flat=True))
@@ -280,7 +318,7 @@ def _problems_used_in_match(match, exclude_game=None):
 def problems_used_in_tournament(tournament, exclude_game=None):
     if tournament is None:
         return set()
-    games = ArenaGame.objects.filter(match__tournament=tournament).exclude(status=ArenaGame.CANCELLED)
+    games = ArenaGame.objects.filter(match__tournament=tournament).exclude(UNSEEN_GAMES)
     if exclude_game is not None:
         games = games.exclude(pk=exclude_game.pk)
     return set(ArenaGameProblem.objects.filter(game__in=games).values_list('problem_id', flat=True))
@@ -354,6 +392,16 @@ def _clean_display(value, allowed):
     return value
 
 
+def _refuse_self(actor, *players):
+    """Whoever runs a battle does not play it (duelos-web-1, 2026-10-28): its panel is closed to its players until
+    it is decided (access.can_manage_match), so a battle they put themselves in would be left with nobody to run it.
+    A tournament may have an organizer among its participants, put there by another of its organizers
+    (tournament._refuse_self); the others run it while they play it."""
+    if actor is not None and any(player is not None and player.pk == actor.pk for player in players):
+        raise ArenaError(_('You cannot play in a battle you organize. Another organizer has to set it up and run '
+                           'it.'))
+
+
 def clean_ranking(value):
     """A decision about the ranking of the duels (judge/arena/rating.py); whoever may take it is checked by the
     page that asks."""
@@ -372,6 +420,7 @@ def create_duel(actor, player_a, player_b, games, best_of=1, rules=None, display
     ranking = clean_ranking(ranking)
     if player_a.pk == player_b.pk:
         raise ArenaError(_('A player cannot face themselves.'))
+    _refuse_self(actor, player_a, player_b)
     try:
         best_of = arena_rules.clean_best_of(best_of)
         rules = arena_rules.clean_rules(rules)
@@ -516,7 +565,8 @@ def set_game_problems(actor, match_id, game_id, entries, version=None, number=No
         raise ArenaError(_('That game does not exist.'), status=404)
     if game.status != ArenaGame.PREPARED:
         raise ArenaError(_('The problems of a game cannot change once it has started.'))
-    problems = _clean_problem_list(actor, entries, _problems_used_in_match(match, exclude_game=game))
+    present = ArenaGameProblem.objects.filter(game=game).values_list('problem_id', flat=True)
+    problems = _clean_problem_list(actor, entries, _problems_used_in_match(match, exclude_game=game), kept=present)
     _set_problems(game, problems)
     _bump(match)
     _log('problems', actor, match, game, problems=[problem.code for problem, _points in problems])
@@ -772,6 +822,12 @@ def _finish(match, game, slot, reason, result, now, actor=None):
     game.decided_by = actor
     game.save(update_fields=['status', 'winner_slot', 'reason', 'result', 'finished_at', 'closed_at', 'decided_by'])
     _close_contest(game, game.closed_at)
+    if match.status in (ArenaMatch.DECIDED, ArenaMatch.CANCELLED):
+        # A game still open when its battle was decided (since 2026-10-28 only an edit in the admin leaves one): it
+        # keeps its result, but the series is over. Deciding it again moved the winner of the bracket a second time
+        # and left a score like 1-1 in a best of 1 (duelos-nucleo-4).
+        _log('finish', actor, match, game, winner=slot, reason=reason)
+        return
     if slot == SLOT_A:
         match.wins_a += 1
     else:
@@ -795,7 +851,8 @@ def _tie(match, game, result, now, actor=None):
     _close_contest(game, game.closed_at)
     _bump(match, system=actor is None)
     _log('tie', actor, match, game)
-    _from_bank(match, _ensure_next_game(match), actor)
+    if match.status not in (ArenaMatch.DECIDED, ArenaMatch.CANCELLED):
+        _from_bank(match, _ensure_next_game(match), actor)
     refresh_lock_on_commit()
 
 
@@ -826,10 +883,25 @@ def _game_of(match, game_id):
     return game
 
 
+def _require_not_over(match):
+    """No action on the games of a battle already decided or cancelled (duelos-nucleo-4, 2026-10-28)."""
+    if match.status in (ArenaMatch.DECIDED, ArenaMatch.CANCELLED):
+        raise ArenaError(_('This battle is over.'))
+
+
+def _refuse_while_another_runs(match, game):
+    """A tied game is given to a player or voided only while no later game of the series is being played: the
+    tiebreak could otherwise decide the battle a second time (duelos-nucleo-4, 2026-10-28)."""
+    if game.status == ArenaGame.TIE and ArenaGame.objects.filter(match=match, status__in=ArenaGame.ACTIVE_STATUSES) \
+            .exclude(pk=game.pk).exists():
+        raise ArenaError(_('Another game of this battle is being played; decide or void that one first.'))
+
+
 @transaction.atomic
 def extend_game(actor, match_id, game_id, minutes, version=None):
     match = lock_match(match_id)
     _check_version(match, version)
+    _require_not_over(match)
     game = _game_of(match, game_id)
     if game.status not in ArenaGame.OPEN_STATUSES:
         raise ArenaError(_('Only a game being played can get more time.'))
@@ -856,9 +928,11 @@ def cancel_game(actor, match_id, game_id, version=None):
     """Void a started game: it counts for nobody and the next game is prepared."""
     match = lock_match(match_id)
     _check_version(match, version)
+    _require_not_over(match)
     game = _game_of(match, game_id)
     if game.status not in ArenaGame.ACTIVE_STATUSES + (ArenaGame.TIE,):
         raise ArenaError(_('Only a started game can be cancelled.'))
+    _refuse_while_another_runs(match, game)
     now = timezone.now()
     game.status = ArenaGame.CANCELLED
     game.finished_at = now
@@ -886,6 +960,7 @@ def declare_winner(actor, match_id, game_id, slot, version=None):
         raise ArenaError(_('This game cannot be decided now.'))
     if match.status != ArenaMatch.PLAYING:
         raise ArenaError(_('This battle is over.'))
+    _refuse_while_another_runs(match, game)
     now = timezone.now()
     game_problems = game_problem_rows(game)
     attempts = load_attempts(game, game_problems)
@@ -905,6 +980,7 @@ def finalize_verification(actor, match_id, game_id, version=None):
     """Stop waiting for verdicts that do not arrive: whatever is still pending counts as failed."""
     match = lock_match(match_id)
     _check_version(match, version)
+    _require_not_over(match)
     game = _game_of(match, game_id)
     if game.status != ArenaGame.VERIFYING:
         raise ArenaError(_('This game is not waiting for verdicts.'))
@@ -1019,6 +1095,7 @@ def replace_player(actor, match_id, slot, profile, display='', version=None):
         raise ArenaError(_('Players cannot change once a game has been played.'))
     if match.player_id(other(slot)) == profile.pk:
         raise ArenaError(_('A player cannot face themselves.'))
+    _refuse_self(actor, profile)
     if _busy_elsewhere(profile.pk, match.pk):
         raise ArenaError(_('%(name)s is already in another battle.') % {'name': profile.display_name})
     setattr(match, 'player_' + slot, profile)

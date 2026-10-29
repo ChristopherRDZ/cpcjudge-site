@@ -161,9 +161,16 @@ def summary(now=None):
 
 def listing(user, now=None):
     """Everything for /duelos/torneos/, plus the started tournaments left out of the history that `user` still
-    sees, apart and marked. Drafts are looked after from the battle panel."""
+    sees, apart and marked. Drafts are looked after from the battle panel.
+
+    Never, among those, one `user` still plays (2026-10-28, round 2 of the adversarial review), as the battle panel
+    leaves it out (access.contended_tournaments): its organizers do not run it while they play it, so its link led
+    them to a page that does not exist."""
     now = now or timezone.now()
-    hidden = access.history_hidden_for(user).filter(status__in=STARTED).order_by('-created_at', '-id')
+    hidden = access.history_hidden_for(user).filter(status__in=STARTED)
+    if user is not None and user.is_authenticated:
+        hidden = hidden.exclude(id__in=access.contended_tournaments(user).values('id'))
+    hidden = hidden.order_by('-created_at', '-id')
     return {
         'live': rows(live()),
         'upcoming': rows(upcoming(now)),

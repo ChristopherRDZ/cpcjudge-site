@@ -22,7 +22,7 @@ from django.utils.text import capfirst
 from django.utils.translation import gettext_lazy as _
 
 from judge.admin.purge import contest_plan, purge_contest
-from judge.arena import access, rating
+from judge.arena import access, engine, rating
 from judge.arena.engine import ArenaError
 from judge.models import ArenaGame, Contest
 from judge.models.arena import RANKING_COUNTS, RANKING_EXCLUDED, RANKING_PENDING
@@ -32,8 +32,21 @@ def _can_view(request):
     return access.can_manage(request.user)
 
 
+def _panel_column(columns, link, closed):
+    """The columns of a list with the link to the panel left empty on the rows in `closed`: those whose panel is
+    closed to whoever looks because they play them (judge/arena/access.py, 2026-10-28, round 2 of the adversarial
+    review), as the battle panel leaves them out, so no link leads to a page that does not exist."""
+    @admin.display(description=_('panel'))
+    def panel_link(obj):
+        return '' if obj.pk in closed else link(obj)
+    return [panel_link if column == 'panel_link' else column for column in columns]
+
+
 class ArenaViewMixin:
     """Organizers see the lists, of what they organize; only superusers change rows; nobody adds rows here."""
+
+    def sees_everything(self, request):
+        return access.manages_all(request.user)
 
     def scoped(self, request, queryset):
         """The rows of the list that `request.user` organizes."""
@@ -41,7 +54,7 @@ class ArenaViewMixin:
 
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
-        if access.manages_all(request.user):
+        if self.sees_everything(request):
             return queryset
         return self.scoped(request, queryset)
 
@@ -58,12 +71,48 @@ class ArenaViewMixin:
         return request.user.is_superuser
 
 
+class RecomputeMixin:
+    """A superuser who edits or deletes a battle or a game here goes around judge/arena/engine.py (2026-10-28): the
+    ranking of the duels is worked out again (duelos-web-5; deleting a battle took its rating changes away while
+    the ratings kept counting it) and the players held inside the arena are read again from the database
+    (duelos-gestion-js-1), once the change is saved."""
+
+    def _after_change(self):
+        rating.recompute_on_commit()
+        engine.refresh_lock_on_commit()
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        self._after_change()
+
+    def delete_model(self, request, obj):
+        super().delete_model(request, obj)
+        self._after_change()
+
+    def delete_queryset(self, request, queryset):
+        super().delete_queryset(request, queryset)
+        self._after_change()
+
+
 class RankingActionsMixin:
-    """The three decisions about the ranking of the duels as actions of the list, only for whoever may decide."""
+    """The three decisions about the ranking of the duels as actions of the list, only for whoever may decide.
+
+    Whoever may decide sees every battle and tournament in these two lists, even without organizing any (duelos-web-3,
+    2026-10-28): until then the lists only opened to organizers, so the permission alone never reached its actions.
+    The rows show who played and how it ended, never statements, code or submissions; only superusers change them."""
     ranking_setter = None
 
     def has_decide_ranking_permission(self, request):
         return access.decides_ranking(request.user)
+
+    def sees_everything(self, request):
+        return super().sees_everything(request) or access.decides_ranking(request.user)
+
+    def has_module_permission(self, request):
+        return super().has_module_permission(request) or access.decides_ranking(request.user)
+
+    def has_view_permission(self, request, obj=None):
+        return super().has_view_permission(request, obj) or access.decides_ranking(request.user)
 
     def _decide(self, request, queryset, value):
         done, refused = 0, []
@@ -104,7 +153,7 @@ class ArenaPanelAdmin(ArenaViewMixin, admin.ModelAdmin):
         return False
 
 
-class ArenaMatchAdmin(RankingActionsMixin, ArenaViewMixin, admin.ModelAdmin):
+class ArenaMatchAdmin(RankingActionsMixin, RecomputeMixin, ArenaViewMixin, admin.ModelAdmin):
     list_display = ('id', 'show_players', 'tournament', 'round', 'best_of', 'show_score', 'status', 'show_ranking',
                     'created_at', 'panel_link')
     # Only the tournaments of the rows this person sees: a plain 'tournament' offered every tournament by name.
@@ -119,6 +168,10 @@ class ArenaMatchAdmin(RankingActionsMixin, ArenaViewMixin, admin.ModelAdmin):
 
     def scoped(self, request, queryset):
         return queryset.filter(pk__in=access.matches_for(request.user).values('pk'))
+
+    def get_list_display(self, request):
+        return _panel_column(super().get_list_display(request), self.panel_link,
+                             access.closed_match_ids(request.user))
 
     @admin.display(description=_('players'))
     def show_players(self, obj):
@@ -143,7 +196,7 @@ class ArenaMatchAdmin(RankingActionsMixin, ArenaViewMixin, admin.ModelAdmin):
                            reverse('arena_manage_match', args=[obj.pk]), _('Open'))
 
 
-class ArenaGameAdmin(ArenaViewMixin, admin.ModelAdmin):
+class ArenaGameAdmin(RecomputeMixin, ArenaViewMixin, admin.ModelAdmin):
     """A battle cannot be deleted while it has games (PROTECT). Filtering by tournament or searching by player
     selects the games of a test at once; after deleting them, the battle or the tournament can go.
 
@@ -210,6 +263,10 @@ class ArenaTournamentAdmin(RankingActionsMixin, ArenaViewMixin, admin.ModelAdmin
 
     def scoped(self, request, queryset):
         return queryset.filter(pk__in=access.tournaments_for(request.user).values('pk'))
+
+    def get_list_display(self, request):
+        return _panel_column(super().get_list_display(request), self.panel_link,
+                             set(access.contended_tournaments(request.user).values_list('pk', flat=True)))
 
     @admin.display(description=_('panel'))
     def panel_link(self, obj):

@@ -287,7 +287,8 @@ class ReviewTests(AjustesTestCase):
         self.assertTrue(serialize.player_state(self.players[1].profile, 'es')['review'])
         self.client.force_login(self.players[0])
         self.assertEqual(self.client.get(reverse('arena_code_mine', args=[game.pk])).json()['drafts'], {})
-        self.assertNotIn('source', serialize.player_submission(self.players[0].profile, game, submission.pk))
+        # The next guest gets nothing of the previous one's submission, not even without its code.
+        self.assertIsNone(serialize.player_submission(self.players[0].profile, game, submission.pk))
 
     def test_no_review_while_playing(self):
         match = duel(self.organizer, self.players[0], self.players[1], [self.problems[0]])

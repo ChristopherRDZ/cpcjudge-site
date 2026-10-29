@@ -9,6 +9,7 @@ import secrets
 from datetime import timedelta
 from random import SystemRandom
 
+from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
@@ -93,6 +94,15 @@ def _clean_participants(profiles):
     return result
 
 
+def _refuse_self(actor, profiles):
+    """Whoever creates a tournament or changes its participants does not put themselves among them (2026-10-28,
+    round 2 of the adversarial review), as nobody puts themselves in a battle (engine._refuse_self): a participant
+    does not run the tournament while they play it (access.contended_tournaments), so the draft vanished from their
+    panel, and with no co-organizer nobody was left to run it. Another organizer of the tournament adds them."""
+    if actor is not None and any(profile.pk == actor.pk for profile in profiles):
+        raise ArenaError(_('You cannot add yourself to a tournament you organize: another organizer has to add you.'))
+
+
 def _ordered_by_seeding(profiles, seeding):
     if seeding == ArenaTournament.SEED_RANDOM:
         profiles = list(profiles)
@@ -117,7 +127,6 @@ def _lock_tournament(tournament_id):
         raise ArenaError(_('That tournament does not exist.'), status=404)
 
 
-@transaction.atomic
 def clean_planned_at(value, now=None):
     """The planned date of a tournament: None, or a moment with its time zone that has not passed (a day of grace,
     for a tournament played late on its day) and is at most MAX_PLANNED_DAYS ahead."""
@@ -133,9 +142,14 @@ def clean_planned_at(value, now=None):
     return value
 
 
+@transaction.atomic
 def create_tournament(actor, name, profiles, seeding=ArenaTournament.SEED_MANUAL, third_place=False, rules=None,
                       description='', bank=None, show_in_history=True, planned_at=None, ranking=RANKING_PENDING):
-    """`ranking`: whether it counts for the ranking of the duels, if whoever creates it may decide that."""
+    """`ranking`: whether it counts for the ranking of the duels, if whoever creates it may decide that.
+
+    One transaction (duelos-nucleo-1, 2026-10-28): from 2026-10-26 to 2026-10-28 the decorator sat on
+    clean_planned_at by mistake, and a tournament with byes (3, 5, 6, 7... players) failed with a 500 when its byes
+    locked their matches, half built."""
     name = (name or '').strip()[:100]
     if not name:
         raise ArenaError(_('Give the tournament a name.'))
@@ -147,7 +161,9 @@ def create_tournament(actor, name, profiles, seeding=ArenaTournament.SEED_MANUAL
     except ValidationError as error:
         raise ArenaError(error.messages[0])
     planned_at = clean_planned_at(planned_at)
-    profiles = _ordered_by_seeding(_clean_participants(profiles), seeding)
+    profiles = _clean_participants(profiles)
+    _refuse_self(actor, profiles)
+    profiles = _ordered_by_seeding(profiles, seeding)
     tournament = ArenaTournament.objects.create(
         name=name, slug=_unique_slug(name), description=(description or '').strip()[:2000], seeding=seeding,
         third_place_match=bool(third_place), rules=rules, bank=bank, created_by=actor,
@@ -243,7 +259,9 @@ def set_participants(actor, tournament_id, profiles, seeding=None, version=None)
         if seeding not in dict(ArenaTournament.SEEDING):
             raise ArenaError(_('Invalid seeding.'))
         tournament.seeding = seeding
-    profiles = _ordered_by_seeding(_clean_participants(profiles), tournament.seeding)
+    profiles = _clean_participants(profiles)
+    _refuse_self(actor, profiles)
+    profiles = _ordered_by_seeding(profiles, tournament.seeding)
     ArenaParticipant.objects.filter(tournament=tournament).delete()
     ArenaParticipant.objects.bulk_create([ArenaParticipant(tournament=tournament, profile=profile, seed=index)
                                           for index, profile in enumerate(profiles, 1)])
@@ -420,8 +438,12 @@ def start_tournament(actor, tournament_id, version=None):
 
 @transaction.atomic
 def archive_tournament(actor, tournament_id, version=None):
+    """Hide a finished tournament from the panel. Only a finished one (duelos-gestion-js-2, 2026-10-28): a running
+    tournament archived could no longer call its matches nor finish, and the history showed it as over."""
     tournament = _lock_tournament(tournament_id)
     _check_version(tournament, version)
+    if tournament.status != ArenaTournament.FINISHED:
+        raise ArenaError(_('Only a finished tournament can be archived.'))
     if ArenaMatch.objects.filter(tournament=tournament, status__in=ArenaMatch.LOCKING_STATUSES).exists():
         raise ArenaError(_('Finish or decide the matches being played first.'))
     tournament.status = ArenaTournament.ARCHIVED
@@ -487,15 +509,30 @@ def set_winner(actor, match_id, slot, version=None):
         raise ArenaError(_('Choose a winner.'))
     match = lock_match(match_id)
     _check_version(match, version)
+    # As the panel and the guide say: a quick battle is not corrected (2026-10-28).
+    if match.tournament_id is None:
+        raise ArenaError(_('Only the winner of a tournament match can be corrected.'))
     if match.status != ArenaMatch.DECIDED or match.winner_slot == slot:
         raise ArenaError(_('Only the winner of a decided match can be corrected.'))
     if not match.player_id(slot):
         raise ArenaError(_('That player is not set yet.'))
+    # Nobody corrects a battle they played, nor one that decides whom they meet next (2026-10-28, adversarial review
+    # of duelos-web-1): the panel of a tournament is theirs again once they are out of it or it finished.
+    players = {match.player_a_id, match.player_b_id}
+    for target_id in (match.next_match_id, match.loser_next_match_id):
+        if target_id:
+            players.update(*ArenaMatch.objects.filter(pk=target_id).exclude(
+                status__in=(ArenaMatch.DECIDED, ArenaMatch.CANCELLED)).values_list('player_a_id', 'player_b_id'))
+    if actor is not None and actor.pk in players:
+        raise ArenaError(_('You played this battle or play the next one: another organizer has to correct it.'))
     for target_id in (match.next_match_id, match.loser_next_match_id):
         if target_id and ArenaGame.objects.filter(match_id=target_id, contest__isnull=False).exists():
             raise ArenaError(_('The next match has already been played; it cannot receive another player.'))
     match.winner_slot = slot
-    match.decided_reason = 'organizer'
+    # A battle won by walkover stays one, with the other winner (duelos-nucleo-7, 2026-10-28): a walkover never counts
+    # for the ranking of the duels, and calling it «organizer» made its games played before the walkover count.
+    if match.decided_reason != 'walkover':
+        match.decided_reason = 'organizer'
     match.decided_at = timezone.now()
     _bump(match, 'winner_slot', 'decided_reason', 'decided_at')
     tournament = ArenaTournament.objects.select_for_update().get(pk=match.tournament_id) \
@@ -506,8 +543,7 @@ def set_winner(actor, match_id, slot, version=None):
         tournament.save(update_fields=['status', 'finished_at'])
     advance(match)
     _log('set_winner', actor, match, winner=slot)
-    # Only games count for the ranking of the duels, so the ratings stay; a battle won by walkover that now has a
-    # winner chosen by the organizer may start to count, though.
+    # Only games count for the ranking of the duels, so the ratings stay.
     from judge.arena import rating
     rating.after_decided(match)
     refresh_lock_on_commit()
@@ -543,7 +579,8 @@ def set_bank_problems(actor, bank_id, entries):
         if not isinstance(entry, dict):
             raise ArenaError(_('Invalid list of problems.'))
         problem_id = entry.get('id')
-        if isinstance(problem_id, str) and problem_id.isdigit():
+        # isdecimal, not isdigit (2026-10-28): a superscript digit passed isdigit and int() failed with a 500.
+        if isinstance(problem_id, str) and problem_id.isdecimal():
             problem_id = int(problem_id)
         if isinstance(problem_id, bool) or not isinstance(problem_id, int):
             raise ArenaError(_('Invalid list of problems.'))
@@ -551,7 +588,7 @@ def set_bank_problems(actor, bank_id, entries):
         if level in ('', None):
             level = None
         else:
-            if isinstance(level, str) and level.isdigit():
+            if isinstance(level, str) and level.isdecimal():
                 level = int(level)
             if isinstance(level, bool) or not isinstance(level, int) or not 1 <= level <= 5:
                 raise ArenaError(_('The level must be between 1 and 5.'))
@@ -597,11 +634,14 @@ def draw_problems(actor, match, game, count=1, level_min=None, level_max=None):
         entries = [entry for entry in entries if entry.level and entry.level >= level_min]
     if level_max:
         entries = [entry for entry in entries if entry.level and entry.level <= level_max]
-    # Drawn by the tournament itself (actor None), every problem of the bank counts: an organizer who could see
-    # them put them there.
+    # Only what whoever draws can see (duelos-nucleo-3, 2026-10-28): the organizer who asks, or the creator of the
+    # tournament when it draws by itself (actor None). Until then that case took every problem of the bank, also one
+    # that became private (reserved for a coming contest) or that somebody else added, which the page of the banks
+    # hides from that organizer; the game then showed it to the players and to the room.
     ids = [entry.problem_id for entry in entries]
-    visible = set(ids) if actor is None else set(visible_problems(actor.user).filter(id__in=ids)
-                                                 .values_list('id', flat=True))
+    viewer = actor if actor is not None else match.tournament.created_by
+    visible = set(visible_problems(viewer.user if viewer is not None else AnonymousUser()).filter(id__in=ids)
+                  .values_list('id', flat=True))
     used = problems_used_in_tournament(match.tournament, exclude_game=game) | \
         set(ArenaGameProblem.objects.filter(game__match=match).exclude(game=game).values_list('problem_id', flat=True))
     candidates = [entry for entry in entries if entry.problem_id in visible and entry.problem_id not in used]
@@ -658,7 +698,7 @@ def fill_from_bank(match, game, actor=None, force=False):
         return False
     try:
         with transaction.atomic():
-            problems, warnings = draw_problems(None, match, game, settings['count'], settings['level_min'],
+            problems, warnings = draw_problems(actor, match, game, settings['count'], settings['level_min'],
                                                settings['level_max'])
             ArenaGameProblem.objects.bulk_create([
                 ArenaGameProblem(game=game, problem=problem, order=index, points=arena_rules.DEFAULT_POINTS)

@@ -16,7 +16,7 @@ from django.http import Http404, HttpResponseRedirect
 from django.shortcuts import render
 from django.template.loader import render_to_string
 from django.utils.translation import gettext as _
-from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.http import require_GET, require_POST, require_safe
 
 from judge.arena import access, history, lock, serialize, tournament as arena_tournament
 from judge.arena.engine import ArenaError
@@ -41,7 +41,8 @@ def _base_context(request, tab):
             'watch_called': request.user.is_authenticated, 'called_poll': CALLED_POLL_MS}
 
 
-@require_GET
+# GET and HEAD, as every page of the site (produccion-datos-docs-2, 2026-10-28).
+@require_safe
 def history_list(request):
     if _held(request):
         return HttpResponseRedirect(lock.HOME)
@@ -50,7 +51,7 @@ def history_list(request):
     return render(request, 'arena/history/list.html', context)
 
 
-@require_GET
+@require_safe
 def history_tournament(request, slug):
     found = history.find(request.user, slug)
     if found is None:

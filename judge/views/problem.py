@@ -814,6 +814,10 @@ class ProblemSubmit(LoginRequiredMixin, ProblemMixin, TitleMixin, SingleObjectFo
             )
             if not request.user.has_perm('judge.resubmit_other') and not self.old_submission.is_owned_by(request.user):
                 raise PermissionDenied()
+            # The editor gets its code: only for whoever may read it (2026-10-28, adversarial review of duelos-web-2:
+            # on a shared club laptop the account owns what the guests before sent).
+            if not self.old_submission.can_see_detail(request.user):
+                raise PermissionDenied()
         else:
             self.old_submission = None
 
@@ -1133,7 +1137,7 @@ def custom_test_run(request):
         submission = Submission.objects.select_related('problem').get(pk=sub_id, user=request.profile)
     except (Submission.DoesNotExist, ValueError, TypeError):
         return JsonResponse({'error': 'Submission not found'}, status=404)
-    if not _is_owned_custom_test(submission, request.profile):
+    if not _is_owned_custom_test(submission, request.profile) or submission.run_by_a_past_guest():
         return JsonResponse({'error': 'Submission not found'}, status=404)
 
     if submission.status in ('QU', 'P', 'G'):

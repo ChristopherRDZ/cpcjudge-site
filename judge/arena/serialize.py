@@ -10,7 +10,8 @@ against the server clock rather than its own.
 """
 from datetime import timedelta
 
-from django.db.models import Count, Q
+from django.contrib.auth.models import Permission, User
+from django.db.models import Count, OuterRef, Q, Subquery
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext as _
@@ -30,6 +31,8 @@ BIG_AVATAR = 512
 
 POLL_FAST = 1000
 POLL_MEDIUM = 2000
+# «Organize all battles» (judge/arena/access.py), as a subquery: whoever has it sees every screen.
+_ALL_PERMISSION = Permission.objects.filter(content_type__app_label='judge', codename='manage_all_arena')
 POLL_SLOW = 5000
 
 
@@ -38,8 +41,9 @@ def ts(moment):
 
 
 def _started(game, now):
+    # A game voided during its countdown never starts (duelos-nucleo-2, 2026-10-28).
     return game is not None and game.started_at is not None and now >= game.started_at and \
-        game.status not in (ArenaGame.PREPARED,)
+        game.status not in (ArenaGame.PREPARED,) and not engine.voided_before_start(game)
 
 
 def problem_names(game_problems, language):
@@ -286,6 +290,11 @@ def player_submission(profile, game, submission_id):
         .select_related('language', 'source').first()
     if submission is None:
         return None
+    # On a club laptop, once the battle is over the next guest may sit down: the compile errors and the cases of
+    # the guest before are not for them (duelos-web-2, 2026-10-28). Between the games of a series it is the same
+    # guest, who still sees them.
+    if not own_account(game.match, slot) and game.match.status in (ArenaMatch.DECIDED, ArenaMatch.CANCELLED):
+        return None
     cases = list(SubmissionTestCase.objects.filter(submission=submission).order_by('case')
                  .values('case', 'status', 'time', 'memory', 'points', 'total', 'batch'))
     data = {
@@ -310,11 +319,13 @@ def player_submission(profile, game, submission_id):
 # Organizer
 # ---------------------------------------------------------------------------------------------------------------
 
-def _privileged(profile):
+def privileged(profile):
+    """An account with permissions, which should not be left open on a club laptop: staff, and since 2026-10-28
+    (duelos-nucleo-6) also whoever organizes battles without being staff."""
     if profile is None:
         return False
     user = profile.user
-    return bool(user.is_staff or user.is_superuser)
+    return bool(user.is_staff or user.is_superuser or access.can_manage(user))
 
 
 def organizer_player(match, slot, now):
@@ -326,7 +337,7 @@ def organizer_player(match, slot, now):
         'display_name': getattr(match, 'display_name_' + slot),
         'connected': engine.is_connected(match.pk, slot, now),
         'seen_ago': None if seen is None else round(now.timestamp() - seen, 1),
-        'privileged': _privileged(profile),
+        'privileged': privileged(profile),
     })
     return card
 
@@ -390,6 +401,10 @@ def organizer_match_state(match, language, now=None, user=None):
     now = timezone.now()
     games, active, last_done, prepared = _current_games(match)
     current = active or prepared or last_done
+    # The last game ended in a tie and nothing is being played: the panel offers to give it to a player
+    # (duelos-nucleo-v1, 2026-10-28). `current` is then the tiebreak prepared with the tie, never the tied game.
+    tied = last_done if last_done is not None and last_done.status == ArenaGame.TIE and active is None and \
+        match.status == ArenaMatch.PLAYING else None
     held_until = engine.lock_until(match, games) if match.status in ArenaMatch.LOCKING_STATUSES else None
     data = {
         'now': ts(now),
@@ -406,6 +421,7 @@ def organizer_match_state(match, language, now=None, user=None):
             'wins': {'a': match.wins_a, 'b': match.wins_b},
             'winner': match.winner_slot or None,
             'reason': match.decided_reason,
+            'tie': tied.pk if tied is not None else None,
             'quick': match.tournament_id is None,
             'rules': _rules_view(arena_rules.match_rules(match)),
             'overrides': match.rules,
@@ -442,7 +458,8 @@ def organizer_match_state(match, language, now=None, user=None):
 
 
 def screens_overview(user=None):
-    """The screens `user` manages (with their secret links), or all of them without a user."""
+    """The screens `user` manages (with their secret links), or all of them without a user. Not those aimed at a
+    tournament they still play (access.screens_for, 2026-10-28)."""
     screens = access.screens_for(user) if user is not None else ArenaScreen.objects.all()
     return [{'id': screen.pk, 'name': screen.name, 'mode': screen.mode, 'match': screen.match_id,
              'tournament': screen.tournament_id, 'follow_live': screen.follow_live, 'message': screen.message,
@@ -455,26 +472,37 @@ def overview(now=None, user=None):
     now = now or timezone.now()
     matches = access.matches_for(user) if user is not None else ArenaMatch.objects.all()
     tournaments = access.tournaments_for(user) if user is not None else ArenaTournament.objects.all()
+    profile = getattr(user, 'profile', None) if user is not None and user.is_authenticated else None
+    if profile is not None:
+        # What they play is run by the others (access.can_manage_match): not listed, so no link leads to a 404.
+        matches = matches.exclude(Q(player_a=profile) | Q(player_b=profile),
+                                  status__in=(ArenaMatch.READY, ArenaMatch.CALLED, ArenaMatch.PLAYING))
+        tournaments = tournaments.exclude(id__in=access.contended_tournaments(user).values('id'))
+    # The game being played, the participants and the battles being played are counted in the same query as their
+    # rows (duelos-gestion-js-3, 2026-10-28): the panel asks for this every 3 seconds.
+    live = ArenaGame.objects.filter(match=OuterRef('pk'), status__in=ArenaGame.ACTIVE_STATUSES).values('status')[:1]
     active = matches.filter(status__in=(ArenaMatch.READY, ArenaMatch.CALLED, ArenaMatch.PLAYING),
-                            tournament__isnull=True).select_related('player_a__user', 'player_b__user')
+                            tournament__isnull=True).select_related('player_a__user', 'player_b__user') \
+        .annotate(live_status=Subquery(live))
     recent = matches.filter(status__in=(ArenaMatch.DECIDED, ArenaMatch.CANCELLED),
                             tournament__isnull=True).select_related('player_a__user', 'player_b__user') \
-        .order_by('-decided_at', '-id')[:15]
+        .annotate(live_status=Subquery(live)).order_by('-decided_at', '-id')[:15]
 
     def row(match):
-        live = ArenaGame.objects.filter(match=match, status__in=ArenaGame.ACTIVE_STATUSES).first()
         return {'id': match.pk, 'title': match.title, 'a': match.shown_name(SLOT_A), 'b': match.shown_name(SLOT_B),
                 'status': match.status, 'wins': {'a': match.wins_a, 'b': match.wins_b}, 'best_of': match.best_of,
-                'winner': match.winner_slot or None, 'live': live.status if live else None,
+                'winner': match.winner_slot or None, 'live': match.live_status,
                 'decided_at': ts(match.decided_at)}
-    tournaments = tournaments.exclude(status=ArenaTournament.ARCHIVED).order_by('-created_at')[:30]
+    tournaments = tournaments.exclude(status=ArenaTournament.ARCHIVED) \
+        .annotate(n_participants=Count('participants', distinct=True),
+                  n_live=Count('matches', filter=Q(matches__status=ArenaMatch.PLAYING), distinct=True)) \
+        .order_by('-created_at')[:30]
     return {
         'now': ts(now),
         'duels': [row(match) for match in active.order_by('-id')],
         'recent': [row(match) for match in recent],
         'tournaments': [{'id': t.pk, 'name': t.name, 'slug': t.slug, 'status': t.status,
-                         'participants': t.participants.count(),
-                         'live': ArenaMatch.objects.filter(tournament=t, status=ArenaMatch.PLAYING).count()}
+                         'participants': t.n_participants, 'live': t.n_live}
                         for t in tournaments],
         'screens': screens_overview(user),
     }
@@ -593,16 +621,57 @@ def bracket_view(tournament, rounds=None):
 # Projector screens
 # ---------------------------------------------------------------------------------------------------------------
 
+def _held_by_a_player(screen, match):
+    """Whether a player of `match` can open `screen` on their own while it is played (2026-10-28, adversarial review
+    of duelos-web-1): they created it, or they organize all battles and so see every screen. The link of a screen
+    needs no session, so that screen must not show them more than their own page does: neither the live code nor,
+    when the battle hides it, the progress of the rival.
+
+    Decided with the rules of the game the screen would show (screen_match, screen_game: the one being played, else
+    the last one that ended), frozen when it started (round 2 of the review): the rules of the battle are those of
+    its next game, and changing them in the middle of one put the live code back on the screen of its player."""
+    if match is None or match.status in (ArenaMatch.DECIDED, ArenaMatch.CANCELLED):
+        return False
+    _games, active, last_done, _prepared = _current_games(match)
+    shown = active or last_done
+    rules = _game_rules(shown) if shown is not None else arena_rules.match_rules(match)
+    if not rules.get('screen_code') and rules.get('show_rival'):
+        return False
+    players = [pk for pk in (match.player_a_id, match.player_b_id) if pk]
+    if screen.created_by_id in players:
+        return True
+    return User.objects.filter(profile__in=players, is_active=True).filter(
+        Q(is_superuser=True) | Q(user_permissions__in=_ALL_PERMISSION) | Q(groups__permissions__in=_ALL_PERMISSION)) \
+        .exists()
+
+
+def _held(screen, match):
+    """Whether `screen` does not show `match`: one of its players can open the screen (_held_by_a_player), or, since
+    round 3 of the adversarial review (2026-10-28), it is a battle of a tournament the creator of the screen still
+    plays (access.contended_tournaments), whatever its state and its rules. The link of the screen is theirs, maybe
+    aimed at the tournament before they played it, and through it they watched the other battles of their
+    tournament, with their code, statements and verdicts. The screens of the other organizers still show them."""
+    if match is not None and match.tournament_id and \
+            access.profile_contends(screen.created_by_id, match.tournament_id):
+        return True
+    return _held_by_a_player(screen, match)
+
+
 def _screen_target(screen):
-    """(mode, match, tournament) actually shown by a screen right now."""
+    """(mode, match, tournament) actually shown by a screen right now. A battle held from this screen (_held) is
+    not shown: the screen shows its bracket, or waits."""
     if screen.mode == ArenaScreen.MATCH and screen.match_id:
-        return ArenaScreen.MATCH, screen.match, screen.match.tournament
+        if not _held(screen, screen.match):
+            return ArenaScreen.MATCH, screen.match, screen.match.tournament
+        if screen.match.tournament_id:
+            return ArenaScreen.BRACKET, None, screen.match.tournament
+        return ArenaScreen.IDLE, None, screen.tournament
     if screen.mode == ArenaScreen.BRACKET and screen.tournament_id:
         if screen.follow_live:
             live = ArenaMatch.objects.filter(tournament_id=screen.tournament_id,
                                              games__status__in=ArenaGame.ACTIVE_STATUSES) \
                 .order_by('-games__started_at').first()
-            if live is not None:
+            if live is not None and not _held(screen, live):
                 return ArenaScreen.MATCH, live, screen.tournament
         return ArenaScreen.BRACKET, None, screen.tournament
     if screen.mode == ArenaScreen.MESSAGE:
@@ -713,4 +782,4 @@ def code_payload(game, since, enforce_screen_rule):
 
 __all__ = ['player_state', 'player_submission', 'organizer_match_state', 'overview', 'tournament_state',
            'bracket_view', 'screen_state', 'screen_game', 'code_payload', 'screens_overview', 'round_count',
-           'ts']
+           'privileged', 'ts']

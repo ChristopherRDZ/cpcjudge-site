@@ -6,13 +6,12 @@ every tournament and quick battle with its result (who played, the score, how it
 submissions, and its only actions are the decisions. Everything under /duelos/ is let through by the lock of a
 battle (judge/arena/lock.py), so a player held in a battle is sent back to it, as on the pages of the history.
 """
-from django.contrib.auth.decorators import login_required
 from django.db.models import Count
 from django.http import Http404, HttpResponseRedirect
 from django.shortcuts import render
 from django.urls import reverse
 from django.utils.translation import gettext as _
-from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.http import require_GET, require_POST, require_safe
 
 from judge.arena import access, history, lock, rating
 from judge.arena.engine import ArenaError
@@ -31,7 +30,8 @@ def _held(request):
     return profile is not None and lock.is_held(profile.pk)
 
 
-@require_GET
+# GET and HEAD, as every page of the site (produccion-datos-docs-2, 2026-10-28).
+@require_safe
 def ranking_page(request):
     if _held(request):
         return HttpResponseRedirect(lock.HOME)
@@ -127,11 +127,12 @@ def decide_data(user, everything=False):
 
 
 def _decider(request):
+    # 404 to anybody else, also without an account (duelos-web-7, 2026-10-28): login_required went first and sent
+    # them to sign in, which told that the page exists.
     if not access.decides_ranking(request.user):
         raise Http404()
 
 
-@login_required
 @require_GET
 def ranking_decide(request):
     _decider(request)
@@ -148,7 +149,6 @@ def ranking_decide(request):
     })
 
 
-@login_required
 @require_POST
 def ranking_decide_action(request):
     _decider(request)

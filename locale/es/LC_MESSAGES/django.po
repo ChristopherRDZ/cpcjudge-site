@@ -12474,3 +12474,43 @@ msgstr "Los nombres de los archivos dentro del zip no pueden llevar caracteres d
 #: cpc 2026-10-28
 msgid "This text is too long to preview."
 msgstr "Este texto es demasiado largo para la vista previa."
+
+#: cpc 2026-10-28
+msgid "You cannot play in a battle you organize. Another organizer has to set it up and run it."
+msgstr "No puedes jugar en una batalla que organizas. Otra persona que organice batallas tiene que prepararla y llevarla."
+
+#: cpc 2026-10-28
+msgid "Another game of this battle is being played; decide or void that one first."
+msgstr "Se está jugando otra partida de esta batalla; primero decide o anula esa."
+
+#: cpc 2026-10-28
+msgid "Only a finished tournament can be archived."
+msgstr "Sólo se puede archivar un torneo terminado."
+
+#: cpc 2026-10-28
+msgid "The tournament leaves the panel and cannot come back to it from here. Its page in the history stays as it is."
+msgstr "El torneo sale del panel y desde aquí no puede volver. Su página en el historial queda como está."
+
+#: cpc 2026-10-28
+msgid "Only the winner of a tournament match can be corrected."
+msgstr "Sólo se puede corregir el ganador de una batalla de torneo."
+
+#: cpc 2026-10-28
+msgid "You played this battle or play the next one: another organizer has to correct it."
+msgstr "Jugaste esta batalla o juegas la siguiente: otra persona que organice batallas tiene que corregirla."
+
+#: cpc 2026-10-28
+msgid "You cannot add yourself to a tournament you organize: another organizer has to add you."
+msgstr "No puedes añadirte a un torneo que organizas: otra persona que organice batallas tiene que añadirte."
+
+#: cpc 2026-10-28
+msgid "decided whether it counts for the ranking"
+msgstr "decidió si cuenta para el ranking"
+
+#: cpc 2026-10-28
+msgid "problems drawn from the bank"
+msgstr "problemas sorteados del banco"
+
+#: cpc 2026-10-28
+msgid "the bank had no unused problems left"
+msgstr "al banco ya no le quedaban problemas sin usar"

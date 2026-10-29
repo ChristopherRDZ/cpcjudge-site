@@ -61,6 +61,7 @@ $(function () {
         startConfirm: {{ _('After this the participants and the bracket can no longer change. You call the battles one by one, when it is their turn.')|tojson }},
         startMissing: {{ _('Some battles of the first round have no problems yet. You can still choose them later, before starting each one.')|tojson }},
         archive: {{ _('Archive (hide from the panel)')|tojson }},
+        archiveConfirm: {{ _('The tournament leaves the panel and cannot come back to it from here. Its page in the history stays as it is.')|tojson }},
         champion: {{ _('Champion')|tojson }},
         show: {{ _('Show the bracket on')|tojson }},
         follow: {{ _('and follow the battle being played')|tojson }},
@@ -305,7 +306,9 @@ $(function () {
                 }}));
         } else if (t.status === 'finished') {
             box.appendChild(A.el('button', {type: 'button', 'class': 'ar-btn ar-btn-plain', text: TEXT.archive,
-                onclick: function () { act({action: 'archive'}); }}));
+                onclick: function () {
+                    W.confirmBox(TEXT.archive, [TEXT.archiveConfirm], TEXT.archive, function () { act({action: 'archive'}); });
+                }}));
         }
     }
 

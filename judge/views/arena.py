@@ -19,7 +19,7 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.http import require_GET, require_POST, require_safe
 
 from judge.arena import access, engine, history, live_code, serialize
 from judge.arena.engine import ArenaError
@@ -112,8 +112,9 @@ def _ace_context():
 # Player
 # ---------------------------------------------------------------------------------------------------------------
 
-@require_GET
+@require_safe
 def arena_home(request):
+    # GET and HEAD (produccion-datos-docs-2, 2026-10-28): a monitor asking HEAD /duelos/ got a 405.
     if not request.user.is_authenticated:
         return render(request, 'arena/history/list.html', {
             'title': _('Arena'), 'history_tab': 'home', 'can_manage': False, 'watch_called': False,
@@ -154,7 +155,9 @@ def _player_game(request, game_id):
 
 
 def _statement_context(request, game, order):
-    if game.started_at is None or timezone.now() < game.started_at or game.status == ArenaGame.PREPARED:
+    # Not of a game voided during its countdown either: its problems were never shown (duelos-nucleo-2, 2026-10-28).
+    if game.started_at is None or timezone.now() < game.started_at or game.status == ArenaGame.PREPARED or \
+            engine.voided_before_start(game):
         raise Http404()
     gp = ArenaGameProblem.objects.filter(game=game, order=order).select_related('problem').first()
     if gp is None:
@@ -325,7 +328,7 @@ def arena_screen_code(request):
     if not live_code.allow('screen-code', screen.pk, _limit('CPC_ARENA_SCREEN_PER_SECOND', 30)):
         return json_error(_('Too many requests.'), status=429)
     game = serialize.screen_game(screen)
-    if game is None or game.started_at is None:
+    if game is None or game.started_at is None or engine.voided_before_start(game):
         return _private(json_response({'enabled': False}))
     return _private(json_response(serialize.code_payload(game, _since(request), enforce_screen_rule=True)))
 
