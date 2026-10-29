@@ -18,7 +18,6 @@ from django.views.generic.base import ContextMixin
 from django.views.generic.detail import SingleObjectMixin
 
 from judge.forms import TOTPEnableForm, TOTPForm, TwoFactorLoginForm
-from judge.jinja2.gravatar import gravatar
 from judge.models import WebAuthnCredential
 from judge.utils.two_factor import WebAuthnJSONEncoder, webauthn_encode
 from judge.utils.views import TitleMixin
@@ -150,7 +149,9 @@ class WebAuthnAttestationView(WebAuthnView):
             username=request.user.username,
             display_name=request.user.username,
             user_verification='discouraged',
-            icon_url=gravatar(request.user.email),
+            # No icon (2026-10-28): browsers no longer show it (WebAuthn level 2 dropped it), and the Gravatar URL it
+            # carried had the hash of the email (privacidad-datos-personales-1).
+            icon_url=None,
             attestation='none',
         ).registration_dict
         data['excludeCredentials'] = [{

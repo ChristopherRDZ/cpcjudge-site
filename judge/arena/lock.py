@@ -33,6 +33,8 @@ ALLOWED_PREFIXES = (
     '/jsi18n',
     '/static/',
     '/media/',
+    # The pictures of the players (judge/jinja2/gravatar.py).
+    '/avatar/',
     # base.html and its team include poll these on every page, the arena included.
     '/teams/invitations/count/',
 )

@@ -54,14 +54,16 @@ class DMOJLoginMiddleware(object):
             change_password_path = reverse('password_change')
             change_password_done_path = reverse('password_change_done')
             has_2fa = profile.is_totp_enabled or profile.is_webauthn_enabled
+            # The pictures (judge/jinja2/gravatar.py) come from the site itself, and the page that asks for the
+            # second factor or for a new password shows the one of the account.
             if (has_2fa and not request.session.get('2fa_passed', False) and
                     request.path not in (login_2fa_path, logout_path, webauthn_path) and
-                    not request.path.startswith(settings.STATIC_URL)):
+                    not request.path.startswith((settings.STATIC_URL, '/avatar/'))):
                 return HttpResponseRedirect(login_2fa_path + '?next=' + quote(request.get_full_path()))
             elif (request.session.get('password_pwned', False) and
                     request.path not in (change_password_path, change_password_done_path,
                                          login_2fa_path, logout_path) and
-                    not request.path.startswith(settings.STATIC_URL)):
+                    not request.path.startswith((settings.STATIC_URL, '/avatar/'))):
                 return HttpResponseRedirect(change_password_path + '?next=' + quote(request.get_full_path()))
         else:
             request.profile = None

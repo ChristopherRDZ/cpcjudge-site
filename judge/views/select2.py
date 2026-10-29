@@ -78,16 +78,17 @@ class UserSearchSelect2View(BaseListView):
     paginate_by = 20
 
     def get_queryset(self):
-        return _get_user_queryset(self.term).filter(is_unlisted=False)
+        # Not the accounts nobody activated (or that were closed): they are on no page of the site.
+        return _get_user_queryset(self.term).filter(is_unlisted=False, user__is_active=True)
 
     def get(self, request, *args, **kwargs):
         self.request = request
         self.kwargs = kwargs
         self.term = kwargs.get('term', request.GET.get('term', ''))
         self.gravatar_size = request.GET.get('gravatar_size', 128)
-        self.gravatar_default = request.GET.get('gravatar_default', None)
 
-        self.object_list = self.get_queryset().values_list('pk', 'user__username', 'user__email', 'display_rank',
+        # The picture goes through this site (judge/jinja2/gravatar.py): the hash of the email stays on the server.
+        self.object_list = self.get_queryset().values_list('pk', 'user__username', 'display_rank',
                                                            'username_display_override')
 
         context = self.get_context_data()
@@ -97,9 +98,9 @@ class UserSearchSelect2View(BaseListView):
                 {
                     'text': username_override or username,
                     'id': username,
-                    'gravatar_url': gravatar(email, self.gravatar_size, self.gravatar_default),
+                    'gravatar_url': gravatar(pk, self.gravatar_size),
                     'display_rank': display_rank,
-                } for pk, username, email, display_rank, username_override in context['object_list']],
+                } for pk, username, display_rank, username_override in context['object_list']],
             'more': context['page_obj'].has_next(),
         })
 

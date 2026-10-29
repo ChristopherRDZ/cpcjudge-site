@@ -118,10 +118,14 @@
         </div>
     </div>
 {% endfor %}
-<script type="text/javascript" src="{{ urljoin(url, static('mathjax_config.js')) }}"></script>
+<script type="text/javascript">window.MathJax = {{ mathjax_config() }};</script>
 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.0/es5/tex-chtml.min.js"></script>
 <script type="text/javascript">
-    MathJax.typesetPromise().then(function () {
+    {#- pdfoid waits for math-loaded. With ui/safe, MathJax finishes starting up only after loading that extension:
+        until then there is no typesetPromise (round 2 of the adversarial review, 2026-10-28). #}
+    MathJax.startup.promise.then(function () {
+        return MathJax.typesetPromise();
+    }).then(function () {
         document.body.classList.add('math-loaded');
     });
 </script>

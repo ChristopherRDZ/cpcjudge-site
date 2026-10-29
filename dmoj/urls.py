@@ -223,6 +223,8 @@ urlpatterns = [
         path('find', user.user_ranking_redirect, name='user_ranking_redirect'),
     ])),
 
+    # The pictures of the accounts, from Gravatar through this site: the browser never sees the hash of the email.
+    path('avatar/<int:profile>/<int:size>', user.user_avatar, name='user_avatar'),
     path('user', user.UserAboutPage.as_view(), name='user_page'),
     path('edit/profile/', user.edit_profile, name='user_edit_profile'),
     path('data/prepare/', user.UserPrepareData.as_view(), name='user_prepare_data'),
@@ -373,6 +375,7 @@ urlpatterns = [
         path('status-table', status.status_table, name='status_table'),
 
         path('template', problem.LanguageTemplateAjax.as_view(), name='language_template_ajax'),
+        path('mathjax-config.js', preview.mathjax_config_js, name='mathjax_config_js'),
 
         path('select2/', include([
             path('user_search', UserSearchSelect2View.as_view(), name='user_search_select2_ajax'),

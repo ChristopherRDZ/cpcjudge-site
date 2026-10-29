@@ -12470,3 +12470,7 @@ msgstr "Este problema está en un concurso con el marcador congelado que no orga
 #: cpc 2026-10-27
 msgid "The names of the files inside the zip must not have control characters or angle brackets."
 msgstr "Los nombres de los archivos dentro del zip no pueden llevar caracteres de control ni los signos «menor que» o «mayor que»."
+
+#: cpc 2026-10-28
+msgid "This text is too long to preview."
+msgstr "Este texto es demasiado largo para la vista previa."

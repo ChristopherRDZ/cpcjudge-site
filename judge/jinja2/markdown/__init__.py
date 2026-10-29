@@ -1,3 +1,4 @@
+import json
 import logging
 import re
 from html import unescape
@@ -77,9 +78,46 @@ class SampleTableBlockGrammar(mistune.BlockGrammar):
         '(?!', r'(?!(?i: {0,3}\|\|input[ \t]*(?:\n|$))|', 1))
 
 
+class SampleTableRule:
+    """The sample_table pattern, tried at most once per text without an ||end below it (markdown-enunciados-1,
+    2026-10-28).
+
+    The paragraph stops before every ||input line, so the lexer tries the table at each of them, and each try
+    searched the rest of the text for an ||end: with thousands of ||input lines and no ||end, a preview kept a worker
+    busy for minutes (quadratic). The lexer always tries a rule on what is left of the text it is parsing, so once a
+    try finds no ||end, a shorter tail of that same text has none either. `tails` keeps that length for each text
+    being parsed: the descriptions inside a table, block quotes and list items are parsed as texts of their own.
+    """
+    start = re.compile(r' {0,3}\|\|input[ \t]*(?:\n|$)', re.I)
+
+    def __init__(self, pattern):
+        self.pattern = pattern
+        self.tails = []
+
+    def match(self, text):
+        if not self.start.match(text) or (self.tails and len(text) <= self.tails[-1]):
+            return None
+        found = self.pattern.match(text)
+        if found is None and self.tails:
+            self.tails[-1] = len(text)
+        return found
+
+
 class SampleTableBlockLexer(mistune.BlockLexer):
     grammar_class = SampleTableBlockGrammar
     default_rules = ['sample_table'] + mistune.BlockLexer.default_rules
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not isinstance(self.rules.sample_table, SampleTableRule):
+            self.rules.sample_table = SampleTableRule(self.rules.sample_table)
+
+    def parse(self, text, rules=None):
+        self.rules.sample_table.tails.append(-1)
+        try:
+            return super().parse(text, rules)
+        finally:
+            self.rules.sample_table.tails.pop()
 
     def parse_sample_table(self, m):
         rows = []
@@ -369,3 +407,31 @@ def markdown(value, style, math_engine=None, lazy_load=False, strip_paragraphs=F
     if renderer.sample_tables:
         result += SAMPLE_TABLE_STYLE
     return Markup(result)
+
+
+# MathJax typesets ~...~ and \(...\) in the browser: MATHOID_URL is off, so the TeX of every Markdown text reaches the
+# page as it was written. It runs with its safe extension (markdown-enunciados-2, 2026-10-28): \href keeps only http
+# and https links, and \class, \cssId and \style only what is harmless. Without it, ~\href{javascript:...}{...}~ in
+# the about of a profile or in a comment ran a script when clicked. Every page takes its configuration from here:
+# templates/mathjax-load.html, arena/_mathjax.html, the two PDF pages, and the previews of the editors through
+# /widgets/mathjax-config.js. resources/mathjax_config.js, a collected static file, is no longer used.
+MATHJAX_CONFIG = {
+    'loader': {'load': ['ui/safe']},
+    'tex': {'inlineMath': [['~', '~'], ['\\(', '\\)']]},
+    'options': {
+        'enableMenu': False,
+        # No formula makes a link: the check ui/safe does on each address is not enough for what users write
+        # (round 3 of the adversarial review, 2026-10-28). The protocols stay as a second line. No formula sets a
+        # style either: some styles ui/safe allows load an address of their own (round 5). No published text used
+        # \style, \bbox, \fcolorbox or \enclose on 2026-10-28.
+        'safeOptions': {'allow': {'URLs': 'none', 'styles': 'none'},
+                        'safeProtocols': {'http': True, 'https': True, 'file': False, 'javascript': False,
+                                          'data': False}},
+    },
+}
+
+
+@registry.function
+def mathjax_config(typeset=True):
+    """The configuration, as a JavaScript object. The arena typesets each statement on its own (typeset=False)."""
+    return Markup(json.dumps(MATHJAX_CONFIG if typeset else dict(MATHJAX_CONFIG, startup={'typeset': False})))

@@ -25,16 +25,18 @@ from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonRespons
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.cache import patch_cache_control
 from django.utils.formats import date_format
 from django.utils.functional import cached_property
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext as _, gettext_lazy
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_safe
 from django.views.generic import DetailView, FormView, ListView, TemplateView, View
 from jinja2.utils import htmlsafe_json_dumps
 from reversion import revisions
 
 from judge.forms import CustomAuthenticationForm, DownloadDataForm, EmailChangeForm, ProfileForm, newsletter_id
+from judge.jinja2.gravatar import AVATAR_SIZES, gravatar_picture
 from judge.models import Profile, Submission
 from judge.performance_points import get_pp_breakdown
 from judge.ratings import rating_class, rating_progress
@@ -434,6 +436,34 @@ def generate_scratch_codes(request):
         revisions.set_user(request.user)
         revisions.set_comment(_('Generated scratch codes for user'))
     return JsonResponse({'data': {'codes': profile.generate_scratch_codes()}})
+
+
+# A grey square of the asked size, when Gravatar gives no picture or the account is not active: the page keeps its
+# layout, and nothing is asked of Gravatar for an address nobody confirmed.
+AVATAR_PLACEHOLDER = ('<svg xmlns="http://www.w3.org/2000/svg" width="%(size)d" height="%(size)d" '
+                      'viewBox="0 0 %(size)d %(size)d"><rect width="100%%" height="100%%" fill="#d6d6d6"/></svg>')
+
+
+@require_safe
+def user_avatar(request, profile, size):
+    """The picture of an account (judge.jinja2.gravatar). Public, as the pictures always were: it shows nothing the
+    pages of the account do not show already."""
+    if size not in AVATAR_SIZES:
+        raise Http404()
+    row = Profile.objects.filter(id=profile).values_list('user__email', 'user__is_active', 'mute').first()
+    if row is None:
+        raise Http404()
+    email, active, mute = row
+    picture = gravatar_picture(email or '', size, mute) if active else None
+    # The server keeps a picture for a day; the browser, for an hour, so that a new photo or email shows soon.
+    if picture is None:
+        kind, body, age = 'image/svg+xml', AVATAR_PLACEHOLDER % {'size': size}, 300
+    else:
+        (kind, body), age = picture, 3600
+    response = HttpResponse(body, content_type=kind)
+    patch_cache_control(response, public=True, max_age=age)
+    response['X-Content-Type-Options'] = 'nosniff'
+    return response
 
 
 class UserList(QueryStringSortMixin, InfinitePaginationMixin, DiggPaginatorMixin, TitleMixin, ListView):

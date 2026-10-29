@@ -141,13 +141,14 @@ class BigPhotosTests(TestCase):
 
     def test_the_player_page_and_the_projector_ask_for_big_photos(self):
         match = duel(self.organizer, self.ana, self.beto, [self.problem], call=True)
+        # The pictures come from the site (/avatar/<profile>/<size>), which asks Gravatar for them.
         me = serialize.player_state(self.ana.profile, 'es')['me']
-        self.assertIn('s=512', me['avatar'])
+        self.assertRegex(me['avatar'], r'^/avatar/\d+/512$')
         players = serialize.screen_match(match, 'es')['players']
-        self.assertIn('s=512', players['a']['avatar'])
-        self.assertIn('s=512', players['b']['avatar'])
+        self.assertRegex(players['a']['avatar'], r'^/avatar/\d+/512$')
+        self.assertRegex(players['b']['avatar'], r'^/avatar/\d+/512$')
         # The organizer panel keeps its small ones.
-        self.assertIn('s=128', serialize.organizer_player(match, 'a', timezone.now())['avatar'])
+        self.assertRegex(serialize.organizer_player(match, 'a', timezone.now())['avatar'], r'^/avatar/\d+/128$')
 
     def test_the_projector_page_renders_with_the_new_pieces(self):
         match = duel(self.organizer, self.ana, self.beto, [self.problem], best_of=3,
