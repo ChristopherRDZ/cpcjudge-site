@@ -12514,3 +12514,34 @@ msgstr "problemas sorteados del banco"
 #: cpc 2026-10-28
 msgid "the bank had no unused problems left"
 msgstr "al banco ya no le quedaban problemas sin usar"
+
+#: cpc 2026-10-28
+msgid "The name of each person can only go in the content, not in the preview text."
+msgstr "El nombre de cada persona sólo puede ir en el contenido, no en el texto de vista previa."
+
+#: cpc 2026-10-28
+msgid "It has made no progress for more than 15 minutes, so the delivery was interrupted. Retry continues where it stopped; if the interrupted attempt comes back, it stops by itself, so nothing is sent twice."
+msgstr "Lleva más de 15 minutos sin avanzar, así que la entrega se interrumpió. Reintentar sigue donde se quedó; si el intento interrumpido vuelve, se detiene solo, así que nada se envía dos veces."
+
+#: cpc 2026-10-28
+#, python-format
+msgid "Resend did not create the list of this email (%(error)s). Its free plan holds three lists, called segments, and each email keeps its own until Resend has sent it."
+msgstr "Resend no creó la lista de este correo (%(error)s). Su plan gratis admite tres listas, llamadas segmentos, y cada correo conserva la suya hasta que Resend lo envía."
+
+#: cpc 2026-10-28
+#, python-format
+msgid "Wait until the scheduled emails go out (or cancel one that is no longer needed), retry the failed ones, and then retry this one. Emails holding a list now: %(emails)s."
+msgstr "Espera a que salgan los correos programados (o cancela el que ya no haga falta), reintenta los que fallaron y después reintenta este. Correos que tienen una lista ahora: %(emails)s."
+
+#: cpc 2026-10-28
+msgid "None of those lists belongs to an email of this site."
+msgstr "Ninguna de esas listas es de un correo de este sitio."
+
+#: cpc 2026-10-28
+#, python-format
+msgid "Resend no longer has this email (%(id)s): it was deleted there, or the key now belongs to another account. It is not sent again, because it may have gone out already: check it in Resend, and duplicate it as a new draft to send it."
+msgstr "Resend ya no tiene este correo (%(id)s): se borró allí, o la clave ahora es de otra cuenta. No se vuelve a enviar, porque pudo haber salido ya: revísalo en Resend y, para enviarlo, duplícalo como borrador nuevo."
+
+#: cpc 2026-10-28
+msgid "deleted"
+msgstr "borrado"

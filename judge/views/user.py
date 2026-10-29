@@ -40,7 +40,7 @@ from judge.jinja2.gravatar import AVATAR_SIZES, gravatar_picture
 from judge.models import Profile, Submission
 from judge.performance_points import get_pp_breakdown
 from judge.ratings import rating_class, rating_progress
-from judge.tasks import prepare_user_data
+from judge.tasks import move_resend_contact, prepare_user_data
 from judge.utils.celery import task_status_by_id, task_status_url_by_id
 from judge.utils.infinite_paginator import InfinitePaginationMixin
 from judge.utils.mail import (SEND_ERRORS, claim_email_attempt, email_budget_available, release_email_attempt,
@@ -48,6 +48,7 @@ from judge.utils.mail import (SEND_ERRORS, claim_email_attempt, email_budget_ava
 from judge.utils.problems import contest_completed_ids, user_completed_ids
 from judge.utils.pwned import PwnedPasswordsValidator
 from judge.utils.ranker import ranker
+from judge.utils.resend import is_configured as resend_configured
 from judge.utils.subscription import Subscription
 from judge.utils.unicode import utf8text
 from judge.utils.views import DiggPaginatorMixin, QueryStringSortMixin, TitleMixin, add_file_response, generic_message
@@ -713,6 +714,14 @@ class EmailChangeActivateView(LoginRequiredMixin, View):
             request.user.save()
             revisions.set_user(request.user)
             revisions.set_comment(_('Changed email address from %s to %s') % (from_email, to_email))
+        # The contact of the old address in Resend follows the person, with their unsubscription if they had one
+        # (correos-masivos-6, 2026-10-28; judge/tasks/mass_email.py). The change is saved already: a queue that is
+        # down only leaves that for the server log.
+        if from_email and resend_configured():
+            try:
+                move_resend_contact.delay(from_email, to_email, request.user.username, request.user.id)
+            except Exception:
+                logger.exception('Could not queue moving the Resend contact after an email change')
         return to_email
 
     def get(self, request, *args, **kwargs):

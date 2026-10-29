@@ -26,7 +26,7 @@ from django.views.decorators.http import require_POST
 
 from judge.mass_email import FILTER_FIELDS, MANY_FIELDS, NAME_PLACEHOLDERS, describe, effective_audience, \
     filters_from_form, filters_of, has_filters, preview_fragment, recipient_rows, render_email, reply_to, sender
-from judge.models import MassEmail, MassEmailRecipient
+from judge.models import Contest, MassEmail, MassEmailRecipient
 from judge.utils.celery import task_status_url_by_id
 from judge.utils.resend import ResendClient, ResendError, is_configured
 from judge.widgets import AdminHeavySelect2MultipleWidget, AdminMartorWidget, AdminSelect2MultipleWidget
@@ -68,6 +68,17 @@ class RecipientForm(forms.ModelForm):
     class Meta:
         model = MassEmail
         fields = FILTER_FIELDS
+
+    def __init__(self, *args, request=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if request is not None and 'contests' in self.fields:
+            # Only the contests this person can see, the same ones the box offers (correos-masivos-5, 2026-10-28):
+            # the count and the list took any id, and gave away the names and the participants of hidden contests.
+            # The contests a saved draft already has stay, so whoever edits it does not lose them.
+            allowed = Q(pk__in=Contest.get_visible_contests(request.user).values('pk'))
+            if self.instance.pk:
+                allowed |= Q(pk__in=self.instance.contests.values('pk'))
+            self.fields['contests'].queryset = Contest.objects.filter(allowed)
 
     def clean(self):
         cleaned = super().clean()
@@ -112,6 +123,15 @@ class MassEmailForm(RecipientForm):
             raise forms.ValidationError(gettext('The name of each person can only go in the content, not in the '
                                                 'subject.'))
         return subject
+
+    def clean_preheader(self):
+        # Nor in the preview text (correos-masivos-4, 2026-10-28): Resend got it with the bare placeholder, while the
+        # test showed the name.
+        preheader = self.cleaned_data['preheader']
+        if any(placeholder in preheader for placeholder in NAME_PLACEHOLDERS):
+            raise forms.ValidationError(gettext('The name of each person can only go in the content, not in the '
+                                                'preview text.'))
+        return preheader
 
 
 class MassEmailAdmin(admin.ModelAdmin):
@@ -178,6 +198,16 @@ class MassEmailAdmin(admin.ModelAdmin):
     def mail_or_404(self, request, pk):
         return get_object_or_404(self.get_queryset(request), pk=pk)
 
+    def get_form(self, request, obj=None, change=False, **kwargs):
+        form = super().get_form(request, obj, change, **kwargs)
+
+        class WithRequest(form):
+            def __init__(self, *args, **values):
+                values.setdefault('request', request)
+                super().__init__(*args, **values)
+
+        return WithRequest
+
     def formfield_for_manytomany(self, db_field, request, **kwargs):
         # The boxes are select2: the admin's «hold down Control» note does not apply to them.
         field = super().formfield_for_manytomany(db_field, request, **kwargs)
@@ -199,7 +229,8 @@ class MassEmailAdmin(admin.ModelAdmin):
 
     @admin.display(description=_('date'))
     def when(self, obj):
-        moment = obj.scheduled_at if obj.status == MassEmail.SCHEDULED else obj.sent_at
+        # A scheduled email goes out at its time, also once it is marked as sent.
+        moment = obj.scheduled_at or obj.sent_at
         return timezone.localtime(moment).strftime('%Y-%m-%d %H:%M') if moment else '-'
 
     # --- form --------------------------------------------------------------------------------------------------
@@ -241,7 +272,8 @@ class MassEmailAdmin(admin.ModelAdmin):
             line += ' ' + ngettext('%(count)d person had unsubscribed and was left out.',
                                    '%(count)d people had unsubscribed and were left out.', skipped) % {'count': skipped}
         resend_labels = {'draft': gettext('draft'), 'scheduled': gettext('scheduled'), 'queued': gettext('queued'),
-                         'sending': gettext('sending'), 'sent': gettext('sent'), 'canceled': gettext('cancelled')}
+                         'sending': gettext('sending'), 'sent': gettext('sent'), 'canceled': gettext('cancelled'),
+                         'deleted': gettext('deleted')}
         stats = json.loads(mail.stats) if mail.stats else {}
         stat_labels = {'delivered': gettext('Delivered to the inbox'), 'bounced': gettext('Bounced'),
                        'complained': gettext('Marked as spam'), 'unsubscribed': gettext('Unsubscribed with this email'),
@@ -357,7 +389,7 @@ class MassEmailAdmin(admin.ModelAdmin):
         return response
 
     def count_view(self, request):
-        form = RecipientForm(request.POST)
+        form = RecipientForm(request.POST, request=request)
         if not form.is_valid():
             return JsonResponse({'errors': [error for errors in form.errors.values() for error in errors]})
         filters = filters_from_form(form.cleaned_data)
@@ -368,7 +400,7 @@ class MassEmailAdmin(admin.ModelAdmin):
                              'summary': describe(filters), 'sample': [row[1] for row in rows[:12]]})
 
     def recipients_view(self, request):
-        form = RecipientForm(request.POST)
+        form = RecipientForm(request.POST, request=request)
         rows = recipient_rows(filters_from_form(form.cleaned_data)) if form.is_valid() else []
         return TemplateResponse(request, 'admin/judge/massemail/recipients.html', self.context(
             request, gettext('Who will receive it'), rows=rows, errors=form.errors if form.errors else None,
@@ -453,6 +485,11 @@ class MassEmailAdmin(admin.ModelAdmin):
                                    state=MassEmailRecipient.UNSUBSCRIBED if email.lower() in gone
                                    else MassEmailRecipient.PENDING)
                 for profile_id, username, email in rows])
+            # The list was read before this transaction. While cpc-cancelar-cuenta cancels an account, its profile
+            # stays locked until the cancellation is committed, so the row of that person is written after it and is
+            # seen cancelled here; written before, the tool finds it (2026-10-28, round 4).
+            from judge.tasks.mass_email import scrub_cancelled
+            scrub_cancelled(MassEmailRecipient.objects.filter(mass_email=mail))
         count = len(rows) - len(gone)
         self.log_change(request, mail, ngettext('Sent to %(count)d person.', 'Sent to %(count)d people.', count) %
                         {'count': count} if not scheduled_at else
@@ -525,15 +562,33 @@ class MassEmailAdmin(admin.ModelAdmin):
             raise Http404()
         try:
             client = ResendClient()
-            status = client.broadcast(mail.resend_broadcast_id).get('status') or ''
+            try:
+                status = client.broadcast(mail.resend_broadcast_id).get('status') or ''
+            except ResendError as error:
+                if error.status != 404:
+                    raise
+                # Deleted in Resend: read as the task reads it when it frees segments (judge/tasks/mass_email.py).
+                status = 'deleted'
             stats = {}
-            if (mail.recipient_count or 0) <= STATS_LIMIT and status not in ('draft', 'scheduled', 'canceled'):
+            if (mail.recipient_count or 0) <= STATS_LIMIT and \
+                    status not in ('draft', 'scheduled', 'canceled', 'deleted'):
                 stats = {kind: client.count_recipients(mail.resend_broadcast_id, kind) for kind in STATS_KINDS}
         except ResendError as error:
             messages.error(request, gettext('Could not read it from Resend: %(error)s') % {'error': error})
             return HttpResponseRedirect(self.change_url(mail))
-        MassEmail.objects.filter(pk=pk).update(resend_status=status[:20], stats=json.dumps(stats),
-                                               stats_updated=timezone.now())
+        values = {'resend_status': status[:20], 'stats': json.dumps(stats), 'stats_updated': timezone.now()}
+        if mail.status == MassEmail.SCHEDULED and status == 'sent':
+            # Resend sent it at its time: until 2026-10-28 it stayed «scheduled» here for good, with its button to
+            # cancel it (correos-masivos-1).
+            values.update(status=MassEmail.SENT, updated=timezone.now())
+        elif mail.status == MassEmail.SCHEDULED and status in ('canceled', 'deleted', 'draft'):
+            # Cancelled in Resend's dashboard (a cancelled broadcast reads as a draft again) or deleted there: it will
+            # never go out, and the next email frees its segment (2026-10-28, round 2).
+            values.update(status=MassEmail.CANCELLED, updated=timezone.now())
+        target = MassEmail.objects.filter(pk=pk)
+        if 'status' in values:
+            target = target.filter(status=mail.status)
+        target.update(**values)
         return HttpResponseRedirect(self.change_url(mail))
 
     def unsubscribed_view(self, request):

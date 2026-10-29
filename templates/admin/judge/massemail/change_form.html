@@ -71,7 +71,7 @@
             {% if mass_email.status == 'sending' %}
                 <p>{% translate "It is being handed to Resend. Reload this page in a moment." %}
                     {% if mass_email.task_id %}<a href="{% url 'task_status' mass_email.task_id %}">{% translate "See progress" %}</a>{% endif %}</p>
-                {% if can_retry %}<p>{% translate "It has been like this for more than 15 minutes, so the delivery was interrupted. Retry continues where it stopped, without sending anything twice." %}</p>{% endif %}
+                {% if can_retry %}<p>{% translate "It has made no progress for more than 15 minutes, so the delivery was interrupted. Retry continues where it stopped; if the interrupted attempt comes back, it stops by itself, so nothing is sent twice." %}</p>{% endif %}
             {% endif %}
             {% if audience_lines %}
                 <ul class="mass-email-audience">

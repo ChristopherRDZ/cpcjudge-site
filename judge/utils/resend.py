@@ -123,11 +123,13 @@ class ResendClient:
     def delete_segment(self, segment_id):
         self.request('DELETE', '/segments/%s' % quote(segment_id, safe=''), missing_ok=True)
 
-    def create_contact(self, email, first_name, segment_id):
+    def create_contact(self, email, first_name, segment_id=None):
         # `unsubscribed` is never sent: a new contact starts subscribed, and an existing one keeps its choice.
         # Each segment goes as an object with its id: a bare id is refused with «expected object, received string».
-        return self.request('POST', '/contacts', json={'email': email, 'first_name': first_name,
-                                                       'segments': [{'id': segment_id}]})['id']
+        data = {'email': email, 'first_name': first_name}
+        if segment_id:
+            data['segments'] = [{'id': segment_id}]
+        return self.request('POST', '/contacts', json=data)['id']
 
     def add_to_segment(self, contact_id, segment_id):
         self.request('POST', '/contacts/%s/segments/%s' % (quote(contact_id, safe=''), quote(segment_id, safe='')))
@@ -135,24 +137,31 @@ class ResendClient:
     def resubscribe(self, contact_id):
         self.request('PATCH', '/contacts/%s' % quote(contact_id, safe=''), json={'unsubscribed': False})
 
+    def unsubscribe(self, contact_id):
+        self.request('PATCH', '/contacts/%s' % quote(contact_id, safe=''), json={'unsubscribed': True})
+
+    def delete_contact(self, contact_id):
+        self.request('DELETE', '/contacts/%s' % quote(contact_id, safe=''), missing_ok=True)
+
     # --- broadcasts --------------------------------------------------------------------------------------------
 
     def create_broadcast(self, payload, idempotency_key=None):
         headers = {'Idempotency-Key': idempotency_key} if idempotency_key else None
         return self.request('POST', '/broadcasts', json=payload, headers=headers, repeatable=False)['id']
 
-    def find_broadcast(self, name):
-        for broadcast in self._paginate('/broadcasts'):
-            if broadcast.get('name') == name:
-                return broadcast['id']
-        return None
+    def broadcasts_named(self, name):
+        """Every broadcast with that name, as Resend lists them: two emails can share a name."""
+        return [broadcast for broadcast in self._paginate('/broadcasts') if broadcast.get('name') == name]
 
     def broadcast(self, broadcast_id):
         return self.request('GET', '/broadcasts/%s' % quote(broadcast_id, safe=''))
 
-    def send_broadcast(self, broadcast_id, scheduled_at=None):
+    def send_broadcast(self, broadcast_id, scheduled_at=None, idempotency_key=None):
+        # Never repeated on its own, as creating one; the same key on every attempt for the same email.
         payload = {'scheduled_at': scheduled_at} if scheduled_at else {}
-        self.request('POST', '/broadcasts/%s/send' % quote(broadcast_id, safe=''), json=payload, repeatable=False)
+        headers = {'Idempotency-Key': idempotency_key} if idempotency_key else None
+        self.request('POST', '/broadcasts/%s/send' % quote(broadcast_id, safe=''), json=payload, headers=headers,
+                     repeatable=False)
 
     def cancel_broadcast(self, broadcast_id):
         self.request('POST', '/broadcasts/%s/cancel' % quote(broadcast_id, safe=''))
